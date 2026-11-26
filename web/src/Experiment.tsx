@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import { METHODS, type SettingValue } from "../../engine/methods/index.ts";
 import type { Project } from "../../engine/project.ts";
 import { difference } from "../../export/report.ts";
-import { ConstraintTable } from "./Candidate.tsx";
-import { count, type Experiment, KIND_WORDS, SETTING_WORDS, show, unsuited, withUnit } from "./draft.ts";
+import { ConstraintTable, OffNote } from "./Candidate.tsx";
+import { checksOf, count, type Experiment, KIND_WORDS, SETTING_WORDS, show, unsuited, withUnit } from "./draft.ts";
 import { Drawing, HistoryChart } from "./Drawing.tsx";
 import type { Issue } from "./protocol.ts";
 import type { StoredResult } from "./storage.ts";
@@ -146,6 +146,7 @@ export function Result({ stored, name, changed, onRerun, children }: ResultProps
   const { result, project } = stored;
   const { sense, unit } = project.objective;
   const { best, baseline, reference } = result;
+  const checks = checksOf(best);
   return (
     <section aria-labelledby="result-heading" className="result">
       <h3 id="result-heading">Result of "{name}"</h3>
@@ -158,6 +159,7 @@ export function Result({ stored, name, changed, onRerun, children }: ResultProps
       {!best.feasible && (
         <Alert kind="warning">The solution below is the candidate that breaks the constraints least. It is not feasible.</Alert>
       )}
+      <OffNote checks={checks} what="run" />
       <dl className="facts">
         <dt>Objective ({sense === "min" ? "minimized" : "maximized"})</dt>
         <dd className="value">{withUnit(best.objective, unit)}</dd>
@@ -184,10 +186,10 @@ export function Result({ stored, name, changed, onRerun, children }: ResultProps
         <dd>{time(result.timeMs)}</dd>
       </dl>
 
-      {best.constraints.length > 0 && (
+      {checks.length > 0 && (
         <>
           <h4>Constraints</h4>
-          <ConstraintTable constraints={best.constraints} />
+          <ConstraintTable checks={checks} />
         </>
       )}
 

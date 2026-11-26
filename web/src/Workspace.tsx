@@ -411,10 +411,13 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     : "";
   const failed = run.state === "error" && !said && !notice;
   const say = (text: string) => (setNotice(undefined), setSaid(text));
-  const counts: Record<string, number | undefined> = {
-    data: (project.data ?? []).length, variables: project.variables.length, constraints: (project.constraints ?? []).length,
+  // a constraint that is off is still counted, and the count says how many are off
+  const off = (project.constraints ?? []).filter((c) => c?.enabled === false).length;
+  const counts: Record<string, number | string | undefined> = {
+    data: (project.data ?? []).length, variables: project.variables.length,
+    constraints: off ? `${(project.constraints ?? []).length}, ${off} off` : (project.constraints ?? []).length,
   };
-  const entry = (key: string, label: string, extra?: number) => (
+  const entry = (key: string, label: string, extra?: number | string) => (
     <li key={key}>
       <button type="button" className="nav-item" aria-current={selected === key ? "true" : undefined} onClick={() => select(key)}>
         <span className="label">{label}</span>

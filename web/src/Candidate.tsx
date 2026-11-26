@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { PlainSolution, Project } from "../../engine/project.ts";
 import type { Inspection } from "../../engine/run.ts";
 import type { VariableSpec } from "../../engine/variables.ts";
+import { breach, type ConstraintSeen, ruleWords } from "../../export/report.ts";
 import { show, withUnit } from "./draft.ts";
 import { Drawing } from "./Drawing.tsx";
 import type { HelpReply, HelpRequest, Issue } from "./protocol.ts";
@@ -103,7 +104,7 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
     setBusy(false);
     if (reply.type === "tested") {
       setOutcome({ solution, inspection: reply.inspection, curve: reply.curve });
-      say(`Candidate tested. Objective ${withUnit(reply.inspection.objective, unit)}. ${reply.inspection.feasible ? "Every constraint holds." : "A constraint is broken."}`);
+      say(`Candidate tested. Objective ${withUnit(reply.inspection.objective, unit)}. ${reply.inspection.feasible ? verdict(reply.inspection.checks) : "A constraint is broken."}`);
       return solution;
     }
     const failure = reply.type === "error" ? reply.message.replace(/^Project file: /, "") : "The test gave no answer.";
@@ -185,13 +186,10 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
             <dt>Objective ({project.objective.sense === "min" ? "to minimize" : "to maximize"})</dt>
             <dd className="value">{withUnit(outcome.inspection.objective, unit)}</dd>
             <dt>Constraints</dt>
-            <dd>
-              {outcome.inspection.constraints.length === 0 ? "None."
-                : outcome.inspection.feasible ? "Every constraint holds."
-                : `${outcome.inspection.constraints.filter((c) => !c.satisfied).length} of ${outcome.inspection.constraints.length} broken.`}
-            </dd>
+            <dd>{verdict(outcome.inspection.checks)}</dd>
           </dl>
-          <ConstraintTable constraints={outcome.inspection.constraints} />
+          <OffNote checks={outcome.inspection.checks} what="test" />
+          <ConstraintTable checks={outcome.inspection.checks} />
           <Drawing project={project} solution={outcome.solution} curve={outcome.curve} />
         </div>
       )}
@@ -262,11 +260,36 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
   );
 }
 
-/** Each constraint with both sides in its own unit, and whether it holds. */
-export function ConstraintTable({ constraints }: { constraints: Inspection["constraints"] }) {
-  if (constraints.length === 0) return null;
-  const words = { "<=": "at most", ">=": "at least", "==": "equal to" };
+/** One constraint as a result or a test lists it. */
+export type Check = ConstraintSeen & { name: string };
+
+/** The constraints of a candidate in one sentence. Only a constraint that is on can hold or be broken. */
+function verdict(checks: Check[]): string {
+  const applied = checks.filter((c) => c.applied !== false), broken = applied.filter((c) => !c.satisfied).length;
+  return checks.length === 0 ? "None."
+    : applied.length === 0 ? "None is checked: every constraint is off."
+    : broken > 0 ? `${broken} of ${applied.length} broken.`
+    : applied.length < checks.length ? "Every constraint that is on holds." : "Every constraint holds.";
+}
+
+/** Says which constraints were off, in the words of the report. */
+export function OffNote({ checks, what }: { checks: Check[]; what: "run" | "test" }) {
+  const off = checks.filter((c) => c.applied === false);
+  if (off.length === 0) return null;
   return (
+    <Alert kind="warning">
+      <strong>Not checked:</strong> {off.length === 1 ? "one constraint was" : `${off.length} constraints were`} turned off in this {what} ({off.map((c) => `"${c.name}"`).join(", ")}).
+      {" "}The {what === "run" ? "result" : "test"} does not say whether {off.length === 1 ? "it holds" : "they hold"}.
+    </Alert>
+  );
+}
+
+/** Each constraint with both sides in its own unit, whether it holds, and how far it is broken. The words are those of the report. */
+export function ConstraintTable({ checks }: { checks: Check[] }) {
+  if (checks.length === 0) return null;
+  const words: Record<string, string> = { "<=": "at most", ">=": "at least", "==": "equal to" };
+  return (
+    <>
     <div className="table-box" tabIndex={0} role="group" aria-label="Constraints, each with its value and its limit">
     <table className="table constraints">
       <thead>
@@ -275,19 +298,30 @@ export function ConstraintTable({ constraints }: { constraints: Inspection["cons
           <th scope="col">Value</th>
           <th scope="col">Limit</th>
           <th scope="col">Holds</th>
+          <th scope="col">Breach</th>
         </tr>
       </thead>
       <tbody>
-        {constraints.map((c, i) => (
+        {checks.map((c, i) => (
           <tr key={i}>
             <th scope="row">{c.name}</th>
             <td>{withUnit(c.left, c.unit)}</td>
-            <td>{words[c.op]} {withUnit(c.right, c.unit)}{c.op === "==" && c.tolerance > 0 ? `, within ${withUnit(c.tolerance, c.unit)}` : ""}</td>
-            <td className={c.satisfied ? "holds" : "broken"}><Icon name={c.satisfied ? "check" : "x"} />{c.satisfied ? "Yes" : "No, broken"}</td>
+            <td>{words[c.op] ?? c.op} {withUnit(c.right, c.unit)}{c.op === "==" ? `. ${ruleWords(c)}` : ""}</td>
+            {c.applied === false ? (
+              // both sides are shown, and nothing that reads as a verdict
+              <><td>Off, not checked</td><td></td></>
+            ) : (
+              <>
+                <td className={c.satisfied ? "holds" : "broken"}><Icon name={c.satisfied ? "check" : "x"} />{c.satisfied ? "Yes" : "No, broken"}</td>
+                <td>{breach(c)}</td>
+              </>
+            )}
           </tr>
         ))}
       </tbody>
     </table>
     </div>
+    <p className="hint">A breach is the difference between the two sides in the constraint's own unit, and as a percentage of the limit unless the limit is 0.</p>
+    </>
   );
 }

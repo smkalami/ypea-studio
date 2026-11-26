@@ -10,9 +10,33 @@ import { parseProject, type Project } from "../../engine/project.ts";
 import { runProject } from "../../engine/run.ts";
 import { checkProject } from "./protocol.ts";
 import {
-  blankProject, DEFAULT_SETUP, definitionOf, experimentsOf, FIRST, KIND_OF, newExperimentId, percentChange, projectFor,
-  tidy, unsuited, withExperiment, withoutExperiment,
+  blankProject, checksOf, DEFAULT_SETUP, definitionOf, experimentsOf, FIRST, KIND_OF, newExperimentId, percentChange, plainlyZero, projectFor,
+  tidy, toleranceChoice, unsuited, withExperiment, withoutExperiment,
 } from "./draft.ts";
+
+test("the tolerance list reads the two numbers of the project file", () => {
+  assert.equal(toleranceChoice({}), "exact");
+  assert.equal(toleranceChoice({ tolerance: 0, relative_tolerance: 0 }), "exact");
+  assert.equal(toleranceChoice({ relative_tolerance: 0.001 }), "0.001");
+  assert.equal(toleranceChoice({ tolerance: 0, relative_tolerance: 0.01 }), "0.01");
+  assert.equal(toleranceChoice({ tolerance: 0.5 }), "fixed");
+  // numbers that fit no entry of the list were typed by hand
+  assert.equal(toleranceChoice({ relative_tolerance: 0.02 }), "both");
+  assert.equal(toleranceChoice({ tolerance: 0.5, relative_tolerance: 0.01 }), "both");
+  // text that is not a number yet is shown in its field, and is not taken for nothing
+  assert.equal(toleranceChoice({ tolerance: "1." }), "fixed");
+
+  for (const text of ["0", " 0.0 ", "-0", "0e3", ".0"]) assert.equal(plainlyZero(text), true, text);
+  for (const text of ["", "  ", "0.5", "limit", "0 + 1", "sum(take) * 0"]) assert.equal(plainlyZero(text), false, text);
+});
+
+test("a result lists every constraint, on or off, and an older one lists those it has", () => {
+  const sack = parseProject({ ...structuredClone(knapsack), constraints: [...knapsack.constraints, { name: "Few items", left: "sum(take)", op: "<=", right: "3", enabled: false }] });
+  const best = runProject({ ...sack, run: { ...sack.run, budget: 200 } }).best;
+  assert.deepEqual(checksOf(best).map((c) => [c.name, c.applied]), [["Total weight", true], ["Few items", false]]);
+  const { checks, ...older } = best;
+  assert.deepEqual(checksOf(older).map((c) => c.name), ["Total weight"]);
+});
 
 test("a blank project asks for a variable, and runs once it has one and an objective", () => {
   const blank = blankProject();

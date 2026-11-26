@@ -128,6 +128,7 @@ function Catalog() {
           <label className="check"><Checkbox checked disabled readOnly />Disabled</label>
         </div>
         <CheckField label="elitism" hint="A setting with its help below." checked={checked} onChange={setChecked} />
+        <CheckField label="Check this constraint" hint="A check box that turns a part of the project on and off. The item it belongs to says in words when it is off." checked={checked} onChange={setChecked} />
       </Part>
 
       <Part heading="Disclosure">
@@ -200,10 +201,11 @@ function Catalog() {
         <div className="table-box" tabIndex={0} role="group" aria-label="An example table">
           <table className="table">
             <caption>Numbers are aligned at the end and use figures of one width.</caption>
-            <thead><tr><th scope="col">Constraint</th><th scope="col" className="num">Value (kg)</th><th scope="col">Limit</th><th scope="col">Holds</th></tr></thead>
+            <thead><tr><th scope="col">Constraint</th><th scope="col" className="num">Value (kg)</th><th scope="col">Limit</th><th scope="col">Holds</th><th scope="col">Breach</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Total weight</th><td className="num">48.2</td><td>at most 50 kg</td><td className="holds"><Icon name="check" />Yes</td></tr>
-              <tr><th scope="row">Total volume</th><td className="num">1,204.75</td><td>at most 1,000 l</td><td className="broken"><Icon name="x" />No, broken</td></tr>
+              <tr><th scope="row">Total weight</th><td className="num">48.2</td><td>at most 50 kg</td><td className="holds"><Icon name="check" />Yes</td><td>None</td></tr>
+              <tr><th scope="row">Total volume</th><td className="num">1,204.75</td><td>at most 1,000 l</td><td className="broken"><Icon name="x" />No, broken</td><td>Over by 204.75 l (20.5% of the limit)</td></tr>
+              <tr><th scope="row">Seven items</th><td className="num">9</td><td>equal to 7. Exact</td><td>Off, not checked</td><td></td></tr>
             </tbody>
           </table>
         </div>

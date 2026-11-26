@@ -108,6 +108,10 @@ test("inside a function, its own parameters and names hide a data name", () => {
   const renamed = renameUses(sack, "weight", "mass", "data");
   assert.equal(renamed.functions, functions.replace("sum(weight[g])", "sum(mass[g])"));
   assert.equal(renamed.constraints![0].left, "sum(mass * take)");
+  // a constraint that is off still uses its names: its text is still read when the project is checked and run
+  const off = { ...sack, constraints: [{ ...sack.constraints![0], enabled: false }] } as Project;
+  assert.deepEqual(usesOf(off, "weight", "data").map((use) => use.place), ['The constraint "Total weight"', "The function real", "The drawing"]);
+  assert.deepEqual([renameUses(off, "weight", "mass", "data").constraints![0].left, renameUses(off, "weight", "mass", "data").constraints![0].enabled], ["sum(mass * take)", false]);
   assert.deepEqual((renamed.view as { size?: string }).size, "mass");
   assert.deepEqual(defNames(functions), ["shadowed", "local", "looped", "real"]);
   assert.deepEqual(defNames(undefined), []);

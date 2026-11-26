@@ -58,6 +58,9 @@ test("a result that an older build stored counts as no result yet", async () => 
   assert.equal(without((r) => delete r.result.best), undefined);
   assert.equal(without((r) => (r.result.best.solution = [1])), undefined);
   assert.equal(without((r) => delete r.result.best.constraints), undefined);
+  // the list of every constraint, on or off, came later: a result without it is still shown, from the older list
+  assert.ok(Array.isArray(good.result.best.checks));
+  assert.notEqual(without((r) => delete r.result.best.checks), undefined);
   assert.equal(without((r) => delete r.result.history), undefined);
   assert.equal(without((r) => delete r.result.evaluations), undefined);
   assert.equal(without((r) => delete r.result.seed), undefined);

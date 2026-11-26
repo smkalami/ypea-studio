@@ -157,6 +157,23 @@ export function percentChange(value: number, comparison: number): number | undef
   return ((value - comparison) / Math.abs(comparison)) * 100;
 }
 
+// Constraints.
+
+const none = (value: unknown) => value === undefined || value === 0;
+/**
+ * The entry of the tolerance list that the two numbers of an "equal to" constraint stand for:
+ * "exact", "0.001" and "0.01" (a share of the right side), "fixed" (an amount alone), or "both"
+ * for numbers that fit no other entry, which were typed by hand.
+ */
+export const toleranceChoice = (c: { tolerance?: unknown; relative_tolerance?: unknown }) =>
+  !none(c.tolerance) ? (none(c.relative_tolerance) ? "fixed" : "both")
+  : none(c.relative_tolerance) ? "exact"
+  : c.relative_tolerance === 0.001 || c.relative_tolerance === 0.01 ? String(c.relative_tolerance) : "both";
+/** True for text that is plainly the number zero, such as "0" or "0.0". Nothing of the project is computed for this. */
+export const plainlyZero = (text: string) => text.trim() !== "" && Number(text) === 0;
+/** Every constraint of a result, on or off. A result stored before that list existed has only the ones that were applied. */
+export const checksOf = <T,>(best: { checks?: unknown; constraints: T[] }): T[] => (Array.isArray(best.checks) ? best.checks : best.constraints);
+
 /** A number with at most six significant digits, or a list of them in brackets. */
 export function show(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(show).join(", ")}]`;

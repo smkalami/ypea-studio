@@ -16,6 +16,7 @@ import { parseProject } from "../../engine/project.ts";
 import { deriveSeed } from "../../engine/rng.ts";
 import { runProject, testCandidate, YPEA_TESTED } from "../../engine/run.ts";
 import { parseResultFile } from "../../export/data.ts";
+import { breach, ruleWords } from "../../export/report.ts";
 import { suggest } from "../src/suggest.ts";
 
 const dist = new URL("../dist/", import.meta.url);
@@ -1377,6 +1378,139 @@ async function check(browser, prefix) {
   await shot("16-not-feasible-result");
   say(`a result that is not feasible: "${overloaded.match(/Difference from what is in use today\s+(.*)/)[1]}" with no verdict, and a dashed history that says its values are not results`);
 
+  // Constraints: a breach in the same words on screen and in the report, the list of tolerances, and a constraint that is off.
+  const overloadedProject = { ...vrp, name: "Overloaded routes", constraints: [{ ...vrp.constraints[0], right: "20" }] };
+  const heavy = runProject(parseProject(structuredClone(overloadedProject))).best.checks[0];
+  assert.match(breach(heavy), /^Over by [\d.]+ kg \([\d.]+% of the limit\)$/);
+  /** The cells of the row of one constraint, in a result or in a test. */
+  const cells = async (name, within = result) =>
+    (await within.locator("table.constraints tbody tr").filter({ has: page.getByRole("rowheader", { name, exact: true }) }).locator("th, td").allInnerTexts()).map((cell) => cell.trim());
+  assert.deepEqual(await cells("Heaviest load"), ["Heaviest load", `${shown(heavy.left)} kg`, "at most 20 kg", "No, broken", breach(heavy)]);
+  let reported = await text(await save("Download the report"));
+  assert.ok(reported.includes(`<td class="broken">No, broken</td><td>${breach(heavy)}</td>`), "the report says the breach in the words of the screen");
+
+  // an "equal to" constraint is exact at first, and the list writes the two plain fields of the project file
+  /** The second constraint as the downloaded project file holds it. The file must be one the engine accepts. */
+  const second = async () => {
+    const file = await read((await Promise.all([page.waitForEvent("download"), button("Download project").click()]))[0]);
+    parseProject(structuredClone(file));
+    return file.constraints[1];
+  };
+  const described = (box) => box.evaluate((element) => element.getAttribute("aria-describedby").split(" ").map((id) => document.getElementById(id).textContent).join(" "));
+  const near = { name: "Near one", left: "1", op: "==", right: "1.0005" };
+  await side("Constraints").click();
+  await button("Add a constraint").click();
+  await field("Name", card(1)).fill(near.name);
+  await field("Left side", card(1)).fill(near.left);
+  await field("Right side", card(1)).fill(near.right);
+  assert.equal(await field("Tolerance").count(), 0, "only an equal to constraint has a tolerance");
+  await choose(field("Comparison", card(1)), "==");
+  const tolerance = field("Tolerance");
+  assert.equal(await chosen(tolerance), "exact");
+  assert.deepEqual(await choices(tolerance), ["Exact", "Within 0.1% of the right side", "Within 1% of the right side", "Within a fixed amount", "Both, typed by hand"]);
+  assert.deepEqual(await second(), near);
+  await choose(tolerance, "0.001");
+  assert.deepEqual(await second(), { ...near, relative_tolerance: 0.001 });
+  // a percentage of a right side of 0 allows nothing: said in general, and as a note when the right side is plainly 0
+  assert.equal(await described(tolerance), "A percentage of the right side adds nothing when the right side is 0.");
+  await field("Right side", card(1)).fill("0");
+  assert.equal(await described(tolerance), "Note: the right side is 0, so a percentage of it allows no difference at all. Use a fixed amount instead.");
+  await field("Right side", card(1)).fill(near.right);
+  assert.equal(await described(tolerance), "A percentage of the right side adds nothing when the right side is 0.");
+  // a fixed amount: the choice stays while its field is empty, so a number can be typed, deleted and typed again
+  await choose(tolerance, "fixed");
+  assert.deepEqual([await chosen(tolerance), await field("Fixed amount").inputValue()], ["fixed", ""]);
+  assert.deepEqual(await second(), near);
+  await field("Fixed amount").fill("0.5");
+  await field("Fixed amount").fill("");
+  assert.equal(await chosen(tolerance), "fixed");
+  await field("Fixed amount").fill("0.25");
+  assert.deepEqual(await second(), { ...near, tolerance: 0.25 });
+  // a choice from the list is a step that Undo takes back
+  await choose(tolerance, "0.01");
+  assert.deepEqual(await second(), { ...near, relative_tolerance: 0.01 });
+  await heading("Constraints").click();
+  await page.keyboard.press("Control+z");
+  await status.filter({ hasText: "The last change was undone." }).waitFor();
+  assert.deepEqual([await chosen(tolerance), await field("Fixed amount").inputValue()], ["fixed", "0.25"]);
+  // both numbers typed by hand, with the exact rule and both values in words
+  await choose(tolerance, "both");
+  await field("Fraction").fill("0.02");
+  assert.deepEqual(await second(), { ...near, tolerance: 0.25, relative_tolerance: 0.02 });
+  const rule = ruleWords({ op: "==", tolerance: 0.25, relativeTolerance: 0.02 });
+  assert.equal(rule, "The two sides may differ by 0.25 plus 2% of the size of the right side (tolerance 0.25, relative tolerance 0.02)");
+  assert.equal(await card(1).locator("p.hint").filter({ hasText: "The rule:" }).innerText(), `${rule}. The rule: abs(left - right) <= tolerance + relative_tolerance * abs(right).`);
+  // numbers that fit no entry of the list read as typed by hand when the part is shown again
+  await side("Objective").click();
+  await side("Constraints").click();
+  assert.equal(await chosen(field("Tolerance")), "both");
+  // the test of a candidate says the rule in the same words
+  await side("Test a candidate").click();
+  await button("Fill from the baseline").click();
+  await tested.waitFor();
+  assert.deepEqual(await cells(near.name, tested), [near.name, "1", `equal to 1.0005. ${rule}`, "Yes", "None"]);
+  // another comparison has no tolerance: both fields leave the file, which the engine would otherwise refuse
+  await side("Constraints").click();
+  await choose(field("Comparison", card(1)), "<=");
+  assert.equal(await field("Tolerance").count(), 0);
+  await field("Right side", card(1)).fill("0.5");
+  const loose = { ...near, op: "<=", right: "0.5" };
+  assert.deepEqual(await second(), loose);
+  await page.waitForTimeout(700); // the check of the project answers
+  assert.equal(await side("Constraints").getByRole("img", { name: "has a problem" }).count(), 0);
+
+  // a constraint is turned off without removing it: said in words at the constraint and in the sidebar, and one step for Undo
+  const on = field("Check this constraint", card(1));
+  const sideWords = async () => (await side("Constraints").innerText()).replace(/\s+/g, " ").trim();
+  assert.equal(await sideWords(), "Constraints 2");
+  await on.uncheck();
+  await card(1).locator("legend").filter({ hasText: /^Constraint 1 \(off, not checked\)$/ }).waitFor({ state: "attached" });
+  assert.equal(await card(1).locator(".item-title").innerText(), "Constraint 1 (off, not checked)");
+  assert.equal(await sideWords(), "Constraints 2, 1 off");
+  assert.deepEqual(await second(), { ...loose, enabled: false });
+  // with the keyboard, from the check box itself
+  await on.focus();
+  await page.keyboard.press("Control+z");
+  await status.filter({ hasText: "The last change was undone." }).waitFor();
+  assert.deepEqual([await on.isChecked(), await sideWords(), await card(1).locator(".item-title").innerText()], [true, "Constraints 2", "Constraint 1"]);
+  assert.deepEqual(await second(), loose);
+  await page.keyboard.press("Control+y");
+  await status.filter({ hasText: "The change was made again." }).waitFor();
+  assert.deepEqual([await on.isChecked(), await sideWords()], [false, "Constraints 2, 1 off"]);
+  // the test of a candidate shows both sides of it and no verdict, and names it
+  await side("Test a candidate").click();
+  await button("Test this candidate").click();
+  await tested.filter({ hasText: "Off, not checked" }).waitFor();
+  assert.deepEqual(await cells(near.name, tested), [near.name, "1", "at most 0.5", "Off, not checked", ""]);
+  assert.match(await tested.innerText(), /Not checked: one constraint was turned off in this test \("Near one"\)\. The test does not say whether it holds\./);
+  assert.match(await tested.innerText(), /Constraints\s+(1 of 1 broken\.|Every constraint that is on holds\.)/);
+  // and so does the result of a run, in the words of the report
+  await button("Run").click();
+  await page.waitForFunction(() => document.querySelector("[role=status]").textContent.includes("Run finished"));
+  await result.filter({ hasText: "Not checked:" }).waitFor();
+  const partly = runProject(parseProject({ ...structuredClone(overloadedProject), constraints: [overloadedProject.constraints[0], { ...loose, enabled: false }] })).best.checks;
+  assert.deepEqual(partly.map((check) => check.applied), [true, false]);
+  assert.deepEqual(await cells("Heaviest load"), ["Heaviest load", `${shown(partly[0].left)} kg`, "at most 20 kg", "No, broken", breach(partly[0])]);
+  assert.deepEqual(await cells(near.name), [near.name, "1", "at most 0.5", "Off, not checked", ""]);
+  const notChecked = 'one constraint was turned off in this run ("Near one"). The result does not say whether it holds.';
+  assert.ok((await result.innerText()).includes(`Not checked: ${notChecked}`));
+  reported = await text(await save("Download the report"));
+  assert.ok(reported.replaceAll("&quot;", '"').replaceAll("&#34;", '"').includes(`<strong>Not checked:</strong> ${notChecked}`), "the report names the constraint that was off in the words of the screen");
+  assert.ok(reported.includes(`<td class="off">Off, not checked</td><td></td>`) && reported.includes(`<td>${breach(partly[0])}</td>`));
+  // a constraint that is off still uses its names: removing a variable it names asks first
+  await side("Variables").click();
+  await button("Add a variable").click();
+  await side("Constraints").click();
+  await field("Left side", card(1)).fill("x");
+  await side("Variables").click();
+  await button("Remove variable x").click();
+  await dialog.waitFor();
+  assert.match(await dialog.innerText(), /The constraint "Near one" uses x\./);
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await page.locator("fieldset.item").count(), 2);
+  say(`constraints: "${breach(partly[0])}" on screen and in the report, the list of tolerances writes "tolerance" and "relative_tolerance" and both leave the file with "==", a right side of 0 is noted, and a constraint that is off stays, is named in the test, the result and the report, and still counts as a use of its names`);
+
   // 10. Code that takes too long is stopped, by ending its worker.
   await toList();
   await fromList("Long benchmark");
@@ -1507,9 +1641,9 @@ async function check(browser, prefix) {
 
   // one worker per run, and for each of the two comparisons as many workers as the app's rule gives on this computer
   const pools = 2 * Math.max(1, Math.min(((await page.evaluate(() => navigator.hardwareConcurrency)) || 2) - 1, 8, 15));
-  assert.equal(runWorkers, 18 + pools, "one worker per run, and one pool per comparison");
+  assert.equal(runWorkers, 19 + pools, "one worker per run, and one pool per comparison");
   assert.deepEqual(problems, []);
-  say(`${runWorkers} run workers (18 runs and ${pools} for two comparisons) and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
+  say(`${runWorkers} run workers (19 runs and ${pools} for two comparisons) and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
   await context.close();
 }
 

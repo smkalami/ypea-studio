@@ -325,9 +325,62 @@ async function walk(browser, size, theme) {
   await audit("experiment-note-and-settings");
   await go("Constraints");
   await audit("constraints-one");
+  // an "equal to" constraint with its list of tolerances, the note about a right side of 0, and a constraint that is off
+  const item = (n) => page.locator("fieldset.item").nth(n);
+  await button("Add a constraint").click();
+  await field("Name", item(1)).fill("Seven items");
+  await field("Left side", item(1)).fill("sum(take)");
+  await choose(field("Comparison", item(1)), "==");
+  await field("Right side", item(1)).fill("0");
+  await choose(field("Tolerance"), "0.01");
+  await page.getByText("the right side is 0").waitFor();
+  await audit("constraint-tolerance-right-side-of-zero");
+  await field("Right side", item(1)).fill("7");
+  await choose(field("Tolerance"), "both");
+  await field("Fixed amount").fill("0.5");
+  await field("Fraction").fill("0.02");
+  await button("Add a constraint").click();
+  await field("Name", item(2)).fill("Few items");
+  await field("Left side", item(2)).fill("sum(take)");
+  await field("Right side", item(2)).fill("3");
+  await field("Check this constraint", item(2)).uncheck();
+  await audit("constraints-tolerance-by-hand-and-one-off");
+  // The row of the tolerance and the check box: the controls that share a line start at one height, the check box starts
+  // where the fields of its item start, and its label stays inside the item.
+  for (const problem of await page.evaluate(() => {
+    const problems = [], box = (element) => element.getBoundingClientRect();
+    const row = [...document.querySelectorAll(".item .row")].find((r) => r.textContent.includes("Fixed amount"));
+    const controls = [...row.querySelectorAll(":scope > .field")].map((f) => ({ label: box(f.querySelector("label")), control: box(f.querySelector(".input")) }));
+    for (const other of controls.slice(1)) {
+      if (Math.abs(other.label.top - controls[0].label.top) > 0.5) continue; // wrapped onto a line of its own in a narrow window
+      if (Math.abs(other.control.top - controls[0].control.top) > 0.5) problems.push(`the controls of the tolerance row start at ${controls[0].control.top.toFixed(1)} and ${other.control.top.toFixed(1)}`);
+    }
+    for (const item of document.querySelectorAll("fieldset.item")) {
+      const check = item.querySelector(".field.setting .check"), first = item.querySelector(".field label"), inside = box(item);
+      if (Math.abs(box(check).left - box(first).left) > 0.5) problems.push(`the check box of a constraint starts at ${box(check).left.toFixed(1)}, its fields at ${box(first).left.toFixed(1)}`);
+      if (box(check).right > inside.right + 0.5 || box(item.querySelector(".field.setting .hint")).right > inside.right + 0.5) problems.push("the check box of a constraint or its hint leaves the item");
+      if (box(check).height < 24) problems.push(`the label of the check box of a constraint is ${box(check).height.toFixed(0)}px high`);
+    }
+    return problems;
+  })) findings.push(`${label}: ${problem}`);
+  // the halo of the two new controls, reached with the keyboard
+  for (const [control, what] of [[field("Tolerance"), "the list of tolerances"], [field("Check this constraint", item(2)), "the check box that turns a constraint off"]]) {
+    await control.focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForTimeout(250);
+    const [same, shadow] = await control.evaluate((element) => [element === document.activeElement, getComputedStyle(element).boxShadow]);
+    if (!same || shadow === "none") findings.push(`${label}: no focus halo on ${what}: ${same ? shadow : "the focus is elsewhere"}`);
+    measured[`${theme}: halo of ${what}`] = shadow;
+  }
   await go("Test a candidate");
   await page.locator("fieldset.checks").getByLabel("4", { exact: true }).check();
   await audit("candidate-check-boxes");
+  // the test of a candidate: a limit that is broken with its percentage, an "equal to" with its rule, and the constraint that is off
+  for (const position of ["0", "1", "8", "17"]) await page.locator("fieldset.checks").getByLabel(position, { exact: true }).check();
+  await button("Test this candidate").click();
+  await page.locator(".tested").getByText("Off, not checked").waitFor();
+  await audit("candidate-breach-rule-and-off");
   await go("New experiment");
   await choose(field("Solver"), "ga");
   await button("Run").click();

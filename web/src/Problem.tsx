@@ -7,13 +7,14 @@ import type { Constraint, DataTable, Project, View } from "../../engine/project.
 import type { VariableSpec } from "../../engine/variables.ts";
 import type { Texts } from "./Candidate.tsx";
 import { tableFromCsv } from "./csv.ts";
-import { EXPERIMENT, FIRST, partOf, show } from "./draft.ts";
+import { ruleWords } from "../../export/report.ts";
+import { EXPERIMENT, FIRST, partOf, plainlyZero, show, toleranceChoice } from "./draft.ts";
 import { columnsOf, CONSTRAINT_PRESETS, helpersNote, OBJECTIVE_PRESETS, optionsFor, type Preset, presetConstraint, withHelpers } from "./presets.ts";
 import { defNames, isName, type NameKind, renamedTexts, renameUses, usesOf } from "./names.ts";
 import type { Issue } from "./protocol.ts";
 import { Alert, Disclosure, Select } from "./ui/controls.tsx";
 import { ConfirmDialog } from "./ui/Dialog.tsx";
-import { Field, FileButton, issuesAt, Num, parseNumber, Pick, Problems } from "./ui/fields.tsx";
+import { CheckField, Field, FileButton, issuesAt, Num, parseNumber, Pick, Problems } from "./ui/fields.tsx";
 import { Icon } from "./ui/Icon.tsx";
 
 export interface PanelProps {
@@ -569,6 +570,62 @@ export function ObjectivePanel({ project, set, issues }: PanelProps) {
 
 const COMPARISONS = [{ value: "<=", label: "at most (<=)" }, { value: ">=", label: "at least (>=)" }, { value: "==", label: "equal to (==)" }];
 
+/** How equal the two sides of an "equal to" constraint must be, as a list to pick from. The project file holds only the two numbers. */
+const TOLERANCES = [
+  { value: "exact", label: "Exact" },
+  { value: "0.001", label: "Within 0.1% of the right side" },
+  { value: "0.01", label: "Within 1% of the right side" },
+  { value: "fixed", label: "Within a fixed amount" },
+  { value: "both", label: "Both, typed by hand" },
+];
+
+/** The tolerance of an "equal to" constraint: the list, and the fields of the entries that take numbers. */
+function Tolerance({ c, change }: { c: Constraint; change: (next: Constraint) => void }) {
+  // "Fixed" and "both" are remembered here, so that an empty field does not send the list back to "exact" while a number is typed.
+  const [picked, setPicked] = useState<string>();
+  const choice = picked === "both" || (picked === "fixed" && toleranceChoice({ relative_tolerance: c.relative_tolerance }) === "exact") ? picked : toleranceChoice(c);
+  const { tolerance, relative_tolerance, ...rest } = c;
+  const pick = (next: string) => {
+    setPicked(next === "fixed" || next === "both" ? next : undefined);
+    const changed = next === "exact" ? rest : next === "fixed" ? { ...rest, tolerance } : next === "both" ? c : { ...rest, relative_tolerance: Number(next) };
+    // "fixed" and "both" may change no number, and then there is nothing to store and nothing to undo
+    if (JSON.stringify(changed) !== JSON.stringify(c)) change(changed);
+  };
+  const rule = ruleWords({ op: "==", unit: c.unit, tolerance, relativeTolerance: relative_tolerance });
+  const idle = typeof relative_tolerance === "number" && relative_tolerance > 0 && plainlyZero(c.right);
+  const hint =
+    idle && !(typeof tolerance === "number" && tolerance > 0) ? <><strong>Note:</strong> the right side is 0, so a percentage of it allows no difference at all. Use a fixed amount instead.</>
+    : idle ? <><strong>Note:</strong> the right side is 0, so the percentage of it adds nothing. Only the fixed amount counts.</>
+    : choice === "exact" ? "The two sides must be equal to the last digit."
+    : choice === "fixed" ? undefined
+    : "A percentage of the right side adds nothing when the right side is 0.";
+  return (
+    <>
+      <div className="row">
+        <Field label="Tolerance" hint={hint}>
+          {(tie) => <Select {...tie} value={choice} options={TOLERANCES} onChange={pick} />}
+        </Field>
+        {(choice === "fixed" || choice === "both") && (
+          <Field label={`Fixed amount${c.unit ? ` (${c.unit})` : ""}`} className="narrow">
+            {(tie) => <Num {...tie} value={tolerance} onChange={(value) => change({ ...c, tolerance: value as number | undefined })} />}
+          </Field>
+        )}
+        {choice === "both" && (
+          <Field label="Fraction" className="narrow" hint="Of the size of the right side. 0.01 is 1%.">
+            {(tie) => <Num {...tie} value={relative_tolerance} onChange={(value) => change({ ...c, relative_tolerance: value as number | undefined })} />}
+          </Field>
+        )}
+      </div>
+      {choice !== "exact" && (
+        <p className="hint">
+          {rule === "Exact" ? "No number is typed yet, so the two sides must still be equal exactly." : `${rule}.`}
+          {choice === "both" && <> The rule: <code>abs(left - right) &lt;= tolerance + relative_tolerance * abs(right)</code>.</>}
+        </p>
+      )}
+    </>
+  );
+}
+
 export function ConstraintsPanel({ project, set, issues }: PanelProps) {
   const constraints = project.constraints ?? [];
   const change = (index: number, constraint: Constraint) => set({ ...project, constraints: replaceAt(constraints, index, constraint) });
@@ -583,7 +640,7 @@ export function ConstraintsPanel({ project, set, issues }: PanelProps) {
         const at = (side: string) => issues.filter((issue) => issue.where === `constraint.${i}.${side}`);
         return (
           <Item
-            key={i} heading={`Constraint ${i}`} removeLabel={`Remove constraint ${c.name}`}
+            key={i} heading={`Constraint ${i}${c.enabled === false ? " (off, not checked)" : ""}`} removeLabel={`Remove constraint ${c.name}`}
             onRemove={() => (set({ ...project, constraints: removeAt(constraints, i) }, `The constraint "${c.name}" was removed.`), refocus(i))}
           >
             <Problems issues={issues.filter((issue) => issue.where === `constraint.${i}`)} />
@@ -598,20 +655,26 @@ export function ConstraintsPanel({ project, set, issues }: PanelProps) {
                   <Select
                     {...tie} value={c.op} options={COMPARISONS}
                     onChange={(op) => {
-                      // only "equal to" can have a tolerance
-                      const { tolerance, ...rest } = c;
+                      // only "equal to" can have a tolerance, and the project is refused when another comparison keeps one
+                      const { tolerance, relative_tolerance, ...rest } = c;
                       change(i, { ...rest, op: op as Constraint["op"] });
                     }}
                   />
                 )}
               </Field>
               <Text label="Right side" code value={c.right} issues={at("right")} className="grow" onChange={(right) => change(i, { ...c, right })} />
-              {c.op === "==" && (
-                <Field label="Tolerance" className="narrow" hint="How far apart the two sides may be and still count as equal.">
-                  {(tie) => <Num {...tie} value={c.tolerance} onChange={(tolerance) => change(i, { ...c, tolerance: tolerance as number | undefined })} />}
-                </Field>
-              )}
             </div>
+            {/* the list starts again when a constraint is added or removed, because the places of the others change */}
+            {c.op === "==" && <Tolerance key={constraints.length} c={c} change={(next) => change(i, next)} />}
+            <CheckField
+              label="Check this constraint" checked={c.enabled !== false}
+              hint="Clear the box to turn the constraint off without removing it. Runs and the candidate test then skip it, and results say so."
+              onChange={(on) => {
+                // a constraint that is on has no field for it in the project file
+                const { enabled, ...rest } = c;
+                change(i, on ? rest : { ...rest, enabled: false });
+              }}
+            />
           </Item>
         );
       })}

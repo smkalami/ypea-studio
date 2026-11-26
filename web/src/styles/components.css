@@ -151,7 +151,8 @@
 .table .num { text-align: end; font-variant-numeric: tabular-nums; }
 .table caption { caption-side: top; padding-block-end: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); text-align: start; }
 /* a table of many columns keeps its words whole and scrolls in its box */
-.comparison .table th, .comparison .table td { overflow-wrap: normal; }
+.comparison .table th, .comparison .table td, .table.constraints th, .table.constraints td { overflow-wrap: normal; }
+.table.constraints { min-inline-size: var(--measure); }
 .table .actions { white-space: nowrap; }
 .table .actions .btn { vertical-align: middle; }
 .table .actions .btn + .btn { margin-inline-start: var(--space-2xs); }
