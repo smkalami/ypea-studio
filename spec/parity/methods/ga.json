@@ -1,0 +1,328 @@
+{
+ "runs": [
+  {
+   "name": "ga_sphere_roulette",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 3020,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "ga_rosenbrock_roulette",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 50,
+     "selection_pressure": 2,
+     "mutation_step_size": 0.2,
+     "mutation_step_size_damp": 0.95
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 50,
+      "selection_pressure": 2,
+      "mutation_step_size": 0.2,
+      "mutation_step_size_damp": 0.95
+     },
+     "budget": 4000,
+     "seed": 12
+    }
+   }
+  },
+  {
+   "name": "ga_rosenbrock_tournament",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 40,
+     "selection": "tournament",
+     "tournament_size": 4,
+     "mutation_rate": 0.25,
+     "crossover_inflation": 0.2
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 40,
+      "selection": "tournament",
+      "tournament_size": 4,
+      "mutation_rate": 0.25,
+      "crossover_inflation": 0.2
+     },
+     "budget": 2513,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "ga_sphere_random",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 25,
+     "selection": "random"
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 25,
+      "selection": "random"
+     },
+     "budget": 2000,
+     "seed": 14
+    }
+   }
+  },
+  {
+   "name": "ga_sphere_max",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 20
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 20
+     },
+     "budget": 1503,
+     "seed": 15
+    }
+   }
+  },
+  {
+   "name": "ga_sphere_crossover_only",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "selection": "tournament",
+     "mutation_prob": 0
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "selection": "tournament",
+      "mutation_prob": 0
+     },
+     "budget": 2015,
+     "seed": 16
+    }
+   }
+  },
+  {
+   "name": "ga_sphere_mutation_only",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "crossover_prob": 0,
+     "mutation_prob": 0.5,
+     "mutation_rate": 0.3
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "crossover_prob": 0,
+      "mutation_prob": 0.5,
+      "mutation_rate": 0.3
+     },
+     "budget": 2018,
+     "seed": 17
+    }
+   }
+  },
+  {
+   "name": "ga_rosenbrock_rate_zero",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "mutation_rate": 0
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "GA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "mutation_rate": 0
+     },
+     "budget": 1515,
+     "seed": 18
+    }
+   }
+  }
+ ]
+}

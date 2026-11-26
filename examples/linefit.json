@@ -1,0 +1,93 @@
+{
+  "format": "ypea-studio-project",
+  "version": 1,
+  "name": "Calibration line fit",
+  "description": "Fit the offset and gain of a pressure sensor to calibration readings. The data are synthetic.",
+  "data": [
+    {
+      "name": "calibration",
+      "kind": "columns",
+      "columns": [
+        {
+          "name": "voltage",
+          "unit": "V",
+          "values": [
+            0.5,
+            0.86,
+            1.23,
+            1.59,
+            1.95,
+            2.32,
+            2.68,
+            3.05,
+            3.41,
+            3.77,
+            4.14,
+            4.5
+          ]
+        },
+        {
+          "name": "pressure",
+          "unit": "kPa",
+          "values": [
+            14.38,
+            22.92,
+            33.06,
+            42.04,
+            50.67,
+            59.25,
+            67.85,
+            80.15,
+            87.83,
+            94.4,
+            104.85,
+            113.34
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "name": "offset",
+      "type": "real",
+      "shape": [],
+      "lb": -10,
+      "ub": 10,
+      "unit": "kPa"
+    },
+    {
+      "name": "gain",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 100,
+      "unit": "kPa/V"
+    }
+  ],
+  "objective": {
+    "sense": "min",
+    "unit": "kPa^2",
+    "source": "sum((pressure - (offset + gain * voltage)) ** 2)"
+  },
+  "baseline": {
+    "label": "Current settings",
+    "solution": {
+      "offset": 0,
+      "gain": 24
+    }
+  },
+  "reference": {
+    "label": "Least-squares line",
+    "solution": {
+      "offset": 2.211284577324676,
+      "gain": 24.806819502403464
+    }
+  },
+  "run": {
+    "method": "pso",
+    "settings": {},
+    "budget": 5000,
+    "seed": 1
+  }
+}

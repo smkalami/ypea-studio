@@ -1,0 +1,95 @@
+{
+  "format": "ypea-studio-project",
+  "version": 1,
+  "name": "0/1 knapsack",
+  "description": "Choose items to carry so that their total value is as large as possible within a weight limit. The data are synthetic.",
+  "data": [
+    {
+      "name": "items",
+      "kind": "columns",
+      "columns": [
+        {
+          "name": "weight",
+          "unit": "kg",
+          "values": [
+            10,
+            15,
+            6,
+            5,
+            2,
+            9,
+            8,
+            7,
+            15,
+            2,
+            9,
+            10,
+            11,
+            5,
+            9,
+            7,
+            7,
+            14,
+            6,
+            8
+          ]
+        },
+        {
+          "name": "value",
+          "unit": "$",
+          "values": [
+            89,
+            46,
+            56,
+            33,
+            86,
+            41,
+            27,
+            99,
+            90,
+            97,
+            13,
+            99,
+            42,
+            22,
+            58,
+            45,
+            21,
+            92,
+            46,
+            44
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "name": "take",
+      "type": "binary",
+      "shape": [
+        20
+      ]
+    }
+  ],
+  "objective": {
+    "sense": "max",
+    "unit": "$",
+    "source": "sum(value * take)"
+  },
+  "constraints": [
+    {
+      "name": "Total weight",
+      "left": "sum(weight * take)",
+      "op": "<=",
+      "right": "50",
+      "unit": "kg"
+    }
+  ],
+  "run": {
+    "method": "random",
+    "settings": {},
+    "budget": 20000,
+    "seed": 1
+  }
+}

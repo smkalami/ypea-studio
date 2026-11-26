@@ -1,0 +1,29 @@
+{
+  "format": "ypea-studio-project",
+  "version": 1,
+  "name": "Benchmark functions",
+  "variables": [
+    {
+      "name": "x",
+      "type": "real",
+      "shape": [
+        10
+      ],
+      "lb": -10,
+      "ub": 10
+    }
+  ],
+  "objective": {
+    "sense": "min",
+    "source": "sum(x ** 2)"
+  },
+  "reference": {
+    "objective": 0
+  },
+  "run": {
+    "method": "pso",
+    "settings": {},
+    "budget": 20000,
+    "seed": 1
+  }
+}

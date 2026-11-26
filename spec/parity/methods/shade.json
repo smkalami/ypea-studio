@@ -1,0 +1,244 @@
+{
+ "runs": [
+  {
+   "name": "shade_sphere_memory5",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 30,
+     "memory_size": 5
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: sphere_memory5",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 30,
+      "memory_size": 5
+     },
+     "budget": 3020,
+     "seed": 7
+    }
+   }
+  },
+  {
+   "name": "shade_rosenbrock_archive_half",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 25,
+     "archive_rate": 0.5,
+     "p_best_max": 0.05
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: rosenbrock_archive_half",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 25,
+      "archive_rate": 0.5,
+      "p_best_max": 0.05
+     },
+     "budget": 3010,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "shade_sphere_no_archive",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 20,
+     "memory_size": 3,
+     "archive_rate": 0
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: sphere_no_archive",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 20,
+      "memory_size": 3,
+      "archive_rate": 0
+     },
+     "budget": 2010,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "shade_rosenbrock_archive_big",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 40,
+     "archive_rate": 2.6,
+     "p_best_max": 1
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: rosenbrock_archive_big",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 40,
+      "archive_rate": 2.6,
+      "p_best_max": 1
+     },
+     "budget": 4030,
+     "seed": 17
+    }
+   }
+  },
+  {
+   "name": "shade_sphere_pop4",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 4,
+     "memory_size": 1
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: sphere_pop4",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 4,
+      "memory_size": 1
+     },
+     "budget": 1003,
+     "seed": 19
+    }
+   }
+  },
+  {
+   "name": "shade_sphere_max",
+   "ypea": {
+    "class": "SHADE",
+    "kwargs": {
+     "pop_size": 30,
+     "memory_size": 4
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SHADE parity: sphere_max",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "shade",
+     "settings": {
+      "pop_size": 30,
+      "memory_size": 4
+     },
+     "budget": 2020,
+     "seed": 23
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,1501 @@
+{
+ "runs": [
+  {
+   "name": "cmaes_sphere",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 3005,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 5003,
+     "seed": 12
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_pop30",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 3010,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_mu",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {
+     "pop_size": 24,
+     "mu": 6,
+     "sigma0": 0.2
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {
+      "pop_size": 24,
+      "mu": 6,
+      "sigma0": 0.2
+     },
+     "budget": 5000,
+     "seed": 14
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_max",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1007,
+     "seed": 15
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s01",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 1
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s02",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 2
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s03",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 3
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s04",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 4
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s05",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 5
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s06",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 6
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s07",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 7
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s08",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 8
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s09",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 9
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s10",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 10
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s11",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s12",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 12
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s13",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s14",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 14
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s15",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 15
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s16",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 16
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s17",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 17
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s18",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 18
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s19",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 19
+    }
+   }
+  },
+  {
+   "name": "cmaes_sphere_s20",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 1000,
+     "seed": 20
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s01",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 1
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s02",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 2
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s03",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 3
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s04",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 4
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s05",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 5
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s06",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 6
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s07",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 7
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s08",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 8
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s09",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 9
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s10",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 10
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s11",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s12",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 12
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s13",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s14",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 14
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s15",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 15
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s16",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 16
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s17",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 17
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s18",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 18
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s19",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 19
+    }
+   }
+  },
+  {
+   "name": "cmaes_rosenbrock_s20",
+   "ypea": {
+    "class": "CMAES",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "CMA-ES parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 5
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "cmaes",
+     "settings": {},
+     "budget": 2000,
+     "seed": 20
+    }
+   }
+  }
+ ]
+}

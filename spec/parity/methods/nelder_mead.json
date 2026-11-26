@@ -1,0 +1,228 @@
+{
+ "runs": [
+  {
+   "name": "nelder_mead_sphere",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_sphere parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {},
+     "budget": 3017,
+     "seed": 11
+    }
+   }
+  },
+  {
+   "name": "nelder_mead_rosenbrock",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_rosenbrock parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {},
+     "budget": 4013,
+     "seed": 12
+    }
+   }
+  },
+  {
+   "name": "nelder_mead_sphere_2",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {}
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_sphere_2 parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       2
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {},
+     "budget": 1501,
+     "seed": 13
+    }
+   }
+  },
+  {
+   "name": "nelder_mead_restart",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {
+     "reflection": 1.1,
+     "expansion": 2.3,
+     "contraction": 0.4,
+     "shrink": 0.6,
+     "initial_step": 0.3,
+     "restart_tol": 0.001
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_restart parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {
+      "reflection": 1.1,
+      "expansion": 2.3,
+      "contraction": 0.4,
+      "shrink": 0.6,
+      "initial_step": 0.3,
+      "restart_tol": 0.001
+     },
+     "budget": 4464,
+     "seed": 14
+    }
+   }
+  },
+  {
+   "name": "nelder_mead_max",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {
+     "restart_tol": 0.0001
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_max parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {
+      "restart_tol": 0.0001
+     },
+     "budget": 2011,
+     "seed": 15
+    }
+   }
+  },
+  {
+   "name": "nelder_mead_shrink",
+   "ypea": {
+    "class": "NelderMead",
+    "kwargs": {
+     "reflection": 1.5,
+     "expansion": 3.0,
+     "contraction": 0.9
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "nelder_mead_shrink parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "nelder_mead",
+     "settings": {
+      "reflection": 1.5,
+      "expansion": 3.0,
+      "contraction": 0.9
+     },
+     "budget": 2491,
+     "seed": 17
+    }
+   }
+  }
+ ]
+}

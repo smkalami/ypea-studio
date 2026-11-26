@@ -1,0 +1,128 @@
+{
+  "format": "ypea-studio-project",
+  "version": 1,
+  "name": "Assignment",
+  "description": "Give each of 8 workers one task so that the total cost is as small as possible. Row i of the cost table is worker i. The data are synthetic.",
+  "data": [
+    {
+      "name": "cost",
+      "kind": "matrix",
+      "unit": "$",
+      "values": [
+        [
+          62,
+          92,
+          16,
+          43,
+          68,
+          97,
+          61,
+          72
+        ],
+        [
+          52,
+          39,
+          95,
+          44,
+          90,
+          34,
+          98,
+          38
+        ],
+        [
+          48,
+          81,
+          78,
+          47,
+          19,
+          72,
+          98,
+          97
+        ],
+        [
+          84,
+          71,
+          99,
+          95,
+          76,
+          66,
+          62,
+          26
+        ],
+        [
+          42,
+          74,
+          15,
+          64,
+          39,
+          12,
+          80,
+          37
+        ],
+        [
+          68,
+          27,
+          38,
+          11,
+          87,
+          24,
+          18,
+          54
+        ],
+        [
+          78,
+          43,
+          30,
+          79,
+          26,
+          42,
+          22,
+          43
+        ],
+        [
+          43,
+          72,
+          31,
+          94,
+          87,
+          49,
+          81,
+          99
+        ]
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "name": "task",
+      "type": "permutation",
+      "n": 8
+    }
+  ],
+  "objective": {
+    "sense": "min",
+    "unit": "$",
+    "source": "sum(cost[range(8), task])"
+  },
+  "baseline": {
+    "label": "Row-by-row greedy assignment",
+    "solution": {
+      "task": [
+        2,
+        5,
+        4,
+        7,
+        0,
+        3,
+        6,
+        1
+      ]
+    }
+  },
+  "run": {
+    "method": "random",
+    "settings": {},
+    "budget": 20000,
+    "seed": 1
+  }
+}

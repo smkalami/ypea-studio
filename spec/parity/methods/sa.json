@@ -1,0 +1,227 @@
+{
+ "runs": [
+  {
+   "name": "sa_sphere",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 6
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 6
+     },
+     "budget": 3020,
+     "seed": 21
+    }
+   }
+  },
+  {
+   "name": "sa_rosenbrock",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 4,
+     "move_count": 3,
+     "max_sub_iter": 4,
+     "initial_temp": 100,
+     "final_temp": 0.01,
+     "mutation_rate": 0.3,
+     "mutation_step_size": 0.2,
+     "mutation_step_size_damp": 0.97
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 4,
+      "move_count": 3,
+      "max_sub_iter": 4,
+      "initial_temp": 100,
+      "final_temp": 0.01,
+      "mutation_rate": 0.3,
+      "mutation_step_size": 0.2,
+      "mutation_step_size_damp": 0.97
+     },
+     "budget": 2511,
+     "seed": 22
+    }
+   }
+  },
+  {
+   "name": "sa_sphere_classic",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 1,
+     "move_count": 1,
+     "max_sub_iter": 7,
+     "initial_temp": 10,
+     "final_temp": 0.1
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 1,
+      "move_count": 1,
+      "max_sub_iter": 7,
+      "initial_temp": 10,
+      "final_temp": 0.1
+     },
+     "budget": 2005,
+     "seed": 23
+    }
+   }
+  },
+  {
+   "name": "sa_sphere_max",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5,
+     "move_count": 2,
+     "max_sub_iter": 3,
+     "initial_temp": 50,
+     "final_temp": 0.5
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5,
+      "move_count": 2,
+      "max_sub_iter": 3,
+      "initial_temp": 50,
+      "final_temp": 0.5
+     },
+     "budget": 2222,
+     "seed": 24
+    }
+   }
+  },
+  {
+   "name": "sa_rosenbrock_flat",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 8,
+     "move_count": 4,
+     "max_sub_iter": 1,
+     "initial_temp": 5,
+     "final_temp": 5
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "SA parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 8,
+      "move_count": 4,
+      "max_sub_iter": 1,
+      "initial_temp": 5,
+      "final_temp": 5
+     },
+     "budget": 3001,
+     "seed": 25
+    }
+   }
+  }
+ ]
+}

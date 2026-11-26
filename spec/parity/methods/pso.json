@@ -1,0 +1,78 @@
+{
+ "runs": [
+  {
+   "name": "pso_sphere",
+   "ypea": {
+    "class": "PSO",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "PSO parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "pso",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 3020,
+     "seed": 7
+    }
+   }
+  },
+  {
+   "name": "random_sphere",
+   "ypea": {
+    "class": "RandomSearch",
+    "kwargs": {
+     "pop_size": 25
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Random Search parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "random",
+     "settings": {
+      "pop_size": 25
+     },
+     "budget": 1010,
+     "seed": 9
+    }
+   }
+  }
+ ]
+}

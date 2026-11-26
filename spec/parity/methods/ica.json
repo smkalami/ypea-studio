@@ -1,0 +1,217 @@
+{
+ "runs": [
+  {
+   "name": "ica_sphere",
+   "ypea": {
+    "class": "ICA",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "ica_sphere parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ica",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 3011,
+     "seed": 21
+    }
+   }
+  },
+  {
+   "name": "ica_rosenbrock",
+   "ypea": {
+    "class": "ICA",
+    "kwargs": {
+     "pop_size": 50,
+     "empire_count": 8,
+     "selection_pressure": 2,
+     "assimilation_coeff": 1.8,
+     "revolution_prob": 0.2,
+     "revolution_rate": 0.3,
+     "revolution_step_size": 0.2,
+     "revolution_step_size_damp": 0.98,
+     "zeta": 0.1
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "ica_rosenbrock parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -5,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(100 * (x[1:] - x[:-1] ** 2) ** 2 + (x[:-1] - 1) ** 2)"
+    },
+    "run": {
+     "method": "ica",
+     "settings": {
+      "pop_size": 50,
+      "empire_count": 8,
+      "selection_pressure": 2,
+      "assimilation_coeff": 1.8,
+      "revolution_prob": 0.2,
+      "revolution_rate": 0.3,
+      "revolution_step_size": 0.2,
+      "revolution_step_size_damp": 0.98,
+      "zeta": 0.1
+     },
+     "budget": 4007,
+     "seed": 22
+    }
+   }
+  },
+  {
+   "name": "ica_collapse",
+   "ypea": {
+    "class": "ICA",
+    "kwargs": {
+     "pop_size": 12,
+     "empire_count": 4,
+     "revolution_prob": 0.3,
+     "revolution_rate": 0.25
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "ica_collapse parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ica",
+     "settings": {
+      "pop_size": 12,
+      "empire_count": 4,
+      "revolution_prob": 0.3,
+      "revolution_rate": 0.25
+     },
+     "budget": 2003,
+     "seed": 23
+    }
+   }
+  },
+  {
+   "name": "ica_max",
+   "ypea": {
+    "class": "ICA",
+    "kwargs": {
+     "pop_size": 20,
+     "empire_count": 3
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "ica_max parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ica",
+     "settings": {
+      "pop_size": 20,
+      "empire_count": 3
+     },
+     "budget": 2005,
+     "seed": 24
+    }
+   }
+  },
+  {
+   "name": "ica_empty_empire",
+   "ypea": {
+    "class": "ICA",
+    "kwargs": {
+     "pop_size": 15,
+     "empire_count": 6,
+     "selection_pressure": 6.0
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "ica_empty_empire parity",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       10
+      ],
+      "lb": -10,
+      "ub": 10
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(x ** 2)"
+    },
+    "run": {
+     "method": "ica",
+     "settings": {
+      "pop_size": 15,
+      "empire_count": 6,
+      "selection_pressure": 6.0
+     },
+     "budget": 1501,
+     "seed": 25
+    }
+   }
+  }
+ ]
+}

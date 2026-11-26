@@ -1,0 +1,3513 @@
+{
+ "python": "3.14.6",
+ "numpy": "2.5.5",
+ "envs": {
+  "square": {
+   "q": {
+    "kind": "float",
+    "value": -0.40513530011104176
+   },
+   "qs": {
+    "kind": "float",
+    "value": [
+     -0.40513530011104176,
+     1.5
+    ]
+   }
+  },
+  "basic": {
+   "x": {
+    "kind": "float",
+    "value": [
+     1.5,
+     -2.0,
+     3.25,
+     0.5
+    ]
+   },
+   "y": {
+    "kind": "float",
+    "value": [
+     2.0,
+     4.0,
+     -1.0,
+     8.0
+    ]
+   },
+   "n": {
+    "kind": "int",
+    "value": [
+     3,
+     0,
+     2,
+     1
+    ]
+   },
+   "b": {
+    "kind": "int",
+    "value": [
+     1,
+     0,
+     1,
+     1
+    ]
+   },
+   "s": {
+    "kind": "float",
+    "value": 2.5
+   },
+   "k": {
+    "kind": "int",
+    "value": 3
+   },
+   "z": {
+    "kind": "float",
+    "value": 0.0
+   },
+   "t": {
+    "kind": "float",
+    "value": [
+     [
+      1.0,
+      2.0,
+      3.0,
+      4.0
+     ],
+     [
+      5.0,
+      6.0,
+      7.0,
+      8.5
+     ],
+     [
+      -1.0,
+      0.5,
+      2.0,
+      9.0
+     ]
+    ]
+   },
+   "m": {
+    "kind": "int",
+    "value": [
+     [
+      4,
+      1,
+      7,
+      2
+     ],
+     [
+      3,
+      9,
+      5,
+      8
+     ],
+     [
+      6,
+      0,
+      2,
+      1
+     ],
+     [
+      7,
+      7,
+      3,
+      4
+     ]
+    ]
+   },
+   "g": {
+    "kind": "groups",
+    "value": [
+     [
+      0,
+      2
+     ],
+     [],
+     [
+      1,
+      3
+     ]
+    ]
+   }
+  },
+  "fit": {
+   "voltage": {
+    "kind": "float",
+    "value": [
+     0.5,
+     0.86,
+     1.23,
+     1.59,
+     1.95,
+     2.32,
+     2.68,
+     3.05,
+     3.41,
+     3.77,
+     4.14,
+     4.5
+    ]
+   },
+   "pressure": {
+    "kind": "float",
+    "value": [
+     14.38,
+     22.92,
+     33.06,
+     42.04,
+     50.71,
+     59.64,
+     69.56,
+     78.01,
+     86.9,
+     95.31,
+     104.99,
+     114.24
+    ]
+   },
+   "offset": {
+    "kind": "float",
+    "value": 1.7
+   },
+   "gain": {
+    "kind": "float",
+    "value": 24.3
+   }
+  },
+  "long": {
+   "w": {
+    "kind": "float",
+    "value": [
+     0.1,
+     100000000.0,
+     -100000000.0,
+     0.2,
+     3.3e-05,
+     7.7,
+     -2200.0,
+     1e-09,
+     4.4,
+     550000.0,
+     -550000.0,
+     0.3,
+     0.0099,
+     1.1,
+     2.2,
+     -3.3,
+     66000000.0,
+     -66000000.0,
+     0.7,
+     0.07
+    ]
+   },
+   "route": {
+    "kind": "int",
+    "value": [
+     3,
+     0,
+     4,
+     1,
+     2
+    ]
+   },
+   "distance": {
+    "kind": "float",
+    "value": [
+     [
+      0.0,
+      2.5,
+      9.1,
+      4.2,
+      7.7
+     ],
+     [
+      2.5,
+      0.0,
+      3.3,
+      8.8,
+      1.9
+     ],
+     [
+      9.1,
+      3.3,
+      0.0,
+      6.4,
+      5.2
+     ],
+     [
+      4.2,
+      8.8,
+      6.4,
+      0.0,
+      2.1
+     ],
+     [
+      7.7,
+      1.9,
+      5.2,
+      2.1,
+      0.0
+     ]
+    ]
+   },
+   "take": {
+    "kind": "int",
+    "value": [
+     1,
+     0,
+     1,
+     1,
+     0
+    ]
+   },
+   "weight": {
+    "kind": "float",
+    "value": [
+     3.5,
+     7.25,
+     4.0,
+     2.75,
+     9.5
+    ]
+   }
+  }
+ },
+ "cases": [
+  {
+   "name": "add",
+   "env": "basic",
+   "expression": "s + k",
+   "value": 5.5
+  },
+  {
+   "name": "precedence",
+   "env": "basic",
+   "expression": "2 + 3 * 4 - 6 / 4",
+   "value": 12.5
+  },
+  {
+   "name": "unary minus and power",
+   "env": "basic",
+   "expression": "-s ** 2",
+   "value": -6.25
+  },
+  {
+   "name": "power is right associative",
+   "env": "basic",
+   "expression": "2 ** 3 ** 2",
+   "value": 512.0
+  },
+  {
+   "name": "power two is exact",
+   "env": "basic",
+   "expression": "x ** 2",
+   "value": [
+    2.25,
+    4.0,
+    10.5625,
+    0.25
+   ]
+  },
+  {
+   "name": "power two of a list is exact",
+   "env": "square",
+   "expression": "qs ** 2",
+   "value": [
+    0.16413461139606386,
+    2.25
+   ]
+  },
+  {
+   "name": "power two of a single number may differ in the last digit",
+   "env": "square",
+   "expression": "q ** 2",
+   "approx": true,
+   "value": 0.1641346113960639
+  },
+  {
+   "name": "a product is always exact",
+   "env": "square",
+   "expression": "q * q",
+   "value": 0.16413461139606386
+  },
+  {
+   "name": "power three",
+   "env": "basic",
+   "expression": "x ** 3",
+   "approx": true,
+   "value": [
+    3.375,
+    -8.0,
+    34.328125,
+    0.125
+   ]
+  },
+  {
+   "name": "power half",
+   "env": "basic",
+   "expression": "y[1] ** 0.5",
+   "approx": true,
+   "value": 2.0
+  },
+  {
+   "name": "true division of whole numbers",
+   "env": "basic",
+   "expression": "k / 2",
+   "value": 1.5
+  },
+  {
+   "name": "floor division",
+   "env": "basic",
+   "expression": "7 // 2",
+   "value": 3.0
+  },
+  {
+   "name": "floor division negative",
+   "env": "basic",
+   "expression": "-7 // 2",
+   "value": -4.0
+  },
+  {
+   "name": "floor division floats",
+   "env": "basic",
+   "expression": "x // 0.4",
+   "value": [
+    3.0,
+    -5.0,
+    8.0,
+    1.0
+   ]
+  },
+  {
+   "name": "floor division negative floats",
+   "env": "basic",
+   "expression": "(-s) // 0.7",
+   "value": -4.0
+  },
+  {
+   "name": "remainder",
+   "env": "basic",
+   "expression": "7 % 3",
+   "value": 1.0
+  },
+  {
+   "name": "remainder negative left",
+   "env": "basic",
+   "expression": "-7 % 3",
+   "value": 2.0
+  },
+  {
+   "name": "remainder negative right",
+   "env": "basic",
+   "expression": "7 % -3",
+   "value": -2.0
+  },
+  {
+   "name": "remainder floats",
+   "env": "basic",
+   "expression": "x % 1.1",
+   "value": [
+    0.3999999999999999,
+    0.20000000000000018,
+    1.0499999999999998,
+    0.5
+   ]
+  },
+  {
+   "name": "remainder list by negative",
+   "env": "basic",
+   "expression": "x % -0.7",
+   "value": [
+    -0.5999999999999999,
+    -0.6000000000000001,
+    -0.24999999999999978,
+    -0.19999999999999996
+   ]
+  },
+  {
+   "name": "division by zero from data",
+   "env": "basic",
+   "expression": "s / z",
+   "value": "inf"
+  },
+  {
+   "name": "negative division by zero from data",
+   "env": "basic",
+   "expression": "-s / z",
+   "value": "-inf"
+  },
+  {
+   "name": "zero over zero from data",
+   "env": "basic",
+   "expression": "z / z",
+   "value": "nan"
+  },
+  {
+   "name": "list division by zero",
+   "env": "basic",
+   "expression": "x / (y - y)",
+   "value": [
+    "inf",
+    "-inf",
+    "inf",
+    "inf"
+   ]
+  },
+  {
+   "name": "exponent literal",
+   "env": "basic",
+   "expression": "1e-3 * s + 2.5E2",
+   "value": 250.0025
+  },
+  {
+   "name": "parentheses",
+   "env": "basic",
+   "expression": "((s + 1) * (k - 1)) / (s - 0.5)",
+   "value": 3.5
+  },
+  {
+   "name": "comparison",
+   "env": "basic",
+   "expression": "s > 2",
+   "value": 1.0
+  },
+  {
+   "name": "chained comparison true",
+   "env": "basic",
+   "expression": "1 < s < 3",
+   "value": 1.0
+  },
+  {
+   "name": "chained comparison false",
+   "env": "basic",
+   "expression": "1 < s < 2",
+   "value": 0.0
+  },
+  {
+   "name": "chained three",
+   "env": "basic",
+   "expression": "0 <= k <= 3 != 4",
+   "value": 1.0
+  },
+  {
+   "name": "not",
+   "env": "basic",
+   "expression": "not s > 2",
+   "value": 0.0
+  },
+  {
+   "name": "and or",
+   "env": "basic",
+   "expression": "s > 2 and k == 3 or z > 0",
+   "value": 1.0
+  },
+  {
+   "name": "or short circuit",
+   "env": "basic",
+   "expression": "k == 3 or 1 / z > 0",
+   "value": 1.0
+  },
+  {
+   "name": "truth value in arithmetic",
+   "env": "basic",
+   "expression": "(s > 2) + (k < 0) + True",
+   "value": 1.0
+  },
+  {
+   "name": "equal and not equal",
+   "env": "basic",
+   "expression": "(k == 3) + (k != 3) * 10",
+   "value": 1.0
+  },
+  {
+   "name": "list comparison",
+   "env": "basic",
+   "expression": "x > 1",
+   "value": [
+    1.0,
+    0.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "name": "count with sum",
+   "env": "basic",
+   "expression": "sum(x > 1)",
+   "value": 2.0
+  },
+  {
+   "name": "list equality",
+   "env": "basic",
+   "expression": "n == b",
+   "value": [
+    0.0,
+    1.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "chained comparison on a list",
+   "env": "basic",
+   "expression": "0 < x < 2",
+   "error": "value"
+  },
+  {
+   "name": "and on lists",
+   "env": "basic",
+   "expression": "(x > 0) and (y > 0)",
+   "error": "value"
+  },
+  {
+   "name": "list plus number",
+   "env": "basic",
+   "expression": "x + 1",
+   "value": [
+    2.5,
+    -1.0,
+    4.25,
+    1.5
+   ]
+  },
+  {
+   "name": "number minus list",
+   "env": "basic",
+   "expression": "10 - x",
+   "value": [
+    8.5,
+    12.0,
+    6.75,
+    9.5
+   ]
+  },
+  {
+   "name": "list times list",
+   "env": "basic",
+   "expression": "x * y",
+   "value": [
+    3.0,
+    -8.0,
+    -3.25,
+    4.0
+   ]
+  },
+  {
+   "name": "float list times whole list",
+   "env": "basic",
+   "expression": "x * n",
+   "value": [
+    4.5,
+    -0.0,
+    6.5,
+    0.5
+   ]
+  },
+  {
+   "name": "whole list division",
+   "env": "basic",
+   "expression": "n / 2",
+   "value": [
+    1.5,
+    0.0,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "name": "whole list floor division",
+   "env": "basic",
+   "expression": "n // 2",
+   "value": [
+    1.0,
+    0.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "name": "negate list",
+   "env": "basic",
+   "expression": "-x",
+   "value": [
+    -1.5,
+    2.0,
+    -3.25,
+    -0.5
+   ]
+  },
+  {
+   "name": "lists of different length",
+   "env": "basic",
+   "expression": "x + x[0:3]",
+   "error": "value"
+  },
+  {
+   "name": "table plus number",
+   "env": "basic",
+   "expression": "t + 1",
+   "value": [
+    [
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ],
+    [
+     6.0,
+     7.0,
+     8.0,
+     9.5
+    ],
+    [
+     0.0,
+     1.5,
+     3.0,
+     10.0
+    ]
+   ]
+  },
+  {
+   "name": "table times table",
+   "env": "basic",
+   "expression": "t * t",
+   "value": [
+    [
+     1.0,
+     4.0,
+     9.0,
+     16.0
+    ],
+    [
+     25.0,
+     36.0,
+     49.0,
+     72.25
+    ],
+    [
+     1.0,
+     0.25,
+     4.0,
+     81.0
+    ]
+   ]
+  },
+  {
+   "name": "table plus list by columns",
+   "env": "basic",
+   "expression": "t + x",
+   "value": [
+    [
+     2.5,
+     0.0,
+     6.25,
+     4.5
+    ],
+    [
+     6.5,
+     4.0,
+     10.25,
+     9.0
+    ],
+    [
+     0.5,
+     -1.5,
+     5.25,
+     9.5
+    ]
+   ]
+  },
+  {
+   "name": "table plus list of wrong length",
+   "env": "basic",
+   "expression": "t + x[0:3]",
+   "error": "value"
+  },
+  {
+   "name": "table of different shape",
+   "env": "basic",
+   "expression": "t + m",
+   "error": "value"
+  },
+  {
+   "name": "element",
+   "env": "basic",
+   "expression": "x[2]",
+   "value": 3.25
+  },
+  {
+   "name": "negative position",
+   "env": "basic",
+   "expression": "x[-1]",
+   "value": 0.5
+  },
+  {
+   "name": "position from a variable",
+   "env": "basic",
+   "expression": "x[k]",
+   "value": 0.5
+  },
+  {
+   "name": "position out of range",
+   "env": "basic",
+   "expression": "x[4]",
+   "error": "index"
+  },
+  {
+   "name": "negative position out of range",
+   "env": "basic",
+   "expression": "x[-5]",
+   "error": "index"
+  },
+  {
+   "name": "position not whole",
+   "env": "basic",
+   "expression": "x[s]",
+   "error": "index"
+  },
+  {
+   "name": "slice",
+   "env": "basic",
+   "expression": "x[1:3]",
+   "value": [
+    -2.0,
+    3.25
+   ]
+  },
+  {
+   "name": "slice open start",
+   "env": "basic",
+   "expression": "x[:2]",
+   "value": [
+    1.5,
+    -2.0
+   ]
+  },
+  {
+   "name": "slice open end",
+   "env": "basic",
+   "expression": "x[2:]",
+   "value": [
+    3.25,
+    0.5
+   ]
+  },
+  {
+   "name": "slice clamps",
+   "env": "basic",
+   "expression": "x[2:99]",
+   "value": [
+    3.25,
+    0.5
+   ]
+  },
+  {
+   "name": "slice negative",
+   "env": "basic",
+   "expression": "x[-3:-1]",
+   "value": [
+    -2.0,
+    3.25
+   ]
+  },
+  {
+   "name": "empty slice sum",
+   "env": "basic",
+   "expression": "sum(x[3:1])",
+   "value": 0.0
+  },
+  {
+   "name": "gather",
+   "env": "basic",
+   "expression": "x[n]",
+   "value": [
+    0.5,
+    1.5,
+    3.25,
+    -2.0
+   ]
+  },
+  {
+   "name": "gather out of range",
+   "env": "basic",
+   "expression": "x[n + 1]",
+   "error": "index"
+  },
+  {
+   "name": "gather with floats",
+   "env": "basic",
+   "expression": "x[y]",
+   "error": "index"
+  },
+  {
+   "name": "gather with range",
+   "env": "basic",
+   "expression": "x[range(1, 3)]",
+   "value": [
+    -2.0,
+    3.25
+   ]
+  },
+  {
+   "name": "table row",
+   "env": "basic",
+   "expression": "t[1]",
+   "value": [
+    5.0,
+    6.0,
+    7.0,
+    8.5
+   ]
+  },
+  {
+   "name": "table element",
+   "env": "basic",
+   "expression": "t[2, 1]",
+   "value": 0.5
+  },
+  {
+   "name": "table element negative",
+   "env": "basic",
+   "expression": "t[-1, -1]",
+   "value": 9.0
+  },
+  {
+   "name": "table element out of range",
+   "env": "basic",
+   "expression": "t[3, 0]",
+   "error": "index"
+  },
+  {
+   "name": "paired positions",
+   "env": "basic",
+   "expression": "m[n, b]",
+   "value": [
+    7.0,
+    4.0,
+    0.0,
+    9.0
+   ]
+  },
+  {
+   "name": "paired with range",
+   "env": "basic",
+   "expression": "m[range(4), n]",
+   "value": [
+    2.0,
+    3.0,
+    2.0,
+    7.0
+   ]
+  },
+  {
+   "name": "paired with one number",
+   "env": "basic",
+   "expression": "m[n, 2]",
+   "value": [
+    3.0,
+    7.0,
+    2.0,
+    5.0
+   ]
+  },
+  {
+   "name": "paired of different length",
+   "env": "basic",
+   "expression": "m[n, b[0:3]]",
+   "error": "index"
+  },
+  {
+   "name": "paired out of range",
+   "env": "basic",
+   "expression": "m[n, n + 2]",
+   "error": "index"
+  },
+  {
+   "name": "group",
+   "env": "basic",
+   "expression": "g[2]",
+   "value": [
+    1.0,
+    3.0
+   ]
+  },
+  {
+   "name": "empty group",
+   "env": "basic",
+   "expression": "len(g[1])",
+   "value": 0.0
+  },
+  {
+   "name": "gather with a group",
+   "env": "basic",
+   "expression": "x[g[0]]",
+   "value": [
+    1.5,
+    3.25
+   ]
+  },
+  {
+   "name": "sum in index order",
+   "env": "long",
+   "expression": "sum(w)",
+   "value": -2186.5200670021773
+  },
+  {
+   "name": "sum of expression",
+   "env": "long",
+   "expression": "sum(w * w - w)",
+   "value": 2.871260500484229e+16
+  },
+  {
+   "name": "sum of table",
+   "env": "basic",
+   "expression": "sum(t)",
+   "value": [
+    5.0,
+    8.5,
+    12.0,
+    21.5
+   ]
+  },
+  {
+   "name": "min max of list",
+   "env": "basic",
+   "expression": "min(x) + 10 * max(x)",
+   "value": 30.5
+  },
+  {
+   "name": "min of numbers",
+   "env": "basic",
+   "expression": "min(s, k, 2.75)",
+   "value": 2.5
+  },
+  {
+   "name": "max of numbers",
+   "env": "basic",
+   "expression": "max(s, k)",
+   "value": 3.0
+  },
+  {
+   "name": "abs",
+   "env": "basic",
+   "expression": "abs(x) + abs(-s)",
+   "value": [
+    4.0,
+    4.5,
+    5.75,
+    3.0
+   ]
+  },
+  {
+   "name": "len",
+   "env": "basic",
+   "expression": "len(x) + 10 * len(t) + 100 * len(g)",
+   "value": 334.0
+  },
+  {
+   "name": "sum of range",
+   "env": "basic",
+   "expression": "sum(range(5)) + sum(range(2, 10, 3))",
+   "value": 25.0
+  },
+  {
+   "name": "min of table",
+   "env": "basic",
+   "expression": "min(t)",
+   "error": "value"
+  },
+  {
+   "name": "ops constants",
+   "env": "basic",
+   "expression": "ops.pi + ops.e",
+   "value": 5.859874482048838
+  },
+  {
+   "name": "ops inf",
+   "env": "basic",
+   "expression": "min(s, ops.inf) + (ops.inf > 1e300)",
+   "value": 3.5
+  },
+  {
+   "name": "ops array",
+   "env": "basic",
+   "expression": "ops.array([1, s, k]) * 2",
+   "value": [
+    2.0,
+    5.0,
+    6.0
+   ]
+  },
+  {
+   "name": "ops zeros ones arange",
+   "env": "basic",
+   "expression": "ops.zeros(3) + ops.ones(3) * 2 + ops.arange(3)",
+   "value": [
+    2.0,
+    3.0,
+    4.0
+   ]
+  },
+  {
+   "name": "ops sum in pairs",
+   "env": "long",
+   "expression": "ops.sum(w)",
+   "value": -2186.5200670021773
+  },
+  {
+   "name": "ops mean",
+   "env": "long",
+   "expression": "ops.mean(w)",
+   "value": -109.32600335010886
+  },
+  {
+   "name": "ops sum of expression",
+   "env": "long",
+   "expression": "ops.sum(w * w - w)",
+   "value": 2.8712605004842284e+16
+  },
+  {
+   "name": "ops sum table",
+   "env": "basic",
+   "expression": "ops.sum(t)",
+   "value": 47.0
+  },
+  {
+   "name": "ops sum axis 0",
+   "env": "basic",
+   "expression": "ops.sum(t, axis=0)",
+   "value": [
+    5.0,
+    8.5,
+    12.0,
+    21.5
+   ]
+  },
+  {
+   "name": "ops sum axis 1",
+   "env": "basic",
+   "expression": "ops.sum(t, axis=1)",
+   "value": [
+    10.0,
+    26.5,
+    10.5
+   ]
+  },
+  {
+   "name": "ops mean axis 0",
+   "env": "basic",
+   "expression": "ops.mean(t, axis=0)",
+   "value": [
+    1.6666666666666667,
+    2.8333333333333335,
+    4.0,
+    7.166666666666667
+   ]
+  },
+  {
+   "name": "ops mean axis 1",
+   "env": "basic",
+   "expression": "ops.mean(t, axis=1)",
+   "value": [
+    2.5,
+    6.625,
+    2.625
+   ]
+  },
+  {
+   "name": "ops prod",
+   "env": "basic",
+   "expression": "ops.prod(x) + ops.prod(n + 1)",
+   "value": 19.125
+  },
+  {
+   "name": "ops min max",
+   "env": "basic",
+   "expression": "ops.min(x) + ops.max(t)",
+   "value": 7.0
+  },
+  {
+   "name": "ops min max axis",
+   "env": "basic",
+   "expression": "ops.min(t, axis=0) + ops.max(t, axis=0)",
+   "value": [
+    4.0,
+    6.5,
+    9.0,
+    13.0
+   ]
+  },
+  {
+   "name": "ops max axis 1",
+   "env": "basic",
+   "expression": "ops.max(t, axis=1)",
+   "value": [
+    4.0,
+    8.5,
+    9.0
+   ]
+  },
+  {
+   "name": "ops argmin argmax",
+   "env": "basic",
+   "expression": "ops.argmin(x) * 10 + ops.argmax(x)",
+   "value": 12.0
+  },
+  {
+   "name": "ops argmax first of ties",
+   "env": "basic",
+   "expression": "ops.argmax(b)",
+   "value": 0.0
+  },
+  {
+   "name": "ops argsort stable",
+   "env": "basic",
+   "expression": "ops.argsort(b)",
+   "value": [
+    1.0,
+    0.0,
+    2.0,
+    3.0
+   ]
+  },
+  {
+   "name": "ops sort",
+   "env": "basic",
+   "expression": "ops.sort(x)",
+   "value": [
+    -2.0,
+    0.5,
+    1.5,
+    3.25
+   ]
+  },
+  {
+   "name": "ops cumsum",
+   "env": "long",
+   "expression": "ops.cumsum(w)",
+   "value": [
+    0.1,
+    100000000.1,
+    0.09999999403953552,
+    0.29999999403953553,
+    0.30003299403953554,
+    8.000032994039536,
+    -2191.9999670059606,
+    -2191.9999670049606,
+    -2187.5999670049605,
+    547812.400032995,
+    -2187.599967004964,
+    -2187.299967004964,
+    -2187.290067004964,
+    -2186.190067004964,
+    -2183.990067004964,
+    -2187.2900670049644,
+    65997812.709933,
+    -2187.2900670021772,
+    -2186.5900670021774,
+    -2186.5200670021773
+   ]
+  },
+  {
+   "name": "ops roll back",
+   "env": "long",
+   "expression": "ops.roll(route, -1)",
+   "value": [
+    0.0,
+    4.0,
+    1.0,
+    2.0,
+    3.0
+   ]
+  },
+  {
+   "name": "ops roll forward",
+   "env": "long",
+   "expression": "ops.roll(route, 2)",
+   "value": [
+    1.0,
+    2.0,
+    3.0,
+    0.0,
+    4.0
+   ]
+  },
+  {
+   "name": "ops sqrt",
+   "env": "basic",
+   "expression": "ops.sqrt(y + 1.5)",
+   "value": [
+    1.8708286933869707,
+    2.345207879911715,
+    0.7071067811865476,
+    3.082207001484488
+   ]
+  },
+  {
+   "name": "ops sqrt of negative",
+   "env": "basic",
+   "expression": "ops.sqrt(x)",
+   "value": [
+    1.224744871391589,
+    "nan",
+    1.8027756377319946,
+    0.7071067811865476
+   ]
+  },
+  {
+   "name": "ops abs floor ceil",
+   "env": "basic",
+   "expression": "ops.abs(x) + ops.floor(x) * 10 + ops.ceil(x) * 100",
+   "value": [
+    211.5,
+    -218.0,
+    433.25,
+    100.5
+   ]
+  },
+  {
+   "name": "ops round half even",
+   "env": "basic",
+   "expression": "ops.round(ops.array([0.5, 1.5, 2.5, -0.5, -1.5, 2.4999, 2.5001]))",
+   "value": [
+    0.0,
+    2.0,
+    2.0,
+    -0.0,
+    -2.0,
+    2.0,
+    3.0
+   ]
+  },
+  {
+   "name": "ops sign",
+   "env": "basic",
+   "expression": "ops.sign(x - 0.5)",
+   "value": [
+    1.0,
+    -1.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops minimum maximum",
+   "env": "basic",
+   "expression": "ops.minimum(x, y) + 10 * ops.maximum(x, 1)",
+   "value": [
+    16.5,
+    8.0,
+    31.5,
+    10.5
+   ]
+  },
+  {
+   "name": "ops clip",
+   "env": "basic",
+   "expression": "ops.clip(x, 0, 2)",
+   "value": [
+    1.5,
+    0.0,
+    2.0,
+    0.5
+   ]
+  },
+  {
+   "name": "ops where",
+   "env": "basic",
+   "expression": "ops.where(x > 1, x, -y)",
+   "value": [
+    1.5,
+    -4.0,
+    3.25,
+    -8.0
+   ]
+  },
+  {
+   "name": "ops where numbers",
+   "env": "basic",
+   "expression": "ops.where(x > 1, 1, 0)",
+   "value": [
+    1.0,
+    0.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops exp log",
+   "env": "basic",
+   "expression": "ops.exp(x / 4) + ops.log(y + 2)",
+   "approx": true,
+   "value": [
+    2.8412857757380916,
+    2.3982901289406886,
+    2.2535347872132085,
+    3.435733546060872
+   ]
+  },
+  {
+   "name": "ops sin cos tan",
+   "env": "basic",
+   "expression": "ops.sin(x) + ops.cos(x) * ops.tan(s / 4)",
+   "approx": true,
+   "value": [
+    1.048530777006538,
+    -1.20954089456203,
+    -0.8254442281495502,
+    1.1125877026930442
+   ]
+  },
+  {
+   "name": "ops dot lists",
+   "env": "basic",
+   "expression": "ops.dot(x, y)",
+   "approx": true,
+   "value": -4.25
+  },
+  {
+   "name": "ops dot table list",
+   "env": "basic",
+   "expression": "ops.dot(t, x)",
+   "approx": true,
+   "value": [
+    9.25,
+    22.5,
+    8.5
+   ]
+  },
+  {
+   "name": "ops dot wrong length",
+   "env": "basic",
+   "expression": "ops.dot(x, y[0:3])",
+   "error": "value"
+  },
+  {
+   "name": "ops argmin of table",
+   "env": "basic",
+   "expression": "ops.argmin(t)",
+   "error": "value"
+  },
+  {
+   "name": "line fit objective",
+   "env": "fit",
+   "expression": "sum((pressure - (offset + gain * voltage)) ** 2)",
+   "value": 49.69808999999988
+  },
+  {
+   "name": "knapsack value",
+   "env": "long",
+   "expression": "sum(weight * take)",
+   "value": 10.25
+  },
+  {
+   "name": "route cost",
+   "env": "long",
+   "expression": "sum(distance[route, ops.roll(route, -1)])",
+   "value": 23.5
+  },
+  {
+   "name": "assignment cost",
+   "env": "long",
+   "expression": "sum(distance[range(5), route])",
+   "value": 25.900000000000002
+  },
+  {
+   "name": "function call",
+   "env": "fit",
+   "expression": "squared_error(offset, gain)",
+   "functions": "def squared_error(offset, gain):\n    return sum((pressure - (offset + gain * voltage)) ** 2)\n",
+   "value": 49.69808999999988
+  },
+  {
+   "name": "loop over range",
+   "env": "long",
+   "expression": "route_cost(route)",
+   "functions": "def route_cost(r):\n    total = 0\n    for i in range(len(r)):\n        total += distance[r[i], r[(i + 1) % len(r)]]\n    return total\n",
+   "value": 23.5
+  },
+  {
+   "name": "loop over a list with if",
+   "env": "basic",
+   "expression": "positive_part(x)",
+   "functions": "def positive_part(a):\n    total = 0.0\n    count = 0\n    for v in a:\n        if v > 1:\n            total += v\n            count += 1\n        elif v > 0:\n            total -= v / 2\n        else:\n            total *= 2\n    return total / (count + 1)\n",
+   "value": 2.0
+  },
+  {
+   "name": "loop over groups",
+   "env": "basic",
+   "expression": "spread(g, x)",
+   "functions": "def spread(groups, values):\n    worst = 0\n    for group in groups:\n        if len(group) > 0:\n            load = sum(values[group])\n            if load > worst:\n                worst = load\n    return worst\n",
+   "value": 4.75
+  },
+  {
+   "name": "loop over table rows",
+   "env": "basic",
+   "expression": "row_peaks(t)",
+   "functions": "def row_peaks(table):\n    total = 0\n    for row in table:\n        total += max(row) - min(row)\n    return total\n",
+   "value": 16.5
+  },
+  {
+   "name": "loop over a literal list",
+   "env": "basic",
+   "expression": "poly(s)",
+   "functions": "def poly(v):\n    result = 0\n    for c in [3, -2, 0.5]:\n        result = result * v + c\n    return result\n",
+   "value": 14.25
+  },
+  {
+   "name": "function calls an earlier function",
+   "env": "basic",
+   "expression": "outer(x)",
+   "functions": "def half(v):\n    return v / 2\n\ndef outer(a):\n    b = half(a) + half(1)\n    return sum(b)\n",
+   "value": 3.625
+  },
+  {
+   "name": "early return",
+   "env": "basic",
+   "expression": "first_big(x, 3)",
+   "functions": "def first_big(a, limit):\n    for i in range(len(a)):\n        if a[i] > limit:\n            return i\n    return -1\n",
+   "value": 2.0
+  },
+  {
+   "name": "comments and blank lines",
+   "env": "basic",
+   "expression": "f(s)",
+   "functions": "# a helper\ndef f(v):  # one argument\n\n    w = v * 2  # doubled\n    return w + 1\n",
+   "value": 6.0
+  },
+  {
+   "name": "range with step and negative step",
+   "env": "basic",
+   "expression": "steps(10)",
+   "functions": "def steps(n):\n    total = 0\n    for i in range(1, n, 3):\n        total += i\n    for i in range(n, 0, -4):\n        total += i * 100\n    return total\n",
+   "value": 1812.0
+  },
+  {
+   "name": "index error inside a function",
+   "env": "basic",
+   "expression": "bad(x)",
+   "functions": "def bad(a):\n    total = 0\n    for i in range(len(a) + 1):\n        total += a[i]\n    return total\n",
+   "error": "index"
+  },
+  {
+   "name": "list as an if condition",
+   "env": "basic",
+   "expression": "bad(x)",
+   "functions": "def bad(a):\n    if a > 0:\n        return 1\n    return 0\n",
+   "error": "value"
+  },
+  {
+   "name": "literal with a leading or trailing dot",
+   "env": "basic",
+   "expression": "1. + .5 + 1.e1",
+   "value": 11.5
+  },
+  {
+   "name": "numpy truth values add as or",
+   "env": "basic",
+   "expression": "(s > 2) + (k > 2)",
+   "value": 1.0
+  },
+  {
+   "name": "python truth values add as numbers",
+   "env": "basic",
+   "expression": "True + True + (1 < 2)",
+   "value": 3.0
+  },
+  {
+   "name": "truth list plus truth list is or",
+   "env": "basic",
+   "expression": "(x > 0) + (y > 0)",
+   "value": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "truth list times truth list",
+   "env": "basic",
+   "expression": "(x > 0) * (y > 0)",
+   "value": [
+    1.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "truth list times number",
+   "env": "basic",
+   "expression": "(x > 0) * 2.5",
+   "value": [
+    2.5,
+    0.0,
+    2.5,
+    2.5
+   ]
+  },
+  {
+   "name": "truth list plus whole number",
+   "env": "basic",
+   "expression": "(x > 1) + 1",
+   "value": [
+    2.0,
+    1.0,
+    2.0,
+    1.0
+   ]
+  },
+  {
+   "name": "truth minus truth",
+   "env": "basic",
+   "expression": "(s > 2) - (k > 2)",
+   "error": "type"
+  },
+  {
+   "name": "negate a truth list",
+   "env": "basic",
+   "expression": "-(x > 1)",
+   "error": "type"
+  },
+  {
+   "name": "negate a python truth value",
+   "env": "basic",
+   "expression": "-True + (not s)",
+   "value": -1.0
+  },
+  {
+   "name": "truth division",
+   "env": "basic",
+   "expression": "(s > 2) / (k > 2)",
+   "value": 1.0
+  },
+  {
+   "name": "truth floor division",
+   "env": "basic",
+   "expression": "(x > 1) // (y > 1)",
+   "value": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "sum of a truth table",
+   "env": "basic",
+   "expression": "sum(t > 2)",
+   "value": [
+    1.0,
+    1.0,
+    2.0,
+    3.0
+   ]
+  },
+  {
+   "name": "abs of truth values",
+   "env": "basic",
+   "expression": "abs(True) + abs(s > 2)",
+   "value": 2.0
+  },
+  {
+   "name": "truth equals number",
+   "env": "basic",
+   "expression": "(True == 1) + (s > 2) * 3 + ((s > 2) == 1)",
+   "value": 5.0
+  },
+  {
+   "name": "whole list floor division by zero",
+   "env": "basic",
+   "expression": "n // (b - b)",
+   "value": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "whole list remainder by zero",
+   "env": "basic",
+   "expression": "n % (b - 1)",
+   "value": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "whole number floor division and remainder by zero",
+   "env": "basic",
+   "expression": "k // (k - 3) + k % (k - 3)",
+   "value": 0.0
+  },
+  {
+   "name": "whole product has no negative zero",
+   "env": "basic",
+   "expression": "ops.array([(k - 3) * -2, -(k - 3), 0 * -1])",
+   "value": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "whole list product has no negative zero",
+   "env": "basic",
+   "expression": "(n * -1) * 1.0",
+   "value": [
+    -3.0,
+    0.0,
+    -2.0,
+    -1.0
+   ]
+  },
+  {
+   "name": "negative zero from division of whole numbers",
+   "env": "basic",
+   "expression": "ops.array([0 / -s, (k - 3) / -1])",
+   "value": [
+    -0.0,
+    -0.0
+   ]
+  },
+  {
+   "name": "negate a decimal zero",
+   "env": "basic",
+   "expression": "-z",
+   "value": -0.0
+  },
+  {
+   "name": "whole powers are exact",
+   "env": "basic",
+   "expression": "k ** 3 + 2 ** k + 7 ** 2",
+   "value": 84.0
+  },
+  {
+   "name": "whole list power",
+   "env": "basic",
+   "expression": "n ** 2 + n ** n",
+   "value": [
+    36.0,
+    1.0,
+    8.0,
+    2.0
+   ]
+  },
+  {
+   "name": "whole number to a negative power",
+   "env": "basic",
+   "expression": "k ** -1",
+   "error": "value"
+  },
+  {
+   "name": "python whole number to a negative power",
+   "env": "basic",
+   "expression": "2 ** -2",
+   "value": 0.25
+  },
+  {
+   "name": "whole list to a negative power",
+   "env": "basic",
+   "expression": "n ** (b - 2)",
+   "error": "value"
+  },
+  {
+   "name": "zero to the power zero",
+   "env": "basic",
+   "expression": "(k - 3) ** (k - 3) + z ** z",
+   "value": 2.0
+  },
+  {
+   "name": "whole number true division",
+   "env": "basic",
+   "expression": "n / b",
+   "value": [
+    3.0,
+    "nan",
+    2.0,
+    1.0
+   ]
+  },
+  {
+   "name": "float floor division by zero",
+   "env": "basic",
+   "expression": "x // z",
+   "value": [
+    "inf",
+    "-inf",
+    "inf",
+    "inf"
+   ]
+  },
+  {
+   "name": "float remainder by zero",
+   "env": "basic",
+   "expression": "x % z",
+   "value": [
+    "nan",
+    "nan",
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "floor division by infinity",
+   "env": "basic",
+   "expression": "x // ops.inf",
+   "value": [
+    0.0,
+    -1.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "remainder by infinity",
+   "env": "basic",
+   "expression": "x % ops.inf",
+   "value": [
+    1.5,
+    "inf",
+    3.25,
+    0.5
+   ]
+  },
+  {
+   "name": "remainder by minus infinity",
+   "env": "basic",
+   "expression": "x % -ops.inf",
+   "value": [
+    "-inf",
+    -2.0,
+    "-inf",
+    "-inf"
+   ]
+  },
+  {
+   "name": "infinity floor divided",
+   "env": "basic",
+   "expression": "ops.inf // x + ops.inf % x",
+   "value": [
+    "nan",
+    "nan",
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "negative zero remainder",
+   "env": "basic",
+   "expression": "(z * -1) % y",
+   "value": [
+    0.0,
+    0.0,
+    -0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "negative zero floor division",
+   "env": "basic",
+   "expression": "(z * -1) // y",
+   "value": [
+    -0.0,
+    -0.0,
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "name": "floor division of lists",
+   "env": "basic",
+   "expression": "y // x + y % x",
+   "value": [
+    1.5,
+    -2.0,
+    1.25,
+    16.0
+   ]
+  },
+  {
+   "name": "power two written as a decimal",
+   "env": "basic",
+   "expression": "x ** 2.0",
+   "value": [
+    2.25,
+    4.0,
+    10.5625,
+    0.25
+   ]
+  },
+  {
+   "name": "power of one and of minus one",
+   "env": "basic",
+   "expression": "ops.array([1, -1, 1]) ** ops.array([ops.inf, ops.inf, z / z])",
+   "value": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "power with a list of exponents",
+   "env": "basic",
+   "expression": "y ** n",
+   "approx": true,
+   "value": [
+    8.0,
+    1.0,
+    1.0,
+    8.0
+   ]
+  },
+  {
+   "name": "power of a whole base to a half",
+   "env": "basic",
+   "expression": "k ** 0.5",
+   "approx": true,
+   "value": 1.7320508075688772
+  },
+  {
+   "name": "negative base to a half",
+   "env": "basic",
+   "expression": "(-s) ** 0.5",
+   "value": "nan"
+  },
+  {
+   "name": "zero to a negative power",
+   "env": "basic",
+   "expression": "z ** -1",
+   "value": "inf"
+  },
+  {
+   "name": "and or return an operand",
+   "env": "basic",
+   "expression": "(s and k) + (z and k) + (z or s) + (k or s)",
+   "value": 8.5
+  },
+  {
+   "name": "not of numbers",
+   "env": "basic",
+   "expression": "(not z) + (not s) + (not z / z)",
+   "value": 1.0
+  },
+  {
+   "name": "nan counts as true",
+   "env": "basic",
+   "expression": "ops.array([z / z and 5, z / z or 7])",
+   "value": [
+    5.0,
+    "nan"
+   ]
+  },
+  {
+   "name": "longer chain",
+   "env": "basic",
+   "expression": "0 < x[0] < y[0] < 10 > k",
+   "value": 1.0
+  },
+  {
+   "name": "min max with nan second",
+   "env": "basic",
+   "expression": "min(s, z / z) + max(s, z / z)",
+   "value": 5.0
+  },
+  {
+   "name": "min with nan first",
+   "env": "basic",
+   "expression": "min(z / z, s)",
+   "value": "nan"
+  },
+  {
+   "name": "builtin min skips a later nan",
+   "env": "basic",
+   "expression": "min(ops.array([1, z / z, 0.5])) + max(ops.array([1, z / z, 3]))",
+   "value": 3.5
+  },
+  {
+   "name": "builtin min of signed zeros",
+   "env": "basic",
+   "expression": "ops.array([min(z, -z), min(-z, z), max(z, -z), max(-z, z)])",
+   "value": [
+    0.0,
+    -0.0,
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "name": "ops min max of signed zeros",
+   "env": "basic",
+   "expression": "ops.array([ops.min(ops.array([z, -z])), ops.min(ops.array([-z, z])), ops.max(ops.array([z, -z])), ops.max(ops.array([-z, z]))])",
+   "value": [
+    -0.0,
+    0.0,
+    -0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops min with nan",
+   "env": "basic",
+   "expression": "ops.array([ops.min(ops.array([1, z / z, 0.5])), ops.max(ops.array([z / z, 1]))])",
+   "value": [
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "ops minimum with nan and zeros",
+   "env": "basic",
+   "expression": "ops.minimum(ops.array([z, -z, z / z, 1]), ops.array([-z, z, 1, z / z]))",
+   "value": [
+    -0.0,
+    0.0,
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "ops maximum with nan and zeros",
+   "env": "basic",
+   "expression": "ops.maximum(ops.array([z, -z, z / z, 1]), ops.array([-z, z, 1, z / z]))",
+   "value": [
+    -0.0,
+    0.0,
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "ops minimum of whole numbers",
+   "env": "basic",
+   "expression": "ops.minimum(n, 1.5) + ops.maximum(n, b)",
+   "value": [
+    4.5,
+    0.0,
+    3.5,
+    2.0
+   ]
+  },
+  {
+   "name": "min of an empty list",
+   "env": "basic",
+   "expression": "min(x[3:1])",
+   "error": "value"
+  },
+  {
+   "name": "ops max of an empty list",
+   "env": "basic",
+   "expression": "ops.max(x[3:1])",
+   "error": "value"
+  },
+  {
+   "name": "ops argmin of an empty list",
+   "env": "basic",
+   "expression": "ops.argmin(x[3:1])",
+   "error": "value"
+  },
+  {
+   "name": "min of a single number",
+   "env": "basic",
+   "expression": "min(s)",
+   "error": "type"
+  },
+  {
+   "name": "min max of a range",
+   "env": "basic",
+   "expression": "min(range(3, 7)) + max(range(3, 7))",
+   "value": 9.0
+  },
+  {
+   "name": "ops min max along rows and columns",
+   "env": "basic",
+   "expression": "ops.min(t, axis=1) + ops.max(m, axis=1)[0:3]",
+   "value": [
+    8.0,
+    14.0,
+    5.0
+   ]
+  },
+  {
+   "name": "sums of negative zeros",
+   "env": "basic",
+   "expression": "ops.array([sum(ops.array([-z, -z])), ops.sum(ops.array([-z, -z])), ops.sum(ops.zeros(9) * -1), ops.mean(ops.array([-z])), ops.prod(ops.array([-z]))])",
+   "value": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "name": "cumsum keeps negative zero",
+   "env": "basic",
+   "expression": "ops.cumsum(ops.array([-z, -z, 1]))",
+   "value": [
+    -0.0,
+    -0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "axis sums of negative zeros",
+   "env": "basic",
+   "expression": "ops.sum(abs(t) * -z, axis=0) + ops.sum(abs(t) * -z, axis=1)[0]",
+   "value": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops sum of a long list",
+   "env": "basic",
+   "expression": "ops.sum(ops.arange(300) * 0.1)",
+   "value": 4485.0
+  },
+  {
+   "name": "builtin sum of a long list",
+   "env": "basic",
+   "expression": "sum(ops.arange(300) * 0.1)",
+   "value": 4485.0
+  },
+  {
+   "name": "ops mean of a long list",
+   "env": "basic",
+   "expression": "ops.mean(ops.arange(1000) / 7)",
+   "value": 71.35714285714286
+  },
+  {
+   "name": "ops sum of a table expression",
+   "env": "basic",
+   "expression": "ops.sum(t * t - t / 3)",
+   "value": 282.83333333333337
+  },
+  {
+   "name": "ops mean of a table",
+   "env": "basic",
+   "expression": "ops.mean(t / 3)",
+   "value": 1.3055555555555556
+  },
+  {
+   "name": "ops prod of a table",
+   "env": "basic",
+   "expression": "ops.prod(t / 3)",
+   "value": -0.7254991617131534
+  },
+  {
+   "name": "ops prod along rows and columns",
+   "env": "basic",
+   "expression": "ops.prod(t / 3, axis=0) + ops.prod(t / 3, axis=1)[0]",
+   "value": [
+    0.1111111111111111,
+    0.5185185185185185,
+    1.8518518518518519,
+    11.629629629629628
+   ]
+  },
+  {
+   "name": "ops prod of whole numbers has no negative zero",
+   "env": "basic",
+   "expression": "ops.array([ops.prod(n * -1), ops.prod(m * -1, axis=1)[2]])",
+   "value": [
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops reductions of truth values",
+   "env": "basic",
+   "expression": "ops.sum(x > 1) + ops.mean(x > 1) + ops.prod(n + 1 > 0) + ops.sum(t > 2, axis=1)",
+   "value": [
+    5.5,
+    7.5,
+    4.5
+   ]
+  },
+  {
+   "name": "ops reductions of an empty list",
+   "env": "basic",
+   "expression": "ops.array([ops.sum(x[3:1]), ops.mean(x[3:1]), ops.prod(x[3:1])])",
+   "value": [
+    0.0,
+    "nan",
+    1.0
+   ]
+  },
+  {
+   "name": "line fit with ops",
+   "env": "fit",
+   "expression": "ops.sum((pressure - (offset + gain * voltage)) ** 2) + ops.mean(pressure * voltage)",
+   "value": 249.7310483333332
+  },
+  {
+   "name": "builtin sum of a table times a list",
+   "env": "basic",
+   "expression": "sum(t * x / 3)",
+   "value": [
+    2.5,
+    -5.666666666666666,
+    12.999999999999998,
+    3.5833333333333335
+   ]
+  },
+  {
+   "name": "ops sign of zeros and nan",
+   "env": "basic",
+   "expression": "ops.sign(ops.array([-z, z, z / z, -3, ops.inf]))",
+   "value": [
+    0.0,
+    0.0,
+    "nan",
+    -1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ops round at the edges",
+   "env": "basic",
+   "expression": "ops.round(ops.array([-0.2, -0.5, 0.5, 1e300, -2.5, z / z, -ops.inf, -z, 0.49999999999999994, 4503599627370497.0, 2.5, 3.5]))",
+   "value": [
+    -0.0,
+    -0.0,
+    0.0,
+    1e+300,
+    -2.0,
+    "nan",
+    "-inf",
+    -0.0,
+    0.0,
+    4503599627370497.0,
+    2.0,
+    4.0
+   ]
+  },
+  {
+   "name": "ops rounding of whole numbers",
+   "env": "basic",
+   "expression": "ops.round(n) + ops.floor(n) + ops.ceil(k) + ops.sign(n - 1) + ops.abs(n - 2)",
+   "value": [
+    11.0,
+    4.0,
+    8.0,
+    6.0
+   ]
+  },
+  {
+   "name": "ops ceil near zero",
+   "env": "basic",
+   "expression": "ops.ceil(ops.array([-0.5, -z, 0.5]))",
+   "value": [
+    -0.0,
+    -0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ops floor near zero",
+   "env": "basic",
+   "expression": "ops.floor(ops.array([-0.5, -z, 0.5]))",
+   "value": [
+    -1.0,
+    -0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops clip with crossed bounds",
+   "env": "basic",
+   "expression": "ops.clip(x, 2, 0)",
+   "value": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "name": "ops clip with a nan bound",
+   "env": "basic",
+   "expression": "ops.clip(x, z / z, 1) + ops.clip(z / z, 0, 1)",
+   "value": [
+    "nan",
+    "nan",
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "ops clip with lists",
+   "env": "basic",
+   "expression": "ops.clip(x, n, n + 1)",
+   "value": [
+    3.0,
+    0.0,
+    3.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ops clip of zeros",
+   "env": "basic",
+   "expression": "ops.clip(ops.array([-z, z]), ops.array([z, -z]), 1)",
+   "value": [
+    0.0,
+    -0.0
+   ]
+  },
+  {
+   "name": "ops clip of whole numbers",
+   "env": "basic",
+   "expression": "ops.clip(n, 1, 2) + ops.clip(k, 0, 2.5)",
+   "value": [
+    4.5,
+    3.5,
+    4.5,
+    3.5
+   ]
+  },
+  {
+   "name": "ops where nan is true",
+   "env": "basic",
+   "expression": "ops.where(ops.array([z, z / z, -z, 2]), 1, 0)",
+   "value": [
+    0.0,
+    1.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "ops where single numbers",
+   "env": "basic",
+   "expression": "ops.where(s > 2, 1.5, 2) + ops.where(z, x, y)",
+   "value": [
+    3.5,
+    5.5,
+    0.5,
+    9.5
+   ]
+  },
+  {
+   "name": "ops where on a table",
+   "env": "basic",
+   "expression": "ops.where(t > 2, t, x)",
+   "value": [
+    [
+     1.5,
+     -2.0,
+     3.0,
+     4.0
+    ],
+    [
+     5.0,
+     6.0,
+     7.0,
+     8.5
+    ],
+    [
+     1.5,
+     -2.0,
+     3.25,
+     9.0
+    ]
+   ]
+  },
+  {
+   "name": "ops argmin argmax with nan",
+   "env": "basic",
+   "expression": "ops.argmin(ops.array([1, z / z, 0, z / z])) * 10 + ops.argmax(ops.array([1, z / z, 5]))",
+   "value": 11.0
+  },
+  {
+   "name": "ops argsort with nan and zeros",
+   "env": "basic",
+   "expression": "ops.argsort(ops.array([2, z / z, 1, -z, z, z / z, -ops.inf]))",
+   "value": [
+    6.0,
+    3.0,
+    4.0,
+    2.0,
+    0.0,
+    1.0,
+    5.0
+   ]
+  },
+  {
+   "name": "ops sort with nan and zeros",
+   "env": "basic",
+   "expression": "ops.sort(ops.array([2, z / z, 1, z, -z, z / z, -ops.inf]))",
+   "value": [
+    "-inf",
+    0.0,
+    -0.0,
+    1.0,
+    2.0,
+    "nan",
+    "nan"
+   ]
+  },
+  {
+   "name": "ops roll by more than the length",
+   "env": "basic",
+   "expression": "ops.roll(x, -9) + ops.roll(x, 2.7) + ops.roll(x, 0)",
+   "value": [
+    2.75,
+    1.75,
+    5.25,
+    0.0
+   ]
+  },
+  {
+   "name": "ops roll of an empty list",
+   "env": "basic",
+   "expression": "len(ops.roll(x[3:1], 2))",
+   "value": 0.0
+  },
+  {
+   "name": "ops roll of an expression",
+   "env": "basic",
+   "expression": "sum(x[ops.roll(n + 0, 1)] * ops.roll(x * 2, -1))",
+   "value": 22.5
+  },
+  {
+   "name": "ops zeros with a negative length",
+   "env": "basic",
+   "expression": "ops.zeros(-1)",
+   "error": "value"
+  },
+  {
+   "name": "ops arange with a negative length",
+   "env": "basic",
+   "expression": "len(ops.arange(-2))",
+   "value": 0.0
+  },
+  {
+   "name": "ops zeros with a decimal length",
+   "env": "basic",
+   "expression": "len(ops.zeros(2.9)) + len(ops.ones(True))",
+   "value": 3.0
+  },
+  {
+   "name": "ops array of nothing",
+   "env": "basic",
+   "expression": "len(ops.array([]))",
+   "value": 0.0
+  },
+  {
+   "name": "ops dot of whole numbers",
+   "env": "basic",
+   "expression": "ops.dot(n, b) + ops.dot(m, n)[1]",
+   "approx": true,
+   "value": 33.0
+  },
+  {
+   "name": "ops cumsum of truth values",
+   "env": "basic",
+   "expression": "ops.cumsum(x > 0)",
+   "value": [
+    1.0,
+    1.0,
+    2.0,
+    3.0
+   ]
+  },
+  {
+   "name": "decimal position even when whole",
+   "env": "basic",
+   "expression": "x[k / 1]",
+   "error": "index"
+  },
+  {
+   "name": "whole positions from floor division",
+   "env": "basic",
+   "expression": "x[len(x) // 2] + x[k // 1] + x[-0]",
+   "value": 5.25
+  },
+  {
+   "name": "gather with negative positions",
+   "env": "basic",
+   "expression": "x[n - 4]",
+   "value": [
+    0.5,
+    1.5,
+    3.25,
+    -2.0
+   ]
+  },
+  {
+   "name": "gather with a negative position out of range",
+   "env": "basic",
+   "expression": "x[n - 5]",
+   "error": "index"
+  },
+  {
+   "name": "gather nothing",
+   "env": "basic",
+   "expression": "len(x[range(0)])",
+   "value": 0.0
+  },
+  {
+   "name": "gather with a range that is too long",
+   "env": "basic",
+   "expression": "x[range(5)]",
+   "error": "index"
+  },
+  {
+   "name": "gather of an expression",
+   "env": "basic",
+   "expression": "(x * 2 + y)[n]",
+   "value": [
+    9.0,
+    5.0,
+    5.5,
+    0.0
+   ]
+  },
+  {
+   "name": "row then element",
+   "env": "basic",
+   "expression": "t[1][2] + t[-1][-1]",
+   "value": 16.0
+  },
+  {
+   "name": "gather then element",
+   "env": "basic",
+   "expression": "x[n][0]",
+   "value": 0.5
+  },
+  {
+   "name": "slice with whole variable ends",
+   "env": "basic",
+   "expression": "x[k - 2:k]",
+   "value": [
+    -2.0,
+    3.25
+   ]
+  },
+  {
+   "name": "slice of a slice",
+   "env": "basic",
+   "expression": "x[1:][1:]",
+   "value": [
+    3.25,
+    0.5
+   ]
+  },
+  {
+   "name": "slice with far negative ends",
+   "env": "basic",
+   "expression": "len(x[-99:-98]) + len(x[-99:]) * 10",
+   "value": 40.0
+  },
+  {
+   "name": "slice with a decimal end",
+   "env": "basic",
+   "expression": "x[1.0:2]",
+   "error": "type"
+  },
+  {
+   "name": "table row out of range",
+   "env": "basic",
+   "expression": "t[3]",
+   "error": "index"
+  },
+  {
+   "name": "group out of range",
+   "env": "basic",
+   "expression": "g[3]",
+   "error": "index"
+  },
+  {
+   "name": "negative group",
+   "env": "basic",
+   "expression": "g[-1]",
+   "value": [
+    1.0,
+    3.0
+   ]
+  },
+  {
+   "name": "two positions on a list",
+   "env": "basic",
+   "expression": "x[n, 0]",
+   "error": "index"
+  },
+  {
+   "name": "position on a single number",
+   "env": "basic",
+   "expression": "s[0]",
+   "error": "index"
+  },
+  {
+   "name": "paired with a range and a number",
+   "env": "basic",
+   "expression": "t[range(3), 1]",
+   "value": [
+    2.0,
+    6.0,
+    0.5
+   ]
+  },
+  {
+   "name": "paired with negative positions",
+   "env": "basic",
+   "expression": "m[n - 4, -1]",
+   "value": [
+    4.0,
+    2.0,
+    1.0,
+    8.0
+   ]
+  },
+  {
+   "name": "paired inside a larger expression",
+   "env": "basic",
+   "expression": "sum(t[range(3), b[0:3]] * x[0:3]) - ops.sum(m[n, n] / 7)",
+   "value": -8.089285714285715
+  },
+  {
+   "name": "len of ranges",
+   "env": "basic",
+   "expression": "len(range(2, 10, 3)) + len(range(5, 0)) + len(range(10, 0, -3))",
+   "value": 7.0
+  },
+  {
+   "name": "range with a zero step",
+   "env": "basic",
+   "expression": "sum(range(1, 5, 0))",
+   "error": "value"
+  },
+  {
+   "name": "range with a decimal argument",
+   "env": "basic",
+   "expression": "sum(range(s))",
+   "error": "type"
+  },
+  {
+   "name": "range in arithmetic",
+   "env": "basic",
+   "expression": "range(3) + 1",
+   "error": "type"
+  },
+  {
+   "name": "range from whole variables",
+   "env": "basic",
+   "expression": "sum(range(k, k * 4, k - 1))",
+   "value": 35.0
+  },
+  {
+   "name": "accumulate from a whole zero",
+   "env": "basic",
+   "expression": "acc(x) + acc(x[3:1]) + acc(n)",
+   "functions": "def acc(a):\n    total = 0\n    for v in a:\n        total += v\n    return total\n",
+   "value": 9.25
+  },
+  {
+   "name": "nested loops over a table",
+   "env": "basic",
+   "expression": "squares(t) + squares(m)",
+   "functions": "def squares(table):\n    s = 0.0\n    for row in table:\n        for v in row:\n            s += v * v\n    return s\n",
+   "value": 711.5
+  },
+  {
+   "name": "loop over a literal list of lists",
+   "env": "basic",
+   "expression": "both(x, y)",
+   "functions": "def both(a, b):\n    s = 0\n    for part in [a, b, a * b]:\n        s += sum(part)\n    return s\n",
+   "value": 12.0
+  },
+  {
+   "name": "a name changes its kind",
+   "env": "basic",
+   "expression": "twice(x)",
+   "functions": "def twice(a):\n    a = sum(a)\n    a = a * 2\n    return a\n",
+   "value": 6.5
+  },
+  {
+   "name": "changing the loop variable does not change the loop",
+   "env": "basic",
+   "expression": "f(k + 2)",
+   "functions": "def f(count):\n    total = 0\n    for i in range(count):\n        i = i * 2\n        total += i\n    return total\n",
+   "value": 20.0
+  },
+  {
+   "name": "a function returns a list or a table",
+   "env": "basic",
+   "expression": "sum(scale(x, 2)) + ops.sum(scale(t, x))",
+   "functions": "def scale(a, factor):\n    return a * factor\n",
+   "value": 46.75
+  },
+  {
+   "name": "a number as a condition",
+   "env": "basic",
+   "expression": "f(z) * 100 + f(s) * 10 + f(z / z)",
+   "functions": "def f(a):\n    if a:\n        return 1\n    return 2\n",
+   "value": 211.0
+  },
+  {
+   "name": "return from nested loops",
+   "env": "basic",
+   "expression": "find(t, 6.5) + 100 * find(t, 99)",
+   "functions": "def find(table, limit):\n    count = 0\n    for row in table:\n        for v in row:\n            if v > limit:\n                return count\n            count += 1\n    return -1\n",
+   "value": -94.0
+  },
+  {
+   "name": "group loads",
+   "env": "basic",
+   "expression": "worst(g, x) - best(g, x)",
+   "functions": "def load(group, values):\n    return sum(values[group])\n\ndef worst(groups, values):\n    out = -ops.inf\n    for i in range(len(groups)):\n        out = max(out, load(groups[i], values))\n    return out\n\ndef best(groups, values):\n    out = ops.inf\n    for group in groups:\n        out = min(out, load(group, values))\n    return out\n",
+   "value": 6.25
+  },
+  {
+   "name": "if elif else with different kinds of numbers",
+   "env": "basic",
+   "expression": "pick(k) + pick(s) + pick(z)",
+   "functions": "def pick(v):\n    if v > 2.7:\n        out = 1\n    elif v > 1:\n        out = v / 2\n    else:\n        out = v > 0\n    return out * 4\n",
+   "value": 9.0
+  },
+  {
+   "name": "a loop that runs zero times",
+   "env": "basic",
+   "expression": "count(0) + count(-3)",
+   "functions": "def count(limit):\n    total = 5\n    for i in range(limit):\n        total += 1\n    for i in range(3, limit):\n        total += 1\n    return total\n",
+   "value": 10.0
+  },
+  {
+   "name": "a loop keeps the list it started with",
+   "env": "basic",
+   "expression": "f(x) + f(n)",
+   "functions": "def f(a):\n    total = 0\n    for v in a:\n        a = a * 2\n        total += v\n    return total + a[0]\n",
+   "value": 81.25
+  },
+  {
+   "name": "a loop variable with the name of its list",
+   "env": "basic",
+   "expression": "f(x) + f(g[2])",
+   "functions": "def f(a):\n    total = 0\n    for a in a:\n        total += a\n    return total\n",
+   "value": 7.25
+  },
+  {
+   "name": "a loop over groups keeps the groups it started with",
+   "env": "basic",
+   "expression": "f(g)",
+   "functions": "def f(parts):\n    total = 0\n    for part in parts:\n        parts = part\n        total += len(part) + len(parts)\n    return total\n",
+   "value": 8.0
+  },
+  {
+   "name": "truth values of mixed python and numpy numbers multiply",
+   "env": "basic",
+   "expression": "f(s) + f(z)",
+   "functions": "def f(c):\n    if c > 0:\n        v = 5\n    else:\n        v = c\n    return (v > 1) * (v > 2) + (v >= 0) * 3\n",
+   "value": 7.0
+  }
+ ],
+ "rejects": [
+  {
+   "name": "import",
+   "where": "functions",
+   "source": "import os\n",
+   "line": 1
+  },
+  {
+   "name": "from import",
+   "where": "functions",
+   "source": "from os import path\n",
+   "line": 1
+  },
+  {
+   "name": "while",
+   "where": "functions",
+   "source": "def f(a):\n    while a > 0:\n        a -= 1\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "class",
+   "where": "functions",
+   "source": "class A:\n    x = 1\n",
+   "line": 1
+  },
+  {
+   "name": "lambda",
+   "where": "expression",
+   "source": "(lambda v: v)(1)",
+   "line": 1
+  },
+  {
+   "name": "comprehension",
+   "where": "expression",
+   "source": "sum([v * 2 for v in x])",
+   "line": 1
+  },
+  {
+   "name": "conditional expression",
+   "where": "expression",
+   "source": "1 if s > 2 else 0",
+   "line": 1
+  },
+  {
+   "name": "string",
+   "where": "expression",
+   "source": "len('abc')",
+   "line": 1
+  },
+  {
+   "name": "dictionary",
+   "where": "expression",
+   "source": "{1: 2}",
+   "line": 1
+  },
+  {
+   "name": "attribute of a value",
+   "where": "expression",
+   "source": "x.shape",
+   "line": 1
+  },
+  {
+   "name": "method call",
+   "where": "expression",
+   "source": "x.sum()",
+   "line": 1
+  },
+  {
+   "name": "dunder attribute",
+   "where": "expression",
+   "source": "x.__class__",
+   "line": 1
+  },
+  {
+   "name": "unknown ops name",
+   "where": "expression",
+   "source": "ops.linalg(x)",
+   "line": 1
+  },
+  {
+   "name": "ops used as a value",
+   "where": "expression",
+   "source": "ops",
+   "line": 1
+  },
+  {
+   "name": "unknown name",
+   "where": "expression",
+   "source": "x + undefined_thing",
+   "line": 1
+  },
+  {
+   "name": "javascript global",
+   "where": "expression",
+   "source": "globalThis",
+   "line": 1
+  },
+  {
+   "name": "javascript constructor",
+   "where": "expression",
+   "source": "constructor",
+   "line": 1
+  },
+  {
+   "name": "python builtin outside the six",
+   "where": "expression",
+   "source": "eval(1)",
+   "line": 1
+  },
+  {
+   "name": "print",
+   "where": "expression",
+   "source": "print(1)",
+   "line": 1
+  },
+  {
+   "name": "function sees no variables",
+   "where": "functions",
+   "source": "def f():\n    return x[0]\n",
+   "line": 2
+  },
+  {
+   "name": "call before definition",
+   "where": "functions",
+   "source": "def f(a):\n    return h(a)\n\ndef h(a):\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "recursion",
+   "where": "functions",
+   "source": "def f(a):\n    return f(a - 1)\n",
+   "line": 2
+  },
+  {
+   "name": "missing return",
+   "where": "functions",
+   "source": "def f(a):\n    if a > 0:\n        return 1\n",
+   "line": 1
+  },
+  {
+   "name": "element assignment",
+   "where": "functions",
+   "source": "def f(a):\n    a[0] = 1\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "tuple assignment",
+   "where": "functions",
+   "source": "def f(a):\n    b, c = a, a\n    return b\n",
+   "line": 2
+  },
+  {
+   "name": "default parameter",
+   "where": "functions",
+   "source": "def f(a, b=1):\n    return a + b\n",
+   "line": 1
+  },
+  {
+   "name": "keyword argument",
+   "where": "expression",
+   "source": "min(s, key=k)",
+   "line": 1
+  },
+  {
+   "name": "break",
+   "where": "functions",
+   "source": "def f(a):\n    for v in a:\n        break\n    return 0\n",
+   "line": 3
+  },
+  {
+   "name": "tab indentation",
+   "where": "functions",
+   "source": "def f(a):\n\treturn a\n",
+   "line": 2
+  },
+  {
+   "name": "bad indentation",
+   "where": "functions",
+   "source": "def f(a):\n    b = 1\n      return b\n",
+   "line": 3
+  },
+  {
+   "name": "statement at top level",
+   "where": "functions",
+   "source": "y2 = 3\n",
+   "line": 1
+  },
+  {
+   "name": "assignment to a data name",
+   "where": "functions",
+   "source": "def f(a):\n    x = 1\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "function named like a builtin",
+   "where": "functions",
+   "source": "def sum(a):\n    return 0\n",
+   "line": 1
+  },
+  {
+   "name": "two functions with one name",
+   "where": "functions",
+   "source": "def f(a):\n    return a\n\ndef f(b):\n    return b\n",
+   "line": 4
+  },
+  {
+   "name": "wrong number of arguments",
+   "where": "expression",
+   "source": "abs(s, k)",
+   "line": 1
+  },
+  {
+   "name": "unbalanced parenthesis",
+   "where": "expression",
+   "source": "(s + 1",
+   "line": 1
+  },
+  {
+   "name": "two expressions",
+   "where": "expression",
+   "source": "s; k",
+   "line": 1
+  },
+  {
+   "name": "list literal as a value",
+   "where": "expression",
+   "source": "[1, 2] * 2",
+   "line": 1
+  },
+  {
+   "name": "slice with step",
+   "where": "expression",
+   "source": "x[::2]",
+   "line": 1
+  },
+  {
+   "name": "statement in an expression",
+   "where": "expression",
+   "source": "s = 3",
+   "line": 1
+  },
+  {
+   "name": "bitwise operator",
+   "where": "expression",
+   "source": "k & 1",
+   "line": 1
+  },
+  {
+   "name": "matrix multiply operator",
+   "where": "expression",
+   "source": "t @ x",
+   "line": 1
+  },
+  {
+   "name": "walrus",
+   "where": "expression",
+   "source": "(q := 3)",
+   "line": 1
+  },
+  {
+   "name": "star arguments",
+   "where": "expression",
+   "source": "min(*x)",
+   "line": 1
+  },
+  {
+   "name": "semicolon injection",
+   "where": "expression",
+   "source": "s); fetch('x'",
+   "line": 1
+  },
+  {
+   "name": "backtick",
+   "where": "expression",
+   "source": "`s`",
+   "line": 1
+  },
+  {
+   "name": "javascript comment",
+   "where": "expression",
+   "source": "s // 2 /* hidden */",
+   "line": 1
+  },
+  {
+   "name": "prototype name",
+   "where": "expression",
+   "source": "__proto__",
+   "line": 1
+  },
+  {
+   "name": "ops constructor",
+   "where": "expression",
+   "source": "ops.constructor(1)",
+   "line": 1
+  },
+  {
+   "name": "ops prototype",
+   "where": "expression",
+   "source": "ops.__proto__",
+   "line": 1
+  },
+  {
+   "name": "ops toString",
+   "where": "expression",
+   "source": "ops.toString()",
+   "line": 1
+  },
+  {
+   "name": "ops hasOwnProperty",
+   "where": "expression",
+   "source": "ops.hasOwnProperty(1)",
+   "line": 1
+  },
+  {
+   "name": "constructor of a value",
+   "where": "expression",
+   "source": "x.constructor.constructor(1)",
+   "line": 1
+  },
+  {
+   "name": "name starting with two underscores",
+   "where": "functions",
+   "source": "def __init__(a):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "local name starting with two underscores",
+   "where": "functions",
+   "source": "def f(a):\n    __proto__ = a\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "parameter starting with two underscores",
+   "where": "functions",
+   "source": "def f(__proto__):\n    return 1\n",
+   "line": 1
+  },
+  {
+   "name": "unicode lookalike of a name",
+   "where": "expression",
+   "source": "\uff58 + 1",
+   "line": 1
+  },
+  {
+   "name": "unicode digit",
+   "where": "expression",
+   "source": "\u0661 + 1",
+   "line": 1
+  },
+  {
+   "name": "cyrillic lookalike of a name",
+   "where": "expression",
+   "source": "\u0445 + 1",
+   "line": 1
+  },
+  {
+   "name": "unicode escape in a name",
+   "where": "expression",
+   "source": "\\u0078 + 1",
+   "line": 1
+  },
+  {
+   "name": "non-breaking space",
+   "where": "expression",
+   "source": "s +\u00a0k",
+   "line": 1
+  },
+  {
+   "name": "zero width space",
+   "where": "expression",
+   "source": "s\u200b + k",
+   "line": 1
+  },
+  {
+   "name": "line separator",
+   "where": "expression",
+   "source": "s\u2028+ k",
+   "line": 1
+  },
+  {
+   "name": "null character",
+   "where": "expression",
+   "source": "s\u0000",
+   "line": 1
+  },
+  {
+   "name": "form feed",
+   "where": "expression",
+   "source": "s +\f k",
+   "line": 1
+  },
+  {
+   "name": "backslash continuation",
+   "where": "expression",
+   "source": "s + \\\n k",
+   "line": 1
+  },
+  {
+   "name": "hex literal",
+   "where": "expression",
+   "source": "0x10",
+   "line": 1
+  },
+  {
+   "name": "binary literal",
+   "where": "expression",
+   "source": "0b11",
+   "line": 1
+  },
+  {
+   "name": "underscore in a number",
+   "where": "expression",
+   "source": "1_000",
+   "line": 1
+  },
+  {
+   "name": "number with leading zeros",
+   "where": "expression",
+   "source": "0777",
+   "line": 1
+  },
+  {
+   "name": "number too large for a float",
+   "where": "expression",
+   "source": "1e999",
+   "line": 1
+  },
+  {
+   "name": "whole number too large to be exact",
+   "where": "expression",
+   "source": "9007199254740993",
+   "line": 1
+  },
+  {
+   "name": "imaginary number",
+   "where": "expression",
+   "source": "1j",
+   "line": 1
+  },
+  {
+   "name": "number glued to a word",
+   "where": "expression",
+   "source": "1or 2",
+   "line": 1
+  },
+  {
+   "name": "attribute of a number",
+   "where": "expression",
+   "source": "1 .real",
+   "line": 1
+  },
+  {
+   "name": "deeply nested parentheses",
+   "where": "expression",
+   "source": "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((s))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))",
+   "line": 1
+  },
+  {
+   "name": "deeply nested brackets",
+   "where": "expression",
+   "source": "x[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n[n]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+   "line": 1
+  },
+  {
+   "name": "very long chain",
+   "where": "expression",
+   "source": "s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s",
+   "line": 1
+  },
+  {
+   "name": "deep chain of minus signs",
+   "where": "expression",
+   "source": "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------s",
+   "line": 1
+  },
+  {
+   "name": "deep chain of powers",
+   "where": "expression",
+   "source": "2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2 ** 2",
+   "line": 1
+  },
+  {
+   "name": "one-line if",
+   "where": "functions",
+   "source": "def f(a):\n    if a > 0: return 1\n    return 0\n",
+   "line": 2
+  },
+  {
+   "name": "one-line def",
+   "where": "functions",
+   "source": "def f(a): return a\n",
+   "line": 1
+  },
+  {
+   "name": "nested def",
+   "where": "functions",
+   "source": "def f(a):\n    def g(b):\n        return b\n    return g(a)\n",
+   "line": 2
+  },
+  {
+   "name": "return without a value",
+   "where": "functions",
+   "source": "def f(a):\n    return\n",
+   "line": 2
+  },
+  {
+   "name": "for else",
+   "where": "functions",
+   "source": "def f(a):\n    for v in a:\n        a = v\n    else:\n        a = 1\n    return a\n",
+   "line": 4
+  },
+  {
+   "name": "name set only inside a loop",
+   "where": "functions",
+   "source": "def f(a):\n    for v in a:\n        last = v\n    return last\n",
+   "line": 4
+  },
+  {
+   "name": "name set only in one branch",
+   "where": "functions",
+   "source": "def f(a):\n    if a > 0:\n        b = 1\n    return b\n",
+   "line": 4
+  },
+  {
+   "name": "local named like a function",
+   "where": "functions",
+   "source": "def f(a):\n    return a\n\ndef h(a):\n    f = a\n    return f\n",
+   "line": 5
+  },
+  {
+   "name": "function named ops",
+   "where": "functions",
+   "source": "def ops(a):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "function named like a name of the exported script",
+   "where": "functions",
+   "source": "def np(a):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "loop variable named like a builtin",
+   "where": "functions",
+   "source": "def f(a):\n    for len in a:\n        a = 1\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "two parameters with one name",
+   "where": "functions",
+   "source": "def f(a, a):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "percent assignment",
+   "where": "functions",
+   "source": "def f(a):\n    a %= 2\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "decorator",
+   "where": "functions",
+   "source": "@staticmethod\ndef f(a):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "type hint",
+   "where": "functions",
+   "source": "def f(a: float):\n    return a\n",
+   "line": 1
+  },
+  {
+   "name": "line that does nothing",
+   "where": "functions",
+   "source": "def f(a):\n    a + 1\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "docstring",
+   "where": "functions",
+   "source": "def f(a):\n    \"\"\"Returns a.\"\"\"\n    return a\n",
+   "line": 2
+  },
+  {
+   "name": "code after the functions",
+   "where": "functions",
+   "source": "def f(a):\n    return a\n\nf(1)\n",
+   "line": 4
+  },
+  {
+   "name": "call of a value",
+   "where": "expression",
+   "source": "x(1)",
+   "line": 1
+  },
+  {
+   "name": "function used as a value",
+   "where": "expression",
+   "source": "sum + 1",
+   "line": 1
+  },
+  {
+   "name": "ops function used as a value",
+   "where": "expression",
+   "source": "ops.sum",
+   "line": 1
+  },
+  {
+   "name": "ops constant called",
+   "where": "expression",
+   "source": "ops.pi()",
+   "line": 1
+  },
+  {
+   "name": "axis on a builtin",
+   "where": "expression",
+   "source": "sum(t, axis=0)",
+   "line": 1
+  },
+  {
+   "name": "axis that is not written as 0 or 1",
+   "where": "expression",
+   "source": "ops.sum(t, axis=k)",
+   "line": 1
+  },
+  {
+   "name": "axis out of range",
+   "where": "expression",
+   "source": "ops.sum(t, axis=2)",
+   "line": 1
+  },
+  {
+   "name": "axis on a function without it",
+   "where": "expression",
+   "source": "ops.sqrt(t, axis=0)",
+   "line": 1
+  },
+  {
+   "name": "in operator",
+   "where": "expression",
+   "source": "s in x",
+   "line": 1
+  },
+  {
+   "name": "is operator",
+   "where": "expression",
+   "source": "s is k",
+   "line": 1
+  },
+  {
+   "name": "None",
+   "where": "expression",
+   "source": "None",
+   "line": 1
+  },
+  {
+   "name": "double quotes",
+   "where": "expression",
+   "source": "len(\"abc\")",
+   "line": 1
+  },
+  {
+   "name": "empty expression",
+   "where": "expression",
+   "source": "",
+   "line": 1
+  },
+  {
+   "name": "only a comment",
+   "where": "expression",
+   "source": "# nothing",
+   "line": 1
+  },
+  {
+   "name": "two lines",
+   "where": "expression",
+   "source": "s\nk",
+   "line": 2
+  },
+  {
+   "name": "tuple",
+   "where": "expression",
+   "source": "(s, k)",
+   "line": 1
+  },
+  {
+   "name": "empty parentheses",
+   "where": "expression",
+   "source": "()",
+   "line": 1
+  },
+  {
+   "name": "comma after a position",
+   "where": "expression",
+   "source": "x[1,]",
+   "line": 1
+  },
+  {
+   "name": "three positions",
+   "where": "expression",
+   "source": "t[0, 0, 0]",
+   "line": 1
+  },
+  {
+   "name": "exclamation mark",
+   "where": "expression",
+   "source": "!s",
+   "line": 1
+  },
+  {
+   "name": "dollar sign",
+   "where": "expression",
+   "source": "$s",
+   "line": 1
+  },
+  {
+   "name": "question mark",
+   "where": "expression",
+   "source": "s ? 1 : 2",
+   "line": 1
+  },
+  {
+   "name": "not after an operator",
+   "where": "expression",
+   "source": "1 + not s",
+   "line": 1
+  },
+  {
+   "name": "list as an ops argument",
+   "where": "expression",
+   "source": "ops.sum([s, k])",
+   "line": 1
+  },
+  {
+   "name": "truth value as a position",
+   "where": "expression",
+   "source": "x[s > 2]",
+   "line": 1
+  },
+  {
+   "name": "mask as positions",
+   "where": "expression",
+   "source": "x[x > 1]",
+   "line": 1
+  },
+  {
+   "name": "square root of truth values",
+   "where": "expression",
+   "source": "ops.sqrt(x > 1)",
+   "line": 1
+  },
+  {
+   "name": "axis on a list",
+   "where": "expression",
+   "source": "ops.sum(x, axis=0)",
+   "line": 1
+  },
+  {
+   "name": "slice of a table",
+   "where": "expression",
+   "source": "t[0:2]",
+   "line": 1
+  },
+  {
+   "name": "rows of a table by a list",
+   "where": "expression",
+   "source": "t[n]",
+   "line": 1
+  },
+  {
+   "name": "ops array of a list",
+   "where": "expression",
+   "source": "ops.array(x)",
+   "line": 1
+  },
+  {
+   "name": "and with a list on the right",
+   "where": "expression",
+   "source": "s > 2 and x",
+   "line": 1
+  },
+  {
+   "name": "ops function on a range",
+   "where": "expression",
+   "source": "ops.sum(range(3))",
+   "line": 1
+  },
+  {
+   "name": "position on a range",
+   "where": "expression",
+   "source": "range(5)[2]",
+   "line": 1
+  },
+  {
+   "name": "not of a list",
+   "where": "expression",
+   "source": "not x[0:1]",
+   "line": 1
+  }
+ ]
+}
