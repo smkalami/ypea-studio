@@ -8,8 +8,10 @@ import type { Inspection } from "../../engine/run.ts";
 import type { VariableSpec } from "../../engine/variables.ts";
 import { show, withUnit } from "./draft.ts";
 import { Drawing } from "./Drawing.tsx";
-import { Field, Num, Problems } from "./fields.tsx";
 import type { HelpReply, HelpRequest, Issue } from "./protocol.ts";
+import { Alert, Checkbox } from "./ui/controls.tsx";
+import { Field, Num, Problems } from "./ui/fields.tsx";
+import { Icon } from "./ui/Icon.tsx";
 
 /** The candidate as typed: one text for each variable, by its name. */
 export type Texts = Record<string, string>;
@@ -132,13 +134,13 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
 
   return (
     <section aria-labelledby="panel-heading">
-      <h3 id="panel-heading">Candidate</h3>
-      <p>
+      <h3 id="panel-heading" tabIndex={-1}>Test a candidate</h3>
+      <p className="lead">
         Test one solution before any run. Its objective value and each constraint show whether the problem says what you mean.
         Positions start at 0.
       </p>
-      {blocked.length > 0 && <p className="notice">The problem has something to fix before a candidate can be tested: {blocked[0].message}</p>}
-      {project.variables.length === 0 && <p className="empty">The project has no variables yet.</p>}
+      {blocked.length > 0 && <Alert kind="warning"><strong>Fix this first:</strong> {blocked[0].message}</Alert>}
+      {project.variables.length === 0 && <p className="empty">The project has no variables yet. Add one under Variables, then test a candidate here.</p>}
 
       {(project.variables as (VariableSpec & Record<string, any>)[]).map((v) => {
         const layout = layoutOf(v), text = texts[v.name] ?? "";
@@ -150,34 +152,36 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
           const toggle = (i: number) => type(v.name, Array.from({ length: size }, (_, k) => ((k === i ? !values[k] : values[k] === 1) ? 1 : 0)).join(", "));
           return (
             <fieldset key={v.name} className="checks">
-              <legend><code>{label}</code>: check the positions that are 1{v.type === "binary_selection" ? ` (exactly ${v.k})` : ""}</legend>
-              {Array.from({ length: size }, (_, i) => (
-                <label key={i}><input type="checkbox" checked={values[i] === 1} onChange={() => toggle(i)} /> {i}</label>
-              ))}
+              <legend className="field-label"><code>{label}</code>: check the positions that are 1{v.type === "binary_selection" ? ` (exactly ${v.k})` : ""}</legend>
+              <div className="check-list">
+                {Array.from({ length: size }, (_, i) => (
+                  <label key={i} className="check"><Checkbox checked={values[i] === 1} onChange={() => toggle(i)} />{i}</label>
+                ))}
+              </div>
             </fieldset>
           );
         }
         return (
-          <Field key={v.name} label={label} hint={valuesHint(v)} className={layout === "number" ? "narrow" : "wide"}>
+          <Field key={v.name} label={label} hint={valuesHint(v)} className={layout === "number" ? "" : "wide"}>
             {(tie) => layout === "rows" || layout === "groups"
-              ? <textarea {...tie} className="code" rows={Math.min(8, Math.max(2, Number(v.k ?? v.shape?.[0]) || 2))} spellCheck={false} value={text} onChange={(event) => type(v.name, event.target.value)} />
-              : <input {...tie} type="text" className="code" autoComplete="off" spellCheck={false} value={text} onChange={(event) => type(v.name, event.target.value)} />}
+              ? <textarea {...tie} className="textarea code" rows={Math.min(8, Math.max(2, Number(v.k ?? v.shape?.[0]) || 2))} spellCheck={false} value={text} onChange={(event) => type(v.name, event.target.value)} />
+              : <input {...tie} type="text" className="input code" autoComplete="off" spellCheck={false} value={text} onChange={(event) => type(v.name, event.target.value)} />}
           </Field>
         );
       })}
 
-      <p className="row">
-        <button type="button" className="primary" onClick={() => void test()}>Test this candidate</button>
-        {project.baseline && <button type="button" onClick={() => fill(project.baseline!.solution)}>Fill from the baseline</button>}
-        <button type="button" onClick={() => void random()}>Fill with a random candidate</button>
+      <div className="row actions">
+        <button type="button" className="btn btn-secondary" aria-busy={busy || undefined} onClick={() => !busy && void test()}><Icon name="check" />Test this candidate</button>
+        {project.baseline && <button type="button" className="btn btn-quiet" onClick={() => fill(project.baseline!.solution)}>Fill from the baseline</button>}
+        <button type="button" className="btn btn-quiet" onClick={() => void random()}>Fill with a random candidate</button>
         {busy && <span className="hint">Testing.</span>}
-      </p>
+      </div>
 
-      {outcome && "failure" in outcome && <p className="notice" role="alert"><strong>Problem:</strong> {outcome.failure}</p>}
+      {outcome && "failure" in outcome && <Alert kind="danger" role="alert"><strong>Problem:</strong> {outcome.failure}</Alert>}
       {outcome && "inspection" in outcome && (
         <div className="tested">
           <h4>What the problem says about this candidate</h4>
-          <dl>
+          <dl className="facts">
             <dt>Objective ({project.objective.sense === "min" ? "to minimize" : "to maximize"})</dt>
             <dd className="value">{withUnit(outcome.inspection.objective, unit)}</dd>
             <dt>Constraints</dt>
@@ -192,55 +196,67 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
         </div>
       )}
 
-      <h4>In use today (baseline)</h4>
-      <p>The baseline is the solution in use today. Every result is compared with it.</p>
-      <Problems issues={issues.filter((i) => i.where === "baseline")} />
-      {project.baseline && (
-        <p>
-          Stored: <strong>{String(project.baseline.label)}</strong>, {Object.entries(project.baseline.solution ?? {}).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.{" "}
-          <button type="button" className="quiet" onClick={() => { const { baseline, ...rest } = project; set(rest); }}>Remove the baseline</button>
-        </p>
-      )}
-      <div className="row">
-        <Field label="Name of the baseline">
-          {(tie) => <input {...tie} type="text" value={baselineLabel} onChange={(event) => setBaselineLabel(event.target.value)} />}
-        </Field>
-        <button
-          type="button" className="end"
-          onClick={async () => {
-            const solution = await test();
-            if (solution) set({ ...project, baseline: { label: baselineLabel, solution } });
-          }}
-        >
-          Store this candidate as the baseline
-        </button>
-      </div>
+      <h4>Comparison values</h4>
+      <p className="lead">Every result is compared with these two values, when they are given. Both are stored from the candidate above.</p>
+      <div className="pair">
+        <fieldset className="item">
+          <legend className="visually-hidden">In use today (baseline)</legend>
+          <p className="item-title" aria-hidden="true">In use today (baseline)</p>
+          <p>The baseline is the solution in use today.</p>
+          <Problems issues={issues.filter((i) => i.where === "baseline")} />
+          {project.baseline && (
+            <div className="stored">
+              <p>Stored: <strong>{String(project.baseline.label)}</strong>, {Object.entries(project.baseline.solution ?? {}).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.</p>
+              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { baseline, ...rest } = project; set(rest); }}><Icon name="trash" />Remove the baseline</button>
+            </div>
+          )}
+          <Field label="Name of the baseline">
+            {(tie) => <input {...tie} type="text" className="input" value={baselineLabel} onChange={(event) => setBaselineLabel(event.target.value)} />}
+          </Field>
+          <p>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={async () => {
+                const solution = await test();
+                if (solution) set({ ...project, baseline: { label: baselineLabel, solution } });
+              }}
+            >
+              Store this candidate as the baseline
+            </button>
+          </p>
+        </fieldset>
 
-      <h4>Known answer (reference)</h4>
-      <p>A reference is an answer that is already known, such as the best value a problem can reach. Every result is compared with it too.</p>
-      <Problems issues={issues.filter((i) => i.where === "reference")} />
-      {reference?.solution && (
-        <p>
-          Stored solution: {Object.entries(reference.solution).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.{" "}
-          <button type="button" className="quiet" onClick={() => { const { solution, ...rest } = reference; setReference(rest); }}>Remove the known solution</button>
-        </p>
-      )}
-      <div className="row">
-        <Field label="Name of the reference">
-          {(tie) => <input {...tie} type="text" value={reference?.label ?? ""} onChange={(event) => reference && setReference({ ...reference, label: event.target.value || undefined })} disabled={!reference} />}
-        </Field>
-        <Field label={`Known objective value${unit ? ` (${unit})` : ""}`} className="narrow">
-          {(tie) => <Num {...tie} value={reference?.objective} onChange={(objective) => setReference({ ...reference, objective: objective as number | undefined })} />}
-        </Field>
-        <button
-          type="button" className="end"
-          onClick={async () => {
-            const solution = await test();
-            if (solution) setReference({ ...reference, solution });
-          }}
-        >
-          Store this candidate as the known solution
-        </button>
+        <fieldset className="item">
+          <legend className="visually-hidden">Known answer (reference)</legend>
+          <p className="item-title" aria-hidden="true">Known answer (reference)</p>
+          <p>A reference is an answer that is already known, such as the best value a problem can reach.</p>
+          <Problems issues={issues.filter((i) => i.where === "reference")} />
+          {reference?.solution && (
+            <div className="stored">
+              <p>Stored solution: {Object.entries(reference.solution).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.</p>
+              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { solution, ...rest } = reference; setReference(rest); }}><Icon name="trash" />Remove the known solution</button>
+            </div>
+          )}
+          <div className="row">
+            <Field label={`Known objective value${unit ? ` (${unit})` : ""}`}>
+              {(tie) => <Num {...tie} value={reference?.objective} onChange={(objective) => setReference({ ...reference, objective: objective as number | undefined })} />}
+            </Field>
+            <Field label="Name of the reference" hint={reference ? undefined : "Give a known value or store a known solution first."}>
+              {(tie) => <input {...tie} type="text" className="input" value={reference?.label ?? ""} onChange={(event) => reference && setReference({ ...reference, label: event.target.value || undefined })} disabled={!reference} />}
+            </Field>
+          </div>
+          <p>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={async () => {
+                const solution = await test();
+                if (solution) setReference({ ...reference, solution });
+              }}
+            >
+              Store this candidate as the known solution
+            </button>
+          </p>
+        </fieldset>
       </div>
     </section>
   );
@@ -251,7 +267,8 @@ export function ConstraintTable({ constraints }: { constraints: Inspection["cons
   if (constraints.length === 0) return null;
   const words = { "<=": "at most", ">=": "at least", "==": "equal to" };
   return (
-    <table className="constraints">
+    <div className="table-box" tabIndex={0} role="group" aria-label="Constraints, each with its value and its limit">
+    <table className="table constraints">
       <thead>
         <tr>
           <th scope="col">Constraint</th>
@@ -266,10 +283,11 @@ export function ConstraintTable({ constraints }: { constraints: Inspection["cons
             <th scope="row">{c.name}</th>
             <td>{withUnit(c.left, c.unit)}</td>
             <td>{words[c.op]} {withUnit(c.right, c.unit)}{c.op === "==" && c.tolerance > 0 ? `, within ${withUnit(c.tolerance, c.unit)}` : ""}</td>
-            <td className={c.satisfied ? "holds" : "broken"}>{c.satisfied ? "Yes" : "No, broken"}</td>
+            <td className={c.satisfied ? "holds" : "broken"}><Icon name={c.satisfied ? "check" : "x"} />{c.satisfied ? "Yes" : "No, broken"}</td>
           </tr>
         ))}
       </tbody>
     </table>
+    </div>
   );
 }

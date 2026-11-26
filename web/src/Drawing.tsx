@@ -51,12 +51,12 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
     const words = `Round trip through ${order.length} points, in this order: ${order.join(", ")}, and back to ${order[0]}.`;
     return (
       <figure className="drawing">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
+        <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
           <path className="mark-line" d={`${order.map((i, n) => `${n ? "L" : "M"}${px(i)},${py(i)}`).join(" ")} Z`} />
           {order.map((i) => <circle key={i} className="mark-point" cx={px(i)} cy={py(i)} r={3} />)}
           <rect className="mark-start" x={px(order[0]) - 5} y={py(order[0]) - 5} width={10} height={10} />
           {order.length <= 40 && order.map((i) => <text key={i} className="mark-label" x={px(i) + 6} y={py(i) - 6}>{i}</text>)}
-        </svg>
+        </svg></div>
         <figcaption>
           Round trip through {order.length} points, placed by <code>{view.x}</code> and <code>{view.y}</code>. The square is where the trip starts,
           at point {order[0]}.
@@ -80,11 +80,11 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
       (gap !== undefined && Number.isFinite(gap) ? `, with the fitted line. The line is at most ${short(gap)}${cy?.unit ? ` ${cy.unit}` : ""} away from a point.` : ".");
     return (
       <figure className="drawing">
-        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
+        <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
           <Axes x={rangeX} y={rangeY} xTitle={`${view.x}${unitOf(cx?.unit)}`} yTitle={`${view.y}${unitOf(cy?.unit)}`} />
           {drawn.length > 1 && <path className="mark-line" d={drawn.map(([x, y], n) => `${n ? "L" : "M"}${px(x)},${py(y)}`).join(" ")} />}
           {xs.map((x, i) => <circle key={i} className="mark-point hollow" cx={px(x)} cy={py(ys[i])} r={4} />)}
-        </svg>
+        </svg></div>
         <figcaption>{words} Circles are the data{line ? <>, and the line is <code>{view.expression}</code></> : ""}.</figcaption>
       </figure>
     );
@@ -102,7 +102,7 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
   return (
     <figure className="drawing">
       {taken.length <= 80 && (
-        <svg viewBox={`0 0 ${W} ${top + tall + 24}`} role="img" aria-label={words}>
+        <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${top + tall + 24}`} role="img" aria-label={words}>
           {taken.map((t, i) => {
             const h = sized ? Math.max(4, (Math.max(sized[i], 0) / largest) * tall) : Math.min(cell - 4, 28);
             const x = 8 + i * cell, y = top + tall - h, w = Math.max(cell - 4, 2);
@@ -115,7 +115,7 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
               </g>
             );
           })}
-        </svg>
+        </svg></div>
       )}
       <figcaption>
         {words} A filled bar with a check mark is a chosen item.
@@ -143,16 +143,14 @@ export function HistoryChart({ history, unit }: { history: { nfe: number[]; best
   const band = (W - PAD.left - PAD.right) / points.length;
   return (
     <figure className="drawing">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
+      <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
         <Axes x={[0, budget]} y={[low, high]} xTitle="Evaluations" yTitle={`Best value${unitOf(unit)}${log ? ", log scale" : ""}`} />
         <path className="mark-line" d={d} />
         {/* one band per checkpoint, so that pointing at the chart shows the value there */}
         {points.map(([n, v]) => (
-          <rect key={n} className="hover-band" x={px(n) - band} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom}>
-            <title>{`After ${count(n)} evaluations: ${show(v)}${suffix}`}</title>
-          </rect>
+          <rect key={n} className="hover-band" x={px(n) - band} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} data-tip={`After ${count(n)} evaluations: ${show(v)}${suffix}`} />
         ))}
-      </svg>
+      </svg></div>
       <figcaption>{words}</figcaption>
     </figure>
   );

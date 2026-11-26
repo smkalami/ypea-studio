@@ -153,3 +153,17 @@ export function show(value: unknown): string {
 
 export const count = (n: number) => n.toLocaleString("en-US");
 export const withUnit = (value: unknown, unit?: string) => `${show(value)}${unit ? ` ${unit}` : ""}`;
+
+// The sidebar.
+
+/** The start of the sidebar key of an experiment, followed by its id. */
+export const EXPERIMENT = "experiment.";
+
+/** The entry of the sidebar that a problem belongs to. */
+export function partOf(where: string): string {
+  if (where.startsWith(EXPERIMENT)) return where;
+  if (where === "experiments") return EXPERIMENT + FIRST;
+  if (where === "baseline" || where === "reference") return "candidate";
+  const head = where.split(".")[0];
+  return head === "variable" ? "variables" : head === "constraint" ? "constraints" : head;
+}

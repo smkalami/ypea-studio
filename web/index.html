@@ -6,20 +6,24 @@
     <title>YPEA Studio</title>
     <meta name="description" content="A free browser app, by Yarpiz, for describing and solving optimization problems." />
     <link rel="icon" href="data:," />
+    <script src="./theme.js"></script>
   </head>
   <body>
-    <!-- Static, so it shows before the app loads. -->
+    <a class="skip-link" href="#root">Skip to the content</a>
+    <!-- Static, so it shows before the app loads. The app adds the bar of an open project and the theme choice. -->
     <header class="site">
-      <h1>YPEA Studio</h1>
-      <p>
-        YPEA Studio, by Yarpiz, is a free browser app in which a researcher or practitioner describes an optimization
-        problem visually, gets a usable answer from one quick run, and can then compare methods, share the project, or
-        continue in Python with the <code>ypea</code> package.
+      <div class="site-bar">
+        <h1>YPEA Studio</h1>
+        <div id="bar-project"></div>
+        <a href="https://pypi.org/project/ypea/">Use YPEA in Python</a>
+        <div id="bar-tools"></div>
+      </div>
+      <p class="intro">
+        <span>YPEA Studio, by Yarpiz, is a free browser app in which a researcher or practitioner describes an optimization problem visually, gets a usable answer from one quick run, and can then compare methods, share the project, or continue in Python with the <code>ypea</code> package.</span>
       </p>
-      <p><a href="https://pypi.org/project/ypea/">Use YPEA in Python</a></p>
     </header>
-    <main id="root"></main>
-    <noscript><p class="notice">YPEA Studio runs in your browser and needs JavaScript.</p></noscript>
+    <main id="root" tabindex="-1"></main>
+    <noscript><p class="page">YPEA Studio runs in your browser and needs JavaScript.</p></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

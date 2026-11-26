@@ -6,9 +6,11 @@ import type { Project } from "../../engine/project.ts";
 import { ConstraintTable } from "./Candidate.tsx";
 import { count, type Experiment, KIND_WORDS, percentChange, show, unsuited, withUnit } from "./draft.ts";
 import { Drawing, HistoryChart } from "./Drawing.tsx";
-import { Field, Num, Problems } from "./fields.tsx";
 import type { Issue } from "./protocol.ts";
 import type { StoredResult } from "./storage.ts";
+import { Alert, Disclosure, Select } from "./ui/controls.tsx";
+import { CheckField, Field, Num, Problems } from "./ui/fields.tsx";
+import { Icon } from "./ui/Icon.tsx";
 
 const methodOf = (id: string) => (Object.hasOwn(METHODS, id) ? METHODS[id] : undefined);
 export const solverName = (id: string) => methodOf(id)?.name ?? id;
@@ -19,11 +21,12 @@ interface FormProps {
   issues: Issue[];
   onChange: (experiment: Experiment) => void;
   onDuplicate: () => void;
-  /** Absent when the experiment cannot be deleted: it is the only one, or it is running. */
-  onDelete?: () => void;
+  onDelete: () => void;
+  /** Why the experiment cannot be deleted now, when it cannot: it is the only one, or a run is going on. */
+  locked?: string;
 }
 
-export function ExperimentForm({ project, experiment, issues, onChange, onDuplicate, onDelete }: FormProps) {
+export function ExperimentForm({ project, experiment, issues, onChange, onDuplicate, onDelete, locked }: FormProps) {
   const method = methodOf(experiment.method);
   const poor = unsuited(project, experiment.method);
   const suited = Object.values(METHODS).filter((m) => unsuited(project, m.id).length === 0).map((m) => m.name);
@@ -38,24 +41,30 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
   const settingProblem = Object.keys(method?.params ?? {}).some((key) => at(key).length > 0);
   return (
     <section aria-labelledby="panel-heading">
-      <h3 id="panel-heading">Experiment</h3>
-      <p>An experiment is one solver with a budget and a seed. It keeps the result of its last run.</p>
+      <div className="section-head">
+        <h3 id="panel-heading" tabIndex={-1}>Experiment</h3>
+        <div className="row actions">
+          <button type="button" className="btn btn-quiet btn-compact" onClick={onDuplicate}><Icon name="copy" />Duplicate</button>
+          {/* shown also when it cannot be used, with the reason, so that the row does not change when a run starts */}
+          <button type="button" className="btn btn-quiet btn-compact" aria-disabled={locked ? true : undefined} data-tip={locked} onClick={() => !locked && onDelete()}><Icon name="trash" />Delete</button>
+        </div>
+      </div>
+      <p className="lead">An experiment is one solver with a budget and a seed. It keeps the result of its last run.</p>
       <Problems issues={issues.filter((issue) => !fields.some((field) => names(issue, field)))} />
       <div className="row">
         <Field label="Name of the experiment">
-          {(tie) => <input {...tie} type="text" value={experiment.name} onChange={(event) => onChange({ ...experiment, name: event.target.value })} />}
+          {(tie) => <input {...tie} type="text" className="input" value={experiment.name} onChange={(event) => onChange({ ...experiment, name: event.target.value })} />}
         </Field>
-        <button type="button" className="quiet end" onClick={onDuplicate}>Duplicate</button>
-        {onDelete && <button type="button" className="quiet end" onClick={onDelete}>Delete</button>}
-      </div>
-      <div className="row">
         <Field label="Solver" issues={at("method")}>
           {(tie) => (
             // a new solver starts from its own defaults, because settings belong to one solver
-            <select {...tie} value={experiment.method} onChange={(event) => onChange({ ...experiment, method: event.target.value, settings: {} })}>
-              {!method && <option value={experiment.method}>{experiment.method} (not known)</option>}
-              {Object.values(METHODS).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+            <Select
+              {...tie} value={experiment.method} onChange={(id) => onChange({ ...experiment, method: id, settings: {} })}
+              options={[
+                ...(method ? [] : [{ value: experiment.method, label: `${experiment.method} (not known)` }]),
+                ...Object.values(METHODS).map((m) => ({ value: m.id, label: m.name })),
+              ]}
+            />
           )}
         </Field>
         <Field label="Budget (evaluations)" className="narrow" hint="How many candidates the solver may try." issues={at("budget")}>
@@ -66,33 +75,24 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
         </Field>
       </div>
       {method && poor.length > 0 && (
-        <p className="notice" role="note">
+        <Alert kind="warning" role="note">
           <strong>Note:</strong> {method.name} is not made for {poor.map((kind) => KIND_WORDS[kind]).join(" or ")}, which this project has. It will
           run, but it may give a weak result. {suited.length > 0 && <>Solvers that suit every variable of this project: {suited.join(", ")}.</>}
-        </p>
+        </Alert>
       )}
       {method && (
         // a problem in a setting opens the settings, so that it is seen
-        <details className="settings" open={settingProblem || undefined}>
-          <summary>Settings of {method.name}</summary>
+        <Disclosure summary={`Settings of ${method.name}`} open={settingProblem || undefined}>
           <div className="row">
             {Object.entries(method.params).map(([key, spec]) => {
               const value = Object.hasOwn(experiment.settings, key) ? experiment.settings[key] : spec.default;
               if (spec.kind === "boolean") {
-                return (
-                  <Field key={key} label={key} hint={spec.help} className="setting check" issues={at(key)}>
-                    {(tie) => <input {...tie} type="checkbox" checked={value === true} onChange={(event) => setting(key, event.target.checked)} />}
-                  </Field>
-                );
+                return <CheckField key={key} label={key} hint={spec.help} issues={at(key)} checked={value === true} onChange={(checked) => setting(key, checked)} />;
               }
               if (spec.kind === "choice") {
                 return (
                   <Field key={key} label={key} hint={spec.help} className="setting" issues={at(key)}>
-                    {(tie) => (
-                      <select {...tie} value={String(value)} onChange={(event) => setting(key, event.target.value)}>
-                        {spec.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                      </select>
-                    )}
+                    {(tie) => <Select {...tie} value={String(value)} options={spec.options.map((option) => ({ value: option, label: option }))} onChange={(option) => setting(key, option)} />}
                   </Field>
                 );
               }
@@ -106,9 +106,9 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
             })}
           </div>
           {Object.keys(experiment.settings).length > 0 && (
-            <p><button type="button" className="quiet" onClick={() => onChange({ ...experiment, settings: {} })}>Reset to the solver's defaults</button></p>
+            <p><button type="button" className="btn btn-quiet btn-compact" onClick={() => onChange({ ...experiment, settings: {} })}>Reset to the defaults of the solver</button></p>
           )}
-        </details>
+        </Disclosure>
       )}
     </section>
   );
@@ -120,7 +120,9 @@ const time = (ms: number) => (ms < 1000 ? `${ms.toFixed(0)} ms` : `${(ms / 1000)
 function difference(value: number, other: { objective: number; difference: number }, sense: "min" | "max", unit?: string): string {
   const percent = percentChange(value, other.objective);
   const d = other.difference;
-  const verdict = d === 0 ? "the same" : (d < 0) === (sense === "min") ? "better" : "worse";
+  // a gap far below the precision of the numbers is rounding, not a better or worse result
+  if (Math.abs(d) <= 1e-9 * Math.max(Math.abs(value), Math.abs(other.objective))) return "None: the two values agree";
+  const verdict = (d < 0) === (sense === "min") ? "better" : "worse";
   return `${withUnit(d, unit)}${percent === undefined || d === 0 ? "" : ` (${show(Number(Math.abs(percent).toPrecision(3)))}% ${d < 0 ? "lower" : "higher"})`}, which is ${verdict}`;
 }
 
@@ -142,15 +144,15 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
     <section aria-labelledby="result-heading" className="result">
       <h3 id="result-heading">Result of "{name}"</h3>
       {changed && (
-        <p className="notice">
+        <Alert kind="warning">
           <strong>Note:</strong> the project or this experiment has changed since this run. The result belongs to the definition as it was then.
-        </p>
+        </Alert>
       )}
-      <p className="outcome">{result.status}.</p>
+      <p className={best.feasible ? "outcome feasible" : "outcome"}><Icon name={best.feasible ? "circle-check" : "triangle-exclamation-point"} />{result.status}.</p>
       {!best.feasible && (
-        <p className="notice">The solution below is the candidate that breaks the constraints least. It is not feasible.</p>
+        <Alert kind="warning">The solution below is the candidate that breaks the constraints least. It is not feasible.</Alert>
       )}
-      <dl>
+      <dl className="facts">
         <dt>Objective ({sense === "min" ? "minimized" : "maximized"})</dt>
         <dd className="value">{withUnit(best.objective, unit)}</dd>
         {baseline && (
@@ -183,24 +185,26 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
       )}
 
       <h4>Solution</h4>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Variable</th>
-            <th scope="col">Value</th>
-            <th scope="col">Unit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {project.variables.map((v) => (
-            <tr key={v.name}>
-              <th scope="row"><code>{v.name}</code></th>
-              <td>{show(best.solution[v.name])}</td>
-              <td>{("unit" in v && v.unit) || ""}</td>
+      <div className="table-box" tabIndex={0} role="group" aria-label="The solution, one variable per row">
+        <table className="table">
+          <thead>
+            <tr>
+              <th scope="col">Variable</th>
+              <th scope="col">Value</th>
+              <th scope="col">Unit</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {project.variables.map((v) => (
+              <tr key={v.name}>
+                <th scope="row"><code>{v.name}</code></th>
+                <td>{show(best.solution[v.name])}</td>
+                <td>{("unit" in v && v.unit) || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className="figures">
         <Drawing project={project} solution={best.solution} curve={stored.curve} />
         <HistoryChart history={result.history} unit={unit} />
@@ -211,9 +215,9 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
           This is one run of a randomized solver ({solverName(result.method)}) with a recorded seed (seed {result.seed.base}, run{" "}
           {result.seed.runIndex}). A run with another seed can give a different answer.
         </p>
-        {onRerun && <button type="button" onClick={onRerun}>Run again with a new seed</button>}
+        {onRerun && <button type="button" className="btn btn-secondary" onClick={onRerun}>Run again with a new seed</button>}
       </div>
-      <p className="small">
+      <p className="hint">
         Finished {new Date(stored.finished).toLocaleString()}. App version {result.versions.app}, tested with ypea {result.versions.ypeaTested}.
         The project definition that produced this result is stored with it.
       </p>

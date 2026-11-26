@@ -91,9 +91,10 @@
     "expression": "offset + gain * voltage"
   },
   "run": {
-    "method": "pso",
+    "name": "Quick run",
+    "method": "nelder_mead",
     "settings": {},
-    "budget": 5000,
+    "budget": 2000,
     "seed": 1
   }
 }

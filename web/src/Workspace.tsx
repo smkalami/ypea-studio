@@ -1,17 +1,19 @@
 // One open project: a sidebar with the parts of the problem, the test of a candidate and the
-// experiments, and a main area that edits the selected part. Below it, always in view, is the
-// current experiment with its Run button, its live preview and its result.
+// experiments, and a main area that edits the selected part. Above it, always in view, is the
+// run bar: the Run button, what it will run, and the progress of a run. An experiment shows
+// its setup with its live preview and its result under it.
 //
 // Edits are saved as the user works, also while the project cannot run yet. Every change is
 // checked in a helper worker, and runs happen in a run worker: the text of a project becomes
 // code, and that code never runs on the page.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Project } from "../../engine/project.ts";
 import type { Progress } from "../../engine/run.ts";
 import { CandidatePanel, candidateTexts, type Outcome, type Texts } from "./Candidate.tsx";
 import {
-  count, DEFAULT_SETUP, definitionOf, type Experiment, experimentsOf, FIRST, newExperimentId, projectFor, show, tidy,
+  count, DEFAULT_SETUP, definitionOf, EXPERIMENT, type Experiment, experimentsOf, FIRST, newExperimentId, partOf, projectFor, show, tidy,
   withExperiment, withoutExperiment, withUnit,
 } from "./draft.ts";
 import { Drawing } from "./Drawing.tsx";
@@ -19,6 +21,9 @@ import { ExperimentForm, Result, solverName } from "./Experiment.tsx";
 import { ConstraintsPanel, DataPanel, FunctionsPanel, ObjectivePanel, OverviewPanel, VariablesPanel, ViewPanel } from "./Problem.tsx";
 import { ask, type HelpRequest, type Issue, type RunMessage, type RunRequest, TIME_LIMIT_MS, tooLong } from "./protocol.ts";
 import { deleteResult, loadResults, RESULT_VERSION, saveProject, saveResult, type StoredProject, type StoredResult } from "./storage.ts";
+import { Alert, Loading } from "./ui/controls.tsx";
+import { ConfirmDialog } from "./ui/Dialog.tsx";
+import { Icon } from "./ui/Icon.tsx";
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -42,15 +47,17 @@ const PANELS = {
   overview: OverviewPanel, data: DataPanel, variables: VariablesPanel, objective: ObjectivePanel,
   constraints: ConstraintsPanel, functions: FunctionsPanel, view: ViewPanel,
 };
-const EXPERIMENT = "experiment.";
 
-/** The entry of the sidebar that a problem belongs to. */
-function partOf(where: string): string {
-  if (where.startsWith(EXPERIMENT)) return where;
-  if (where === "experiments") return EXPERIMENT + FIRST;
-  if (where === "baseline" || where === "reference") return "candidate";
-  const head = where.split(".")[0];
-  return head === "variable" ? "variables" : head === "constraint" ? "constraints" : head;
+/** True while the window is too narrow for a sidebar next to the main area. The sidebar is then a drawer. */
+function useNarrow(): boolean {
+  const query = "(max-width: 1179px)";
+  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query), onChange = () => setNarrow(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
 }
 
 type RunState =
@@ -71,8 +78,13 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
   const [run, setRun] = useState<RunState>({ state: "idle" });
   const [texts, setTexts] = useState<Texts>(() => candidateTexts(tidy(record.project).baseline?.solution ?? {}));
   const [outcome, setOutcome] = useState<Outcome>();
+  /** A short text for screen readers only: what the test of a candidate found. The panel shows the same on screen. */
   const [said, setSaid] = useState("");
+  const [loadFailure, setLoadFailure] = useState("");
+  const [removing, setRemoving] = useState<Experiment>();
   const worker = useRef<Worker | null>(null);
+  const drawer = useRef<HTMLDialogElement>(null);
+  const narrow = useNarrow();
 
   // Saving. The latest project is written a moment after the last change, when the user
   // leaves the project, and when the page is hidden or closed.
@@ -117,7 +129,7 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     window.addEventListener("pagehide", onHide);
     loadResults(record.id).then(
       (all) => setResults(Object.fromEntries(all.map((r) => [r.experiment, r]))),
-      (error) => setSaid(`The stored results could not be read: ${messageOf(error)}`),
+      (error) => setLoadFailure(`The stored results could not be read. ${messageOf(error)}`),
     );
     return () => {
       window.removeEventListener("pagehide", onHide);
@@ -127,20 +139,40 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     };
   }, [record.id, flush]);
 
+  // The height of the run bar is published to the styles, so that scrolling to a focused control stops below the bar.
+  const runbar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = runbar.current!, root = document.documentElement;
+    const publish = () => root.style.setProperty("--runbar-h", getComputedStyle(bar).position === "sticky" ? `${bar.offsetHeight}px` : "0px");
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    window.addEventListener("resize", publish);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", publish);
+      root.style.removeProperty("--runbar-h");
+    };
+  }, []);
+
   const known = issues ?? [];
   const experiments = experimentsOf(project);
   const running = run.state === "running";
-  // the pane below shows the experiment that runs, or else the one last selected
+  // the run bar shows the experiment that runs, or else the one last selected
   const shown = experiments.find((e) => e.id === (running ? run.id : current)) ?? experiments[0];
   const marked = new Set(known.map((i) => partOf(i.where)));
 
+  const select = (key: string) => {
+    setSelected(key);
+    if (key.startsWith(EXPERIMENT)) setCurrent(key.slice(EXPERIMENT.length));
+    if (drawer.current?.open) drawer.current.close();
+  };
   const start = (experiment: Experiment, base: Project = project) => {
     // Problems found in an older state of the project do not refuse a run. The run worker
     // checks the project again, and its message is shown if it still cannot run.
     const blocking = known.find((i) => !i.where.startsWith(EXPERIMENT) || i.where === EXPERIMENT + experiment.id);
     if (base === checked && blocking) {
       setRun({ state: "error", id: experiment.id, message: `This project cannot run yet. ${blocking.message}` });
-      setSelected(partOf(blocking.where));
+      select(partOf(blocking.where));
       return;
     }
     // the snapshot: the definition this run starts from, with this experiment's setup as its run
@@ -148,6 +180,8 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     const w = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
     worker.current = w;
     setRun({ state: "running", id: experiment.id, snapshot });
+    // the experiment that runs comes into view, with its live preview and then its result
+    select(EXPERIMENT + experiment.id);
     const end = (next: RunState) => {
       w.terminate();
       worker.current = null;
@@ -185,10 +219,6 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     start(next, changed);
   };
 
-  const select = (key: string) => {
-    setSelected(key);
-    if (key.startsWith(EXPERIMENT)) setCurrent(key.slice(EXPERIMENT.length));
-  };
   const addExperiment = (from?: Experiment) => {
     const id = newExperimentId(project);
     const copy: Experiment = from
@@ -198,7 +228,6 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     select(EXPERIMENT + id);
   };
   const removeExperiment = (experiment: Experiment) => {
-    if (!window.confirm(`Delete the experiment "${experiment.name}" and its result? This cannot be undone.`)) return;
     const next = withoutExperiment(project, experiment.id);
     const { [experiment.id]: gone, ...kept } = results;
     void deleteResult(record.id, experiment.id);
@@ -215,6 +244,8 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     setResults(kept);
     update(next);
     select(EXPERIMENT + FIRST);
+    // the button that had the focus is gone with its experiment
+    setTimeout(() => document.getElementById("panel-heading")?.focus());
   };
 
   const status =
@@ -224,48 +255,109 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     : run.state === "cancelled" ? "Run cancelled. Nothing was kept from it."
     : run.state === "error" ? run.message
     : "";
+  const failed = run.state === "error" && !said;
   const say = (text: string) => setSaid(text);
-  const stored = results[shown.id];
   const counts: Record<string, number | undefined> = {
     data: (project.data ?? []).length, variables: project.variables.length, constraints: (project.constraints ?? []).length,
   };
   const entry = (key: string, label: string, extra?: number) => (
     <li key={key}>
-      <button type="button" aria-current={selected === key ? "true" : undefined} onClick={() => select(key)}>
+      <button type="button" className="nav-item" aria-current={selected === key ? "true" : undefined} onClick={() => select(key)}>
         <span className="label">{label}</span>
         {extra !== undefined && <span className="count">{extra}</span>}
-        {marked.has(key) && <span className="mark" role="img" aria-label="has a problem">!</span>}
+        {marked.has(key) && <span className="mark" role="img" aria-label="has a problem"><Icon name="circle-exclamation-point" /></span>}
       </button>
     </li>
   );
   const Panel = PANELS[selected as keyof typeof PANELS];
   const edited = selected.startsWith(EXPERIMENT) ? experiments.find((e) => EXPERIMENT + e.id === selected) ?? experiments[0] : undefined;
+  const sidebar = (
+    <nav className="sidebar" aria-label="Parts of the project">
+      <p className="nav-group" id="group-problem">Problem</p>
+      <ul aria-labelledby="group-problem">{PARTS.map(([key, label]) => entry(key, label, counts[key]))}</ul>
+      <ul aria-label="Test">{entry("candidate", "Test a candidate")}</ul>
+      <p className="nav-group" id="group-experiments">Experiments</p>
+      <ul aria-labelledby="group-experiments">
+        {experiments.map((e) => entry(EXPERIMENT + e.id, e.name || "Unnamed"))}
+        <li><button type="button" className="nav-item new" onClick={() => addExperiment(edited)}><Icon name="plus" />New experiment</button></li>
+      </ul>
+    </nav>
+  );
 
   return (
     <div className="workspace">
-      <header className="bar">
-        <button type="button" onClick={async () => { await flush(); onBack(); }}>All projects</button>
-        <h2>{project.name}</h2>
-        <span className="saving">{saving === "saved" ? "All changes saved" : saving === "saving" ? "Saving" : "Could not save. Download the project to keep it."}</span>
-        <button type="button" onClick={() => download(project.name, project)}>Download project</button>
-      </header>
+      {createPortal(
+        <div className="project-bar">
+          {narrow && (
+            <button type="button" className="btn btn-quiet btn-icon" aria-label="Show the parts of the project" data-tip="Parts of the project" onClick={() => drawer.current?.showModal()}>
+              <Icon name="menu" />
+            </button>
+          )}
+          <button type="button" className="btn btn-quiet" onClick={async () => { await flush(); onBack(); }}><Icon name="chevron-left" />All projects</button>
+          <h2>{project.name}</h2>
+          <span className="saving" data-state={saving}>
+            <Icon name={saving === "failed" ? "circle-exclamation-point" : saving === "saved" ? "check" : "loader-circle"} />
+            {saving === "saved" ? "All changes saved" : saving === "saving" ? "Saving" : "Could not save. Download the project to keep it."}
+          </span>
+          <button type="button" className="btn btn-secondary" onClick={() => download(project.name, project)}><Icon name="download" />Download project</button>
+        </div>,
+        document.getElementById("bar-project")!,
+      )}
+      {removing && (
+        <ConfirmDialog
+          heading="Delete this experiment?" action="Delete" body={<>"{removing.name}" and its result will be deleted. This cannot be undone.</>}
+          onDone={(confirmed) => {
+            setRemoving(undefined);
+            if (confirmed) removeExperiment(removing);
+          }}
+        />
+      )}
 
-      <nav className="sidebar" aria-label="Parts of the project">
-        <p className="group" id="group-problem">Problem</p>
-        <ul aria-labelledby="group-problem">{PARTS.map(([key, label]) => entry(key, label, counts[key]))}</ul>
-        <p className="group" id="group-test">Test</p>
-        <ul aria-labelledby="group-test">{entry("candidate", "Candidate")}</ul>
-        <p className="group" id="group-experiments">Experiments</p>
-        <ul aria-labelledby="group-experiments">
-          {experiments.map((e) => entry(EXPERIMENT + e.id, e.name || "Unnamed"))}
-          <li><button type="button" className="new" onClick={() => addExperiment(edited)}><span aria-hidden="true">+</span>New experiment</button></li>
-        </ul>
-      </nav>
+      {narrow ? (
+        // a click on the veil around the drawer closes it
+        <dialog ref={drawer} className="drawer" aria-label="Parts of the project" onClick={(event) => event.target === event.currentTarget && drawer.current?.close()}>
+          <div className="drawer-body">
+            <button type="button" className="btn btn-quiet btn-icon btn-compact" aria-label="Close" data-tip="Close" onClick={() => drawer.current?.close()}><Icon name="x" /></button>
+            {sidebar}
+          </div>
+        </dialog>
+      ) : sidebar}
 
       <div className="main">
-        <div className="editor">
-          {issues === undefined && <p className="hint">Checking the project.</p>}
-          {Panel && <Panel project={project} set={update} issues={known} />}
+        <div className="runbar" ref={runbar}>
+          {/* one button, so keyboard focus stays in place when a run starts or ends */}
+          <button type="button" className={`btn run ${running ? "btn-secondary" : "btn-primary"}`} onClick={running ? cancel : () => (setSaid(""), start(shown))}>
+            <Icon name={running ? "square" : "play"} />{running ? "Cancel" : "Run"}
+          </button>
+          <div className="run-info">
+            <p className="setup">
+              <strong>{shown.name}</strong>: {solverName(shown.method)}, {Number.isFinite(shown.budget) ? count(shown.budget) : String(shown.budget)} evaluations, seed {String(shown.seed)}
+            </p>
+            {/* The line is kept when it is empty, so that a message does not move the page. */}
+            <div className="run-status" data-state={failed ? "error" : undefined}>
+              {failed && <Icon name="circle-exclamation-point" />}
+              <p role="status" aria-live="polite" className={said ? "visually-hidden" : undefined}>{status}</p>
+              {/* outside the live region: a screen reader should not read every update */}
+              {run.state === "running" && run.progress && (
+                <p className="progress">
+                  <progress aria-label="Evaluations used" max={run.progress.evaluations.budget} value={run.progress.evaluations.used} />
+                  <span>
+                    {count(run.progress.evaluations.used)} of {count(run.progress.evaluations.budget)} evaluations. Best objective
+                    so far: {withUnit(run.progress.best.objective, run.snapshot.objective.unit)}
+                  </span>
+                </p>
+              )}
+              {issues === undefined && !status && <span className="hint">Checking the project.</span>}
+            </div>
+          </div>
+          {!running && results[shown.id] && selected !== EXPERIMENT + shown.id && (
+            <button type="button" className="btn btn-quiet" onClick={() => select(EXPERIMENT + shown.id)}>Show the result<Icon name="chevron-right" /></button>
+          )}
+        </div>
+
+        <div className="panel">
+          {loadFailure && <Alert kind="danger"><strong>Problem:</strong> {loadFailure} Reload the page to try again.</Alert>}
+          {Panel && <Panel project={project} set={update} issues={known} go={select} />}
           {selected === "candidate" && (
             <CandidatePanel
               project={project} set={update} issues={known} texts={texts} outcome={outcome} help={help} say={say}
@@ -273,47 +365,35 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
             />
           )}
           {edited && (
-            <ExperimentForm
-              key={edited.id} project={project} experiment={edited} issues={known.filter((i) => i.where === EXPERIMENT + edited.id)}
-              onChange={(next) => update(withExperiment(project, next))}
-              onDuplicate={() => addExperiment(edited)}
-              onDelete={experiments.length > 1 && !running ? () => removeExperiment(edited) : undefined}
-            />
+            <>
+              <ExperimentForm
+                key={edited.id} project={project} experiment={edited} issues={known.filter((i) => i.where === EXPERIMENT + edited.id)}
+                onChange={(next) => update(withExperiment(project, next))}
+                onDuplicate={() => addExperiment(edited)}
+                onDelete={() => setRemoving(edited)}
+                locked={experiments.length === 1 ? "The only experiment of a project cannot be deleted." : running ? "An experiment cannot be deleted while a run is going on." : undefined}
+              />
+              <div className="output">
+                {run.state === "running" && run.id === edited.id ? (
+                  <div className="live">
+                    <h4>Best solution so far</h4>
+                    {!run.progress && <Loading>Starting the run.</Loading>}
+                    {run.progress && <Drawing project={run.snapshot} solution={run.progress.best.solution} curve={run.curve} />}
+                    {run.progress && !run.snapshot.view && (
+                      <p className="code solution-text">{Object.entries(run.progress.best.solution).map(([name, value]) => `${name} = ${show(value)}`).join("; ").slice(0, 400)}</p>
+                    )}
+                  </div>
+                ) : results[edited.id] ? (
+                  <Result
+                    stored={results[edited.id]} name={edited.name} onRerun={running ? undefined : () => (setSaid(""), rerun(edited))}
+                    changed={definitionOf(results[edited.id].project) !== definitionOf(projectFor(project, edited))}
+                  />
+                ) : (
+                  <p className="empty">"{edited.name}" has no result yet. Press Run to get one.</p>
+                )}
+              </div>
+            </>
           )}
-        </div>
-
-        <div className="pane">
-          <div className="runbar">
-            {/* one button, so keyboard focus stays in place when a run starts or ends */}
-            <button type="button" className="primary" onClick={running ? cancel : () => (setSaid(""), start(shown))}>{running ? "Cancel" : "Run"}</button>
-            <p className="setup">
-              <strong>{shown.name}</strong>: {solverName(shown.method)}, {Number.isFinite(shown.budget) ? count(shown.budget) : String(shown.budget)} evaluations, seed {String(shown.seed)}
-            </p>
-          </div>
-          <p role="status" aria-live="polite" className={run.state === "error" && !said ? "notice" : "status"}>{status}</p>
-          {/* outside the live region: a screen reader should not read every update */}
-          {run.state === "running" && run.progress && (
-            <div className="live">
-              <p className="progress">
-                <progress aria-label="Evaluations used" max={run.progress.evaluations.budget} value={run.progress.evaluations.used} />
-                <span>
-                  {count(run.progress.evaluations.used)} of {count(run.progress.evaluations.budget)} evaluations. Best objective
-                  so far: {withUnit(run.progress.best.objective, run.snapshot.objective.unit)}
-                </span>
-              </p>
-              <Drawing project={run.snapshot} solution={run.progress.best.solution} curve={run.curve} />
-              {!run.snapshot.view && (
-                <p className="code small">{Object.entries(run.progress.best.solution).map(([name, value]) => `${name} = ${show(value)}`).join("; ").slice(0, 400)}</p>
-              )}
-            </div>
-          )}
-          {!running && stored && (
-            <Result
-              stored={stored} name={shown.name} onRerun={() => (setSaid(""), rerun(shown))}
-              changed={definitionOf(stored.project) !== definitionOf(projectFor(project, shown))}
-            />
-          )}
-          {!running && !stored && <p className="empty">"{shown.name}" has no result yet. Press Run to get one.</p>}
         </div>
       </div>
     </div>

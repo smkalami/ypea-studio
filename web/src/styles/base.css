@@ -1,0 +1,129 @@
+/*
+  The base layer on top of tokens.css: reset, typography, focus and the basic controls.
+  It reads tokens only. Load order: tokens.css, base.css, components.css, app.css.
+  Logical properties are used throughout, so the layout does not depend on direction.
+*/
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
+  /* what the keyboard reaches is never left under the run bar that stays in view */
+  scroll-padding-block-start: calc(var(--runbar-h) + var(--scroll-offset));
+}
+
+body {
+  margin: 0;
+  overflow-x: clip;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--line-base);
+}
+
+h1, h2, h3, h4 { margin-block: 0; color: var(--ink); font-weight: var(--weight-semibold); text-wrap: balance; overflow-wrap: anywhere; }
+h1 { font-size: var(--text-lg); line-height: var(--line-lg); font-weight: var(--weight-bold); }
+h2 { font-size: var(--text-2xl); line-height: var(--line-2xl); }
+h3 { font-size: var(--text-xl); line-height: var(--line-xl); }
+h4 { font-size: var(--text-lg); line-height: var(--line-lg); }
+p { margin-block: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+a { color: var(--link); text-underline-offset: var(--space-2xs); }
+a:hover { color: var(--link-hover); }
+code, pre, kbd, .code { font-family: var(--font-mono); font-size: var(--text-sm); }
+strong { font-weight: var(--weight-semibold); color: var(--ink); }
+img, svg { max-inline-size: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+legend { padding: 0; }
+
+/* One focus treatment for everything that takes focus: an accent edge and a soft halo.
+   The halo is a shadow, which forced colors remove, so a system outline replaces it there. */
+:focus-visible {
+  outline: none;
+  border-color: var(--focus-edge);
+  box-shadow: var(--focus-halo);
+}
+a:focus-visible { border-radius: var(--radius-sm); }
+@media (forced-colors: active) {
+  :focus-visible { outline: var(--focus-width) solid Highlight; outline-offset: var(--focus-offset); }
+}
+
+.visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: absolute; inset-inline-start: var(--space-xs); inset-block-start: calc(var(--space-3xl) * -1);
+  z-index: var(--z-skip); padding: var(--space-xs) var(--space-sm);
+  background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius-sm);
+}
+.skip-link:focus { inset-block-start: var(--space-xs); }
+
+/* Icons: one family, drawn with the color of the text around them. */
+.icon { inline-size: var(--icon); block-size: var(--icon); flex: none; }
+
+/* ---------------------------------------------------------------- buttons
+   One primary per page, then secondary, quiet and danger. The same height as fields. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs);
+  min-block-size: var(--control-h); padding-inline: var(--control-pad-x);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink);
+  font-weight: var(--weight-semibold); line-height: var(--line-sm); text-align: start; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.btn-primary { background: var(--accent-ink); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-ink-hover); }
+.btn-secondary { background: var(--surface); border-color: var(--control-border); }
+.btn-secondary:hover { background: var(--surface-3); }
+.btn-quiet { color: var(--ink-2); }
+.btn-quiet:hover { background: var(--surface-3); color: var(--ink); }
+.btn-danger { background: var(--danger-ink); color: var(--on-danger); }
+.btn-primary:focus-visible, .btn-danger:focus-visible { border-color: transparent; box-shadow: var(--focus-halo-on-fill); }
+.btn-compact { min-block-size: var(--control-h-compact); padding-inline: var(--space-xs); }
+.btn-icon { inline-size: var(--control-h); padding-inline: 0; }
+.btn-icon.btn-compact { inline-size: var(--control-h-compact); }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+/* ---------------------------------------------------------------- fields */
+.field { display: grid; align-content: start; gap: var(--space-2xs); min-inline-size: 0; }
+.field > label, .field-label { color: var(--ink); font-weight: var(--weight-medium); font-size: var(--text-sm); line-height: var(--line-sm); }
+.hint { color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); }
+
+.input, .textarea {
+  inline-size: 100%; min-block-size: var(--control-h);
+  padding-inline: var(--control-pad-x); padding-block: 0;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--control-border); border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.textarea { display: block; padding-block: var(--space-xs); min-block-size: calc(var(--control-h) * 2); resize: vertical; }
+.input.code, .textarea.code { font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--line-base); }
+.input:hover, .textarea:hover { background: var(--surface-2); }
+.input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--danger-ink); }
+.input::placeholder { color: var(--ink-3); }
+.input:disabled, .textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ---------------------------------------------------------------- callouts
+   A status triple with a uniform 1px border on all four sides, a glyph and a word. */
+.alert {
+  display: flex; align-items: flex-start; gap: var(--space-xs); padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--info-line); border-radius: var(--radius);
+  background: var(--info-soft); color: var(--ink);
+  max-inline-size: var(--measure);
+}
+.alert > .icon { color: var(--info-ink); margin-block-start: var(--space-2xs); block-size: var(--icon-sm); inline-size: var(--icon-sm); }
+.alert > div, .alert > p { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
+.alert-success { border-color: var(--success-line); background: var(--success-soft); }
+.alert-success > .icon { color: var(--success-ink); }
+.alert-warning { border-color: var(--warning-line); background: var(--warning-soft); }
+.alert-warning > .icon { color: var(--warning-ink); }
+.alert-danger { border-color: var(--danger-line); background: var(--danger-soft); }
+.alert-danger > .icon { color: var(--danger-ink); }
+.alert-neutral { border-color: var(--line); background: var(--surface-2); }
+.alert-neutral > .icon { color: var(--ink-3); }

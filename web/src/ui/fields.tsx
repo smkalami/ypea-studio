@@ -1,8 +1,10 @@
 // The form controls every panel uses: a labeled field with its hint and its problems, a
-// number field, and a choice among names of the project.
+// number field, a choice among names of the project, and the file button.
 
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
-import type { Issue } from "./protocol.ts";
+import type { Issue } from "../protocol.ts";
+import { Checkbox, Select } from "./controls.tsx";
+import { Icon } from "./Icon.tsx";
 
 /** The problems of one part of the editor: its own, and those of the parts inside it. */
 export const issuesAt = (issues: Issue[], where: string) => issues.filter((i) => i.where === where || i.where.startsWith(`${where}.`));
@@ -13,28 +15,52 @@ export function Problems({ id, issues }: { id?: string; issues: Issue[] }) {
     <ul className="problems" id={id}>
       {issues.map((issue, k) => (
         <li key={k}>
-          <strong>Problem{issue.line ? ` on line ${issue.line}, column ${issue.column}` : ""}:</strong> {issue.message}
+          <Icon name="circle-exclamation-point" />
+          <span><strong>Problem{issue.line ? ` on line ${issue.line}, column ${issue.column}` : ""}:</strong> {issue.message}</span>
         </li>
       ))}
     </ul>
   );
 }
 
-/** What a control needs to be tied to its label, its hint and its problems. */
+/** What a control needs to be tied to its label, its hint and its problems. The label has the id `${id}-label`. */
 export interface Tie {
   id: string;
   "aria-describedby"?: string;
   "aria-invalid"?: true;
 }
 
-export function Field(props: { label: string; hint?: ReactNode; issues?: Issue[]; className?: string; children: (tie: Tie) => ReactNode }) {
-  const { label, hint, issues = [], className = "", children } = props;
+interface FieldProps {
+  label: string;
+  hint?: ReactNode;
+  issues?: Issue[];
+  className?: string;
+  children: (tie: Tie) => ReactNode;
+}
+
+export function Field({ label, hint, issues = [], className = "", children }: FieldProps) {
   const id = useId();
   const described = [hint ? `${id}-hint` : "", issues.length ? `${id}-problems` : ""].filter(Boolean).join(" ");
   return (
     <div className={`field ${className}`}>
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} id={`${id}-label`}>{label}</label>
       {children({ id, "aria-describedby": described || undefined, "aria-invalid": issues.length ? true : undefined })}
+      {hint && <p className="hint" id={`${id}-hint`}>{hint}</p>}
+      <Problems id={`${id}-problems`} issues={issues} />
+    </div>
+  );
+}
+
+/** A check box with its label beside it, and the hint and the problems below. */
+export function CheckField({ label, hint, issues = [], checked, onChange }: { label: string; hint?: ReactNode; issues?: Issue[]; checked: boolean; onChange: (checked: boolean) => void }) {
+  const id = useId();
+  const described = [hint ? `${id}-hint` : "", issues.length ? `${id}-problems` : ""].filter(Boolean).join(" ");
+  return (
+    <div className="field setting">
+      <label className="check">
+        <Checkbox id={id} checked={checked} aria-describedby={described || undefined} aria-invalid={issues.length ? true : undefined} onChange={(event) => onChange(event.target.checked)} />
+        {label}
+      </label>
       {hint && <p className="hint" id={`${id}-hint`}>{hint}</p>}
       <Problems id={`${id}-problems`} issues={issues} />
     </div>
@@ -76,7 +102,7 @@ export function Num(props: { value: unknown; onChange: (value: unknown) => void;
     <input
       type="text"
       inputMode="decimal"
-      className="number"
+      className="input number"
       autoComplete="off"
       value={text}
       onChange={(event) => {
@@ -92,36 +118,46 @@ export function Num(props: { value: unknown; onChange: (value: unknown) => void;
 export function Pick(props: { label: string; value: string | undefined; options: string[]; onChange: (value: string) => void; none?: string; issues?: Issue[]; hint?: string }) {
   const { label, value, options, onChange, none, issues, hint } = props;
   const missing = value !== undefined && value !== "" && !options.includes(value);
+  const all = [
+    ...(none !== undefined || !value ? [{ value: "", label: none ?? "Choose" }] : []),
+    ...(missing ? [{ value, label: `${value} (missing)` }] : []),
+    ...options.map((option) => ({ value: option, label: option })),
+  ];
   return (
     <Field label={label} issues={issues} hint={hint ?? (options.length === 0 && none === undefined ? "Nothing in this project fits here yet." : undefined)}>
-      {(tie) => (
-        <select {...tie} value={value ?? ""} onChange={(event) => onChange(event.target.value)}>
-          {(none !== undefined || !value) && <option value="">{none ?? "Choose"}</option>}
-          {missing && <option value={value}>{value} (missing)</option>}
-          {options.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
-      )}
+      {(tie) => <Select {...tie} value={value ?? ""} options={all} onChange={onChange} />}
     </Field>
   );
 }
 
-/** A hidden file input behind a button, as the project list uses for project files. */
-export function FileButton(props: { label: string; accept: string; id?: string; className?: string; onFile: (file: File) => void }) {
-  const inputId = useId();
+/**
+ * A button that opens the file chooser of the system. The file is used at once, so the name
+ * shown under the button is the file that was chosen last. `hint` says what kind of file fits.
+ */
+export function FileButton(props: { label: string; accept: string; id?: string; hint?: string; onFile: (file: File) => void }) {
+  const ownId = useId(), id = props.id ?? ownId;
+  const [name, setName] = useState("");
   return (
-    <>
-      <button type="button" className={props.className} onClick={() => document.getElementById(props.id ?? inputId)?.click()}>{props.label}</button>
+    <div className="file">
+      <button type="button" className="btn btn-secondary" aria-describedby={props.hint ? `${id}-hint` : undefined} onClick={() => document.getElementById(id)?.click()}>
+        <Icon name="upload" />
+        {props.label}
+      </button>
       <input
-        id={props.id ?? inputId}
+        id={id}
         type="file"
         accept={props.accept}
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = ""; // so the same file can be chosen again
-          if (file) props.onFile(file);
+          if (!file) return;
+          setName(file.name);
+          props.onFile(file);
         }}
       />
-    </>
+      {props.hint && <p className="hint" id={`${id}-hint`}>{props.hint}</p>}
+      {name && <p className="file-name">Chosen: <span>{name}</span></p>}
+    </div>
   );
 }

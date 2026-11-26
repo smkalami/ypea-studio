@@ -67,7 +67,7 @@ test("all five worked examples run and report in the user's terms", () => {
   const fit = run("linefit");
   assert.equal(fit.status, "Best feasible solution found");
   assert.equal(fit.reference!.label, "Least-squares line");
-  assert.ok(fit.reference!.difference >= 0 && fit.reference!.difference < 0.05);
+  assert.ok(Math.abs(fit.reference!.difference) < 1e-6);
   assert.equal(fit.baseline!.label, "Current settings");
   assert.ok(fit.baseline!.difference < -50);
   assert.deepEqual(Object.keys(fit.best.solution), ["offset", "gain"]);

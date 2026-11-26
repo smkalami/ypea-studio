@@ -1,0 +1,256 @@
+/*
+  The component kit: every shared control and pattern that base.css does not hold.
+  It reads tokens only. The catalog page shows each of these in every state.
+*/
+
+/* The focus halo must win over the border of a component, so it is restated with more weight.
+   An invalid field keeps its own border color and gets the halo around it. */
+:root :focus-visible { border-color: var(--focus-edge); box-shadow: var(--focus-halo); }
+:root [aria-invalid="true"]:focus-visible { border-color: var(--danger-ink); }
+:root .btn-primary:focus-visible, :root .btn-danger:focus-visible, :root .check-box input:checked:focus-visible {
+  border-color: transparent; box-shadow: var(--focus-halo-on-fill);
+}
+
+/* Forced colors remove shadows. Where the halo is drawn on a parent of the focused control, the parent gets the system outline. */
+@media (forced-colors: active) {
+  .segmented label:has(input:focus-visible) { outline: var(--focus-width) solid Highlight; outline-offset: var(--focus-offset); }
+}
+
+/* ---------------------------------------------------------------- rows of fields */
+.row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-sm); }
+.row.actions { align-items: center; gap: var(--space-xs); }
+.row > .field { flex: 0 1 var(--field); }
+.row > .field.narrow { flex-basis: var(--field-narrow); }
+.row > .field.grow { flex: 1 1 var(--field); }
+.row > .field.setting { flex-basis: var(--field); }
+.field { max-inline-size: var(--field); }
+.field.narrow { max-inline-size: var(--field-narrow); }
+.field.wide, .row > .field.wide { flex: 1 1 100%; max-inline-size: var(--measure); }
+.row > .field.grow { max-inline-size: none; }
+.field.setting { max-inline-size: var(--field); }
+.lead { max-inline-size: var(--measure); }
+.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); }
+
+.problems { display: grid; gap: var(--space-2xs); color: var(--danger-ink); font-size: var(--text-sm); line-height: var(--line-sm); }
+.problems li { display: flex; align-items: flex-start; gap: var(--space-2xs); overflow-wrap: anywhere; }
+.problems .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); margin-block-start: calc((var(--line-sm) - var(--icon-sm)) / 2); }
+.problems strong { color: inherit; }
+
+/* The line of the check stays when it is empty. */
+.ok { display: flex; align-items: center; gap: var(--space-2xs); min-block-size: var(--line-base); color: var(--success-ink); font-weight: var(--weight-semibold); }
+
+/* ---------------------------------------------------------------- select
+   The chevron sits as far from the end edge as the text sits from the start edge. */
+.select { position: relative; }
+.select-trigger { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); text-align: start; cursor: pointer; }
+.select-value { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron { inline-size: var(--icon-sm); block-size: var(--icon-sm); color: var(--ink-3); transition: rotate var(--duration-fast) var(--ease); }
+.select-trigger[aria-expanded="true"] .chevron, .disclosure[open] > summary .chevron { rotate: 180deg; }
+.listbox {
+  position: absolute; inset-inline-start: 0; inset-block-start: calc(100% + var(--space-2xs)); z-index: var(--z-menu);
+  min-inline-size: 100%; inline-size: max-content; max-inline-size: min(var(--popup-wide), calc(100vw - 2 * var(--gutter)));
+  max-block-size: var(--popup-max); overflow-y: auto; padding: var(--space-2xs);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.listbox.above { inset-block-start: auto; inset-block-end: calc(100% + var(--space-2xs)); }
+.listbox li {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+  min-block-size: var(--control-h-compact); padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-sm); color: var(--ink); cursor: pointer;
+}
+.listbox li.active { background: var(--surface-3); }
+.listbox li[aria-selected="true"] { color: var(--accent-ink); font-weight: var(--weight-semibold); }
+.listbox .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
+
+/* ---------------------------------------------------------------- check box
+   The real input, drawn as a box. The label around it is the target. */
+.check { display: inline-flex; align-items: center; gap: var(--space-xs); min-block-size: var(--control-h-compact); color: var(--ink); cursor: pointer; }
+.check-box { position: relative; display: inline-grid; inline-size: var(--mark); block-size: var(--mark); flex: none; }
+.check-box input {
+  appearance: none; margin: 0; inline-size: 100%; block-size: 100%; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius-xs);
+  transition: background var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.check-box input:hover { background: var(--surface-3); }
+.check-box input:checked { background: var(--accent-ink); border-color: var(--accent-ink); }
+.check-box input:disabled { opacity: 0.55; cursor: not-allowed; }
+.check-box .icon { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; color: var(--on-accent); opacity: 0; pointer-events: none; }
+.check-box input:checked + .icon { opacity: 1; }
+.checks { display: grid; gap: var(--space-2xs); }
+.check-list { display: flex; flex-wrap: wrap; gap: 0 var(--space-md); }
+
+/* ---------------------------------------------------------------- choice of a few (the theme) */
+.segmented { display: inline-flex; gap: var(--space-2xs); }
+.segmented label {
+  display: grid; place-items: center; inline-size: var(--control-h-compact); block-size: var(--control-h-compact);
+  border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--ink-3); cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.segmented label:hover { background: var(--surface-3); color: var(--ink); }
+.segmented label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
+.segmented label:has(input:focus-visible) { border-color: var(--focus-edge); box-shadow: var(--focus-halo); }
+
+/* ---------------------------------------------------------------- disclosure */
+.disclosure { border: 1px solid var(--line); border-radius: var(--radius); }
+.disclosure > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs);
+  min-block-size: var(--control-h); padding-inline: var(--control-pad-x);
+  border-radius: var(--radius); color: var(--ink); font-weight: var(--weight-semibold); list-style: none; cursor: pointer;
+  transition: box-shadow var(--duration-fast) var(--ease);
+}
+.disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure > summary:hover { background: var(--surface-3); }
+.disclosure-body { display: grid; gap: var(--space-sm); padding: var(--space-xs) var(--control-pad-x) var(--space-sm); }
+
+/* ---------------------------------------------------------------- file button */
+.file { display: grid; justify-items: start; gap: var(--space-2xs); max-inline-size: var(--field); }
+.file-name { color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); overflow-wrap: anywhere; }
+.file-name span { color: var(--ink); font-weight: var(--weight-medium); }
+
+/* ---------------------------------------------------------------- dialog and drawer */
+.dialog {
+  inline-size: min(var(--dialog-width), calc(100vw - 2 * var(--gutter))); padding: var(--space-md);
+  background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+}
+.dialog::backdrop, .drawer::backdrop { background: var(--scrim); }
+.dialog h2 { font-size: var(--text-xl); line-height: var(--line-xl); margin-block-end: var(--space-sm); }
+.dialog .field { max-inline-size: none; }
+.dialog-actions { display: flex; justify-content: space-between; gap: var(--space-xs); margin-block-start: var(--space-md); }
+.drawer {
+  inset-inline: 0 auto; margin: 0; inline-size: min(var(--drawer-width), calc(100vw - var(--space-xl)));
+  block-size: 100dvh; max-block-size: 100dvh; padding: 0;
+  background: var(--surface); color: var(--ink-2); border: 0; box-shadow: var(--shadow-lg);
+}
+.drawer-body { display: grid; padding: var(--space-xs); }
+.drawer-body > .btn { justify-self: end; }
+
+/* ---------------------------------------------------------------- tooltip */
+.tooltip {
+  position: fixed; z-index: var(--z-tooltip); inline-size: max-content; max-inline-size: var(--tip-max);
+  padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-sm);
+  background: var(--ink); color: var(--surface); font-size: var(--text-sm); line-height: var(--line-sm); box-shadow: var(--shadow);
+}
+
+/* ---------------------------------------------------------------- tables
+   A wide table scrolls inside its own box, never the page. Numbers are aligned at the end. */
+.table-box { max-inline-size: 100%; overflow-x: auto; border-radius: var(--radius-sm); }
+.table { inline-size: 100%; border-collapse: collapse; }
+.table.preview { inline-size: auto; }
+.table th, .table td { padding: var(--space-xs) var(--space-sm); border-block-end: 1px solid var(--line); text-align: start; vertical-align: middle; }
+.table th:first-child, .table td:first-child { padding-inline-start: 0; }
+.table th:last-child, .table td:last-child { padding-inline-end: 0; }
+.table thead th { color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); font-weight: var(--weight-medium); white-space: nowrap; }
+.table tbody th { color: var(--ink); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.table td { overflow-wrap: anywhere; }
+.table .num { text-align: end; font-variant-numeric: tabular-nums; }
+.table caption { caption-side: top; padding-block-end: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); text-align: start; }
+.table .actions { white-space: nowrap; }
+.table .actions .btn { vertical-align: middle; }
+.table .actions .btn + .btn { margin-inline-start: var(--space-2xs); }
+.table .holds, .table .broken { font-weight: var(--weight-semibold); white-space: nowrap; }
+.table .holds { color: var(--success-ink); }
+.table .broken { color: var(--danger-ink); }
+.table .holds .icon, .table .broken .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); margin-inline-end: var(--space-2xs); vertical-align: text-bottom; }
+
+/* The list of projects becomes labeled cards on a narrow window. */
+@media (max-width: 900px) {
+  .projects thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+  .projects, .projects tbody, .projects tr, .projects th, .projects td { display: block; }
+  .projects tr { margin-block-end: var(--space-xs); padding: var(--space-sm); border: 1px solid var(--line); border-radius: var(--radius-md); }
+  .projects th, .projects td, .projects th:first-child, .projects td:last-child { padding: var(--space-2xs) 0; border: 0; text-align: start; }
+  .projects td[data-label]::before { content: attr(data-label) ": "; color: var(--ink-3); }
+  .projects .actions { white-space: normal; }
+}
+
+/* ---------------------------------------------------------------- cards that are one button
+   The button holds the title, and its area is stretched over the whole card. */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr)); gap: var(--space-sm); }
+.card {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2xs); padding: var(--space-sm);
+  background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.card:hover { background: var(--surface-2); border-color: var(--control-border); }
+.card:has(.card-link:focus-visible) { border-color: var(--focus-edge); box-shadow: var(--focus-halo); }
+.card-link {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); min-block-size: var(--line-lg);
+  padding: 0; background: none; color: inherit; border: 0; text-align: start; cursor: pointer;
+}
+:root .card-link:focus-visible { box-shadow: none; }
+.card-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-md); }
+.card-link > .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); color: var(--ink-3); }
+.card-title { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: var(--weight-semibold); }
+.card-text, .card-problem { font-size: var(--text-sm); line-height: var(--line-sm); }
+.card-problem { display: flex; align-items: flex-start; gap: var(--space-2xs); color: var(--danger-ink); overflow-wrap: anywhere; }
+.card-problem .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); margin-block-start: calc((var(--line-sm) - var(--icon-sm)) / 2); }
+.card-problem strong { color: inherit; }
+
+/* ---------------------------------------------------------------- one item of a list being edited */
+.item { display: grid; gap: var(--space-sm); padding: var(--space-sm) var(--space-md) var(--space-md); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.item-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); }
+.item-title { color: var(--ink); font-weight: var(--weight-semibold); }
+
+/* ---------------------------------------------------------------- sidebar navigation
+   The selected entry has a wash, accent text and more weight. It has no stripe. */
+.nav-group { margin-block: var(--space-md) var(--space-2xs); padding-inline: var(--space-xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); font-weight: var(--weight-semibold); }
+.nav-group:first-child { margin-block-start: 0; }
+.sidebar ul + ul { margin-block-start: var(--space-xs); }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-xs); inline-size: 100%; min-block-size: var(--control-h-compact);
+  padding: var(--space-2xs) var(--space-xs); margin-block: 1px;
+  background: transparent; color: var(--ink-2); border: 1px solid transparent; border-radius: var(--radius-sm); text-align: start; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.nav-item:hover { background: var(--surface-3); color: var(--ink); }
+.nav-item[aria-current="true"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: var(--weight-semibold); }
+.nav-item .label { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
+.nav-item .count { color: var(--ink-3); font-size: var(--text-xs); line-height: var(--line-xs); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; }
+.nav-item .mark { display: grid; color: var(--danger-ink); }
+.nav-item .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
+.nav-item.new { color: var(--accent-ink); }
+
+/* ---------------------------------------------------------------- empty, loading, facts */
+.empty { max-inline-size: var(--measure); padding: var(--space-sm); background: var(--surface-2); color: var(--ink-3); border: 1px dashed var(--control-border); border-radius: var(--radius); }
+.loading { display: flex; align-items: center; gap: var(--space-xs); color: var(--ink-3); }
+@keyframes turn { to { rotate: 360deg; } }
+@media (prefers-reduced-motion: no-preference) {
+  .loading .icon, .saving[data-state="saving"] .icon { animation: turn var(--duration-spin) linear infinite; }
+}
+
+.facts { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: var(--space-2xs) var(--space-md); margin: 0; }
+.facts dt { color: var(--ink-3); }
+.facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.facts .value { font-size: var(--text-xl); line-height: var(--line-xl); font-weight: var(--weight-semibold); }
+
+/* ---------------------------------------------------------------- progress */
+progress { appearance: none; inline-size: var(--progress-width); block-size: var(--bar-h); overflow: hidden; background: var(--surface-3); border: 0; border-radius: var(--radius-pill); }
+progress::-webkit-progress-bar { background: var(--surface-3); }
+progress::-webkit-progress-value { background: var(--accent-ink); }
+progress::-moz-progress-bar { background: var(--accent-ink); }
+
+/* ---------------------------------------------------------------- drawings and charts
+   A drawing keeps its natural width, so its text keeps its size, and scrolls in its own box when the window is narrower. */
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--figure)), 1fr)); gap: var(--space-md); align-items: start; }
+.drawing { margin: 0; max-inline-size: var(--figure-max); min-inline-size: 0; }
+.drawing-box { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.drawing svg { display: block; inline-size: 100%; min-inline-size: var(--figure); block-size: auto; max-inline-size: none; }
+.drawing figcaption { margin-block-start: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); }
+.drawing text { font-family: inherit; font-size: var(--text-xs); fill: var(--ink-3); }
+.drawing .axes line { stroke: var(--control-border); stroke-width: 1; }
+.drawing .axes line.grid { stroke: var(--line); stroke-dasharray: 3 3; }
+.drawing .axes text.title { fill: var(--ink); }
+.drawing .mark-line { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linejoin: round; }
+.drawing .mark-point { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
+.drawing .mark-point.hollow { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.drawing .mark-start { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+.drawing .mark-item { fill: var(--surface); stroke: var(--control-border); stroke-width: 1; }
+.drawing .mark-item.chosen { fill: var(--accent-ink); stroke: var(--accent-ink); }
+.drawing .mark-check { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.drawing .hover-band { fill: transparent; }
+.drawing .hover-band:hover { fill: var(--accent); fill-opacity: 0.14; }
+
+@media (max-width: 650px) {
+  .row > .field, .row > .field.narrow, .field, .field.narrow, .file { flex-basis: 100%; max-inline-size: none; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .facts dd { margin-block-end: var(--space-xs); }
+}

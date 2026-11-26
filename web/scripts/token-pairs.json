@@ -1,0 +1,14 @@
+[
+  ["ink-3", "surface-2", 4.5, "empty state and hints on an inset panel"],
+  ["ink-2", "surface-2", 4.5, "body text on an inset panel"],
+  ["ink", "surface-2", 7, "values on an inset panel"],
+  ["ink", "info-soft", 7, "text of an info callout"],
+  ["ink", "success-soft", 7, "text of a success callout"],
+  ["ink", "warning-soft", 7, "text of a warning callout"],
+  ["ink", "danger-soft", 7, "text of a danger callout"],
+  ["surface", "ink", 7, "tooltip text"],
+  ["accent-ink", "accent-soft", 3, "focus edge on a selected sidebar entry"],
+  ["accent-ink", "surface-2", 3, "focus edge on an inset panel"],
+  ["danger-ink", "surface-2", 4.5, "problem text on an inset panel"],
+  ["control-border", "surface-2", 3, "control edge on an inset panel"]
+]

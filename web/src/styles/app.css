@@ -1,0 +1,92 @@
+/*
+  The layout of the app: the header, the start page and the workspace of an open project.
+  Components come from components.css. This file only places them.
+*/
+
+/* ---------------------------------------------------------------- header
+   One header for every screen. Its first part is static HTML. An open project adds its bar. */
+header.site { border-block-end: 1px solid var(--line); }
+.site-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md);
+  max-inline-size: var(--page-wide); margin-inline: auto; padding: var(--space-xs) var(--gutter);
+  min-block-size: calc(var(--control-h) + 2 * var(--space-xs));
+}
+.site-bar > h1 { white-space: nowrap; }
+.site-bar > a { display: inline-flex; align-items: center; min-block-size: var(--control-h-compact); white-space: nowrap; }
+#bar-project { flex: 1 1 0; min-inline-size: 0; }
+#bar-tools { display: flex; }
+.intro { max-inline-size: var(--page-wide); margin-inline: auto; padding: var(--space-md) var(--gutter) var(--space-lg); color: var(--ink); font-size: var(--text-lg); line-height: var(--line-lg); }
+.intro span { display: block; max-inline-size: var(--measure); }
+/* inside a project the description steps back and the bar uses the whole width */
+body.in-project .intro { display: none; }
+body.in-project .site-bar { max-inline-size: none; }
+
+.project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-sm); }
+.project-bar h2 { flex: 1 1 var(--field-narrow); min-inline-size: var(--field-narrow); font-size: var(--text-lg); line-height: var(--line-lg); }
+.saving { display: inline-flex; align-items: center; gap: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); }
+.saving .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
+.saving[data-state="failed"] { color: var(--danger-ink); }
+
+/* A narrow window: the bar of the project takes a row of its own, and the name of the project a row inside it. */
+@media (max-width: 900px) {
+  .site-bar { column-gap: var(--space-xs); }
+  .site-bar > h1 { flex: 1; }
+  #bar-project { order: 1; flex-basis: 100%; }
+  .project-bar h2 { order: 1; flex-basis: 100%; }
+  .project-bar .saving { flex: 1; }
+}
+
+/* ---------------------------------------------------------------- start page */
+.page { display: grid; gap: var(--space-lg); max-inline-size: var(--page-wide); margin-inline: auto; padding: var(--space-lg) var(--gutter) var(--space-2xl); }
+.page section { display: grid; gap: var(--space-sm); }
+.page .alert { max-inline-size: none; }
+.page aside .alert > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-md); }
+.page aside p { flex: 1 1 var(--field); max-inline-size: var(--measure); }
+#root:focus-visible { box-shadow: none; }
+
+/* ---------------------------------------------------------------- workspace
+   A sidebar that stays in view and the main area. Below 1180px the sidebar is a drawer. */
+.workspace { display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); align-items: start; }
+.sidebar { position: sticky; inset-block-start: 0; max-block-size: 100dvh; overflow-y: auto; padding: var(--space-sm) var(--space-xs); }
+.main { min-block-size: 100dvh; border-inline-start: 1px solid var(--line); }
+@media (max-width: 1179px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  .main { border-inline-start: 0; }
+  .drawer .sidebar { position: static; max-block-size: none; padding: var(--space-xs); }
+}
+
+/* The run bar stays in view, so Run is always one click away. In a very short window it would cover too much, so there it scrolls with the page. */
+.runbar {
+  position: sticky; inset-block-start: 0; z-index: var(--z-sticky);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md);
+  padding: var(--space-sm) var(--gutter); background: var(--surface); border-block-end: 1px solid var(--line);
+}
+.runbar .run { min-inline-size: var(--run-width); }
+@media (max-height: 599px) {
+  .runbar { position: static; }
+}
+.run-info { flex: 1 1 var(--field); min-inline-size: 0; }
+.setup { color: var(--ink-3); overflow-wrap: anywhere; }
+/* The line of the status stays when it is empty, so that a message does not move the page. */
+.run-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); min-block-size: var(--line-base); color: var(--ink); }
+.run-status[data-state="error"] { color: var(--danger-ink); font-weight: var(--weight-medium); }
+.run-status .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
+.run-status p[role="status"]:not(.visually-hidden) { flex: 0 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
+.progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+.panel { display: grid; gap: var(--space-md); padding: var(--space-md) var(--gutter) var(--space-2xl); }
+.panel section, .tested, .live, .output { display: grid; gap: var(--space-sm); min-inline-size: 0; }
+.panel h4 { margin-block-start: var(--space-xs); }
+.output { padding-block-start: var(--space-md); border-block-start: 1px solid var(--line); }
+.tested { padding: var(--space-sm) var(--space-md) var(--space-md); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.tested h4 { margin-block-start: 0; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--figure)), 1fr)); gap: var(--space-sm); align-items: start; }
+.stored { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); }
+.stored p { overflow-wrap: anywhere; min-inline-size: 0; }
+.solution-text { max-inline-size: var(--measure); padding: var(--space-xs) var(--space-sm); background: var(--code-bg); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+
+.outcome { display: flex; align-items: center; gap: var(--space-xs); color: var(--ink); font-size: var(--text-lg); line-height: var(--line-lg); font-weight: var(--weight-semibold); }
+.outcome .icon { color: var(--warning-ink); }
+.outcome.feasible .icon { color: var(--success-ink); }
+.honest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); padding: var(--space-sm); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.honest p { flex: 1 1 var(--field); }

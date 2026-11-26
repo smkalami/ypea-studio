@@ -1,0 +1,289 @@
+/*
+  Design tokens of YPEA Studio. Every other stylesheet reads these custom properties
+  and never writes a raw color, size, radius, duration, shadow or layer number.
+
+  Fonts: system fonts only. Nothing is downloaded.
+
+  Breakpoints cannot be custom properties. The stylesheets use these literal values:
+    phone    max-width: 650px    (the gutter narrows, rows of fields stack)
+    tablet   max-width: 900px    (the project list becomes labeled cards)
+    drawer   max-width: 1179px   (the sidebar of a project becomes a drawer)
+*/
+
+/* ------------------------------------------------------------ light theme */
+:root {
+  color-scheme: light;
+
+  /* Families */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, "JetBrains Mono", monospace;
+
+  /* Neutrals */
+  --ink: #0f172a;          /* headings, strong text */
+  --ink-2: #334155;        /* body text */
+  --ink-3: #475569;        /* captions, meta, muted text */
+  --line: #e2e8f0;         /* hairlines */
+  --line-2: #eef2f6;       /* very subtle dividers */
+  --control-border: #64748b; /* form control boundary, 3:1 or more */
+  --surface: #ffffff;      /* page */
+  --surface-2: #f8fafc;    /* inset panels, code */
+  --surface-3: #f1f5f9;    /* hover washes, neutral callout */
+
+  /* Brand accent (blue by default). --accent is for fills,
+     rules and marks. Text, links, focus edges and button fills use the
+     darker --accent-ink. */
+  --accent: #2563eb;
+  --accent-ink: #1d4ed8;
+  --accent-ink-hover: #1e40af;
+  --accent-soft: #eff6ff;
+  --accent-line: #bfdbfe;
+  --on-accent: #ffffff;
+
+  /* Important callouts: violet, so they stay distinct from the brand blue. */
+  --important-ink: #6d28d9;
+  --important-soft: #f5f3ff;
+  --important-line: #ddd6fe;
+
+  /* Status inks (text safe), tints and lines */
+  --info-ink: #1d6ad5;
+  --info-soft: #eff6ff;
+  --info-line: #bfdbfe;
+  --success-ink: #15803d;
+  --success-soft: #f0fdf4;
+  --success-line: #bbf7d0;
+  --warning-ink: #b45309;
+  --warning-soft: #fffbeb;
+  --warning-line: #fde68a;
+  --danger-ink: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-line: #fecaca;
+  --on-danger: #ffffff;
+
+  /* Links keep the accent everywhere, also inside tinted callouts. */
+  --link: var(--accent-ink);
+  --link-hover: var(--accent-ink-hover);
+
+  /* Code */
+  --code-bg: var(--surface-2);
+  --code-inline-bg: var(--surface-3);
+
+  /* Type scale for a dense desktop tool (rem at a 16px root), each size with its
+     line height in whole pixels. 12px is the smallest text. Labels and help are 13px. */
+  --text-xs: 0.75rem;      /* 12px: chart labels, counts */
+  --text-sm: 0.8125rem;    /* 13px: labels, help, table heads */
+  --text-base: 0.875rem;   /* 14px: body and controls */
+  --text-lg: 1rem;         /* 16px: section headings */
+  --text-xl: 1.25rem;      /* 20px: panel titles, key numbers */
+  --text-2xl: 1.5rem;      /* 24px: page headings */
+  --text-3xl: 1.75rem;     /* 28px: the product title on the start page */
+  --line-xs: 1rem;         /* 16px */
+  --line-sm: 1.25rem;      /* 20px */
+  --line-base: 1.375rem;   /* 22px */
+  --line-lg: 1.5rem;       /* 24px */
+  --line-xl: 1.75rem;      /* 28px */
+  --line-2xl: 2rem;        /* 32px */
+  --line-3xl: 2.25rem;     /* 36px */
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* Spacing */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 14px;
+  --space-md: 22px;
+  --space-lg: 34px;
+  --space-xl: 50px;
+  --space-2xl: 72px;
+  --space-3xl: 100px;
+
+  /* Control geometry. Default 40px. Dense desktop tools use compact.
+     Public mobile first pages and coarse pointers use touch. */
+  --control-h: 40px;
+  --control-h-compact: 32px;
+  --control-h-touch: 44px;
+  --control-pad-x: var(--space-sm);  /* field and button side padding, also the chevron inset */
+
+  /* Radii */
+  --radius-xs: 4px;        /* the box of a check box */
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Shadows (used sparingly: menus, dialogs, toasts, sticky banners) */
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
+  --shadow: 0 4px 14px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.05);
+  --shadow-lg: 0 18px 48px rgb(15 23 42 / 0.12), 0 4px 12px rgb(15 23 42 / 0.06);
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration: 200ms;
+
+  /* Focus: a halo. The focused thing gets an accent edge and a soft accent glow around it.
+     On a filled button a gap in the surface color separates the fill from the edge. */
+  --focus-width: 2px;       /* only for the system outline under forced colors */
+  --focus-offset: 2px;
+  --focus-edge: var(--accent-ink);
+  --focus-glow: rgb(37 99 235 / 0.4);
+  --focus-halo: 0 0 0 1px var(--focus-edge), 0 0 0 4px var(--focus-glow);
+  --focus-halo-on-fill: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-edge), 0 0 0 7px var(--focus-glow);
+
+  /* The veil behind a dialog or a drawer */
+  --scrim: rgb(15 23 42 / 0.45);
+
+  /* Sizes of parts */
+  --icon: 18px;            /* icons in buttons and callouts */
+  --icon-sm: 16px;         /* chevrons and icons in dense rows */
+  --mark: 18px;            /* the box of a check box */
+  --bar-h: 8px;            /* the progress bar */
+  --dialog-width: 28rem;
+  --drawer-width: 18rem;
+  --popup-max: 18rem;      /* the tallest list of choices before it scrolls */
+  --popup-wide: 26rem;     /* the widest list of choices */
+  --tip-max: 16rem;
+  --field: 16rem;          /* the usual width of a field in a row */
+  --field-narrow: 9rem;    /* numbers and units */
+  --card-min: 17rem;       /* the narrowest card in a grid of cards */
+  --figure: 27.5rem;       /* a drawing at its natural size, where its text is at full size */
+  --figure-max: 34rem;
+  --run-width: 7rem;       /* the Run button, the same width as Cancel */
+  --progress-width: 12rem;
+  --duration-spin: 900ms;  /* one turn of the loading mark */
+
+  /* Layout */
+  --measure: 44rem;          /* running text and single forms */
+  --rail-width: 15rem;       /* the sidebar of a project */
+  --page-wide: 72rem;        /* the frame of the header and of every page */
+  --gutter: var(--space-md);
+  --runbar-h: 0px;           /* the height of the run bar of a project, set by the app while one is open */
+  --scroll-offset: var(--space-md); /* space above a heading reached by an anchor */
+
+  /* Layers */
+  --z-sticky: 20;
+  --z-header: 30;
+  --z-menu: 40;
+  --z-toast: 60;
+  --z-dialog: 80;
+  --z-tooltip: 90;
+  --z-skip: 100;
+}
+
+/* Phones: a narrower gutter. The type scale is already at its smallest sizes. */
+@media (max-width: 650px) {
+  :root {
+    --gutter: 1rem;
+  }
+}
+
+/* Coarse pointers get the touch control height. */
+@media (pointer: coarse) {
+  :root {
+    --control-h: var(--control-h-touch);
+    --control-h-compact: var(--control-h-touch);
+    --mark: 20px;
+  }
+}
+
+/* ------------------------------------------------------------ dark theme
+   The same block twice: once for the system preference (unless the visitor
+   chose light), once for an explicit choice. Keep them identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #f8fafc;
+    --ink-2: #cbd5e1;
+    --ink-3: #a3b1c6;
+    --line: #243044;
+    --line-2: #1c2637;
+    --control-border: #64748b;
+    --surface: #0b1220;
+    --surface-2: #111a2e;
+    --surface-3: #162033;
+    --accent: #60a5fa;
+    --accent-ink: #60a5fa;
+    --accent-ink-hover: #93c5fd;
+    --accent-soft: #13233a;
+    --accent-line: #1e3a8a;
+    --on-accent: #0b1220;
+    --important-ink: #c4b5fd;
+    --important-soft: #1e1636;
+    --important-line: #4c1d95;
+    --info-ink: #60a5fa;
+    --info-soft: #13233a;
+    --info-line: #1e3a8a;
+    --success-ink: #4ade80;
+    --success-soft: #0f2a1c;
+    --success-line: #166534;
+    --warning-ink: #fbbf24;
+    --warning-soft: #2a2410;
+    --warning-line: #78350f;
+    --danger-ink: #f87171;
+    --danger-soft: #2b1620;
+    --danger-line: #7f1d1d;
+    --on-danger: #0b1220;
+    --focus-glow: rgb(96 165 250 / 0.45);
+    --scrim: rgb(0 0 0 / 0.6);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow: 0 4px 14px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.5), 0 4px 12px rgb(0 0 0 / 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f8fafc;
+  --ink-2: #cbd5e1;
+  --ink-3: #a3b1c6;
+  --line: #243044;
+  --line-2: #1c2637;
+  --control-border: #64748b;
+  --surface: #0b1220;
+  --surface-2: #111a2e;
+  --surface-3: #162033;
+  --accent: #60a5fa;
+  --accent-ink: #60a5fa;
+  --accent-ink-hover: #93c5fd;
+  --accent-soft: #13233a;
+  --accent-line: #1e3a8a;
+  --on-accent: #0b1220;
+  --important-ink: #c4b5fd;
+  --important-soft: #1e1636;
+  --important-line: #4c1d95;
+  --info-ink: #60a5fa;
+  --info-soft: #13233a;
+  --info-line: #1e3a8a;
+  --success-ink: #4ade80;
+  --success-soft: #0f2a1c;
+  --success-line: #166534;
+  --warning-ink: #fbbf24;
+  --warning-soft: #2a2410;
+  --warning-line: #78350f;
+  --danger-ink: #f87171;
+  --danger-soft: #2b1620;
+  --danger-line: #7f1d1d;
+  --on-danger: #0b1220;
+  --focus-glow: rgb(96 165 250 / 0.45);
+  --scrim: rgb(0 0 0 / 0.6);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow: 0 4px 14px rgb(0 0 0 / 0.35), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 18px 48px rgb(0 0 0 / 0.5), 0 4px 12px rgb(0 0 0 / 0.3);
+}
+
+/* Reduced motion: every transition and animation that reads these tokens
+   becomes instant. Keyframe animations must also check this media query. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration: 0ms;
+  }
+}

@@ -1106,8 +1106,14 @@
     "y": "y"
   },
   "run": {
-    "method": "random",
-    "settings": {},
+    "name": "Quick run",
+    "method": "sa",
+    "settings": {
+      "initial_temp": 10,
+      "final_temp": 0.01,
+      "mutation_step_size": 0.3,
+      "mutation_step_size_damp": 1
+    },
     "budget": 50000,
     "seed": 1
   }

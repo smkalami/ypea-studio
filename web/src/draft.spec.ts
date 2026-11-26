@@ -83,7 +83,7 @@ test("the definition changes with what a run uses, and with nothing else", () =>
   same((p) => void (p.functions = ""), true);
   same((p) => ({ ...p, constraints: [...p.constraints!].map((c) => ({ unit: c.unit, right: c.right, op: c.op, left: c.left, name: c.name })) }), true);
   same((p) => void (p.run.seed = 2), false);
-  same((p) => void (p.run.method = "ga"), false);
+  same((p) => void (p.run.method = p.run.method === "pso" ? "ga" : "pso"), false);
   same((p) => void (p.constraints![0].right = "51"), false);
   same((p) => void (p.objective.source += " "), false);
   same((p) => void ((p.data![0] as any).columns[0].values[0] += 1), false);

@@ -81,11 +81,26 @@ async function check(browser, prefix) {
   /** An entry of the sidebar. Its name starts with the label, and may go on with a count and a problem mark. */
   const side = (label) => page.locator(".sidebar").getByRole("button", { name: new RegExp(`^${label}`) });
   const saved = () => page.locator(".saving").filter({ hasText: "All changes saved" }).waitFor();
+  // A choice is a button that opens a list. These three stand for picking a value, reading the choices and reading the value.
+  const choose = async (box, value) => {
+    await box.click();
+    await page.getByRole("listbox").locator(`[data-value="${value}"]`).click();
+    await page.getByRole("listbox").waitFor({ state: "detached" });
+  };
+  const choices = async (box) => {
+    await box.click();
+    const texts = await page.getByRole("option").allInnerTexts();
+    await page.keyboard.press("Escape");
+    await page.getByRole("listbox").waitFor({ state: "detached" });
+    return texts;
+  };
+  const chosen = (box) => box.getAttribute("data-value");
+  const dialog = page.getByRole("dialog");
   /** Waits for the end of a run. A run that ends in a message instead of a result fails here, with that message. */
   const finished = async () => {
     await page.waitForFunction(() => {
       const region = document.querySelector("[role=status]");
-      return region.textContent.includes("Run finished") || region.classList.contains("notice");
+      return region.textContent.includes("Run finished") || region.parentElement.dataset.state === "error";
     });
     assert.match(await status.innerText(), /^Run finished\./);
   };
@@ -117,13 +132,30 @@ async function check(browser, prefix) {
   await button("New blank project").waitFor();
   await shot("01-welcome");
   say("new visitor: Try an example is shown, with no project list, and a blank project can be started");
-  // keyboard focus is visible: Tab reaches the link first, then the first example button
-  for (const expected of ["Use YPEA in Python", "Calibration line fit"]) {
+  // keyboard focus is visible: Tab reaches the skip link, the Python link, the choice of theme, then the first example
+  for (const expected of ["Skip to the content", "Use YPEA in Python", "", "Calibration line fit"]) {
     await page.keyboard.press("Tab");
-    const focused = await page.evaluate(() => [document.activeElement.textContent, getComputedStyle(document.activeElement).outlineStyle, getComputedStyle(document.activeElement).outlineWidth]);
-    assert.deepEqual(focused, [expected, "solid", "3px"]);
+    const focused = await page.evaluate(() => {
+      // a card is one button whose halo is drawn around the whole card
+      const element = document.activeElement, style = getComputedStyle(element.closest(".card") ?? element);
+      return [element.textContent.trim(), getComputedStyle(element).outlineStyle, style.boxShadow !== "none"];
+    });
+    // the halo is a shadow around the focused element, with no outline
+    assert.deepEqual(focused, [expected, "none", true]);
   }
-  say("keyboard focus shows a 3px outline on the link and on a button");
+  // the halo fades in, so its full size is waited for: a glow of 3px around an edge of 1px
+  await page.waitForFunction(() => getComputedStyle(document.activeElement.closest(".card")).boxShadow.includes("0px 0px 0px 4px"));
+  say("keyboard focus shows a halo on the links and on a button");
+  // the choice of theme: one tab stop, arrow keys move, and the choice is applied to the page
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(await page.evaluate(() => document.activeElement.closest("label").parentElement.querySelector("legend").textContent), "Theme");
+  assert.equal(await page.locator(".segmented label:has(input:focus-visible)").evaluate((label) => getComputedStyle(label).boxShadow !== "none"), true);
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "light");
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), "dark");
+  say("theme: the arrow keys move through system, light and dark, and the page follows");
 
   // 3. Create the benchmark project and run it to the end, with one click on Run.
   await button("Benchmark functions").click();
@@ -194,15 +226,34 @@ async function check(browser, prefix) {
   await toList();
   await button("Duplicate Benchmark functions").click();
   await button("Rename Benchmark functions copy").waitFor();
-  page.once("dialog", (dialog) => dialog.accept("Renamed copy"));
+  // rename asks in a dialog of the app: Escape leaves the name alone and gives the focus back
   await button("Rename Benchmark functions copy").click();
+  await dialog.getByRole("heading", { name: "Rename the project" }).waitFor();
+  assert.equal(await field("Project name", dialog).inputValue(), "Benchmark functions copy");
+  assert.equal(await page.evaluate(() => document.activeElement.tagName), "INPUT");
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "Rename Benchmark functions copy");
+  await button("Rename Benchmark functions copy").click();
+  // an empty name is refused next to the field, and the dialog stays open
+  await field("Project name", dialog).fill("  ");
+  await dialog.getByRole("button", { name: "Rename", exact: true }).click();
+  await dialog.locator(".problems").filter({ hasText: "Problem: Type a name." }).waitFor();
+  await field("Project name", dialog).fill("Renamed copy");
+  await dialog.getByRole("button", { name: "Rename", exact: true }).click();
   await button("Download Renamed copy").waitFor();
   const read = async (download) => JSON.parse(await readFile(await download.path(), "utf8"));
   let [download] = await Promise.all([page.waitForEvent("download"), button("Download Renamed copy").click()]);
   assert.equal(download.suggestedFilename(), "Renamed-copy.json");
   assert.deepEqual(await read(download), { ...benchmark, name: "Renamed copy" });
-  page.once("dialog", (dialog) => dialog.accept());
+  // delete asks first, with the focus on Cancel. Cancel keeps the project.
   await button("Delete Renamed copy").click();
+  await dialog.getByText('"Renamed copy" and its results will be deleted. This cannot be undone.').waitFor();
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Cancel");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.waitFor({ state: "detached" });
+  await button("Delete Renamed copy").click();
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await button("Delete Renamed copy").waitFor({ state: "detached" });
   [download] = await Promise.all([page.waitForEvent("download"), button("Download all projects").click()]);
   const names = (await read(download)).projects.map((p) => p.name).sort();
@@ -251,7 +302,7 @@ async function check(browser, prefix) {
   say(`CSV import: calibration.csv gives the table "calibration" with voltage and pressure. A bad file says: "${await alert.innerText()}"`);
 
   await side("Variables").click();
-  const card = (n) => page.locator("fieldset.card").nth(n);
+  const card = (n) => page.locator("fieldset.item").nth(n);
   for (const [n, name, low, high, unit] of [[0, "offset", "-10", "10", "kPa"], [1, "gain", "0", "100", "kPa/V"]]) {
     await button("Add a variable").click();
     await field("Name", card(n)).fill(name);
@@ -259,7 +310,7 @@ async function check(browser, prefix) {
     await field("Highest value", card(n)).fill(high);
     await field("Unit", card(n)).fill(unit);
   }
-  assert.equal(await field("What it holds", card(0)).locator("option").count(), 11);
+  assert.equal((await choices(field("What it holds", card(0)))).length, 11);
   // a name that the engine refuses shows the engine's message next to the name
   await field("Name", card(1)).fill("voltage");
   await card(1).locator(".problems").filter({ hasText: 'Problem: the name "voltage" is used twice' }).waitFor();
@@ -272,13 +323,20 @@ async function check(browser, prefix) {
   await side("Objective").click();
   await field("Unit").fill("kPa^2");
   await page.getByText("Write the expression from a preset").click();
-  await field("Preset").selectOption("squared-error");
+  await choose(field("Preset"), "squared-error");
   // the preset offers the names that exist, and starts each need on a name of its own
-  assert.deepEqual(await field("Measured values (data column)").locator("option").allInnerTexts(), ["voltage", "pressure"]);
-  assert.deepEqual(await field("Gain variable").locator("option").allInnerTexts(), ["offset", "gain"]);
-  assert.deepEqual([await field("Offset variable").inputValue(), await field("Gain variable").inputValue()], ["offset", "gain"]);
-  await field("Measured values (data column)").selectOption("pressure");
-  await field("Input values (data column)").selectOption("voltage");
+  assert.deepEqual(await choices(field("Measured values (data column)")), ["voltage", "pressure"]);
+  assert.deepEqual(await choices(field("Gain variable")), ["offset", "gain"]);
+  assert.deepEqual([await chosen(field("Offset variable")), await chosen(field("Gain variable"))], ["offset", "gain"]);
+  await choose(field("Measured values (data column)"), "pressure");
+  // a choice works from the keyboard too: the arrow keys move in the open list and Enter picks
+  await field("Input values (data column)").focus();
+  await page.keyboard.press("ArrowDown");
+  await page.getByRole("listbox").waitFor();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Enter");
+  assert.equal(await chosen(field("Input values (data column)")), "voltage");
   await button("Write the expression").click();
   const squared = "sum((pressure - (offset + gain * voltage)) ** 2)";
   assert.equal(await field("Expression").inputValue(), squared);
@@ -306,13 +364,13 @@ async function check(browser, prefix) {
   say(`language error next to the objective field: "${languageError}"`);
 
   await side("Drawing").click();
-  await field("What to draw").selectOption("line");
-  await field("Column along the bottom (x)").selectOption("voltage");
-  await field("Column up the side (y)").selectOption("pressure");
+  await choose(field("What to draw"), "line");
+  await choose(field("Column along the bottom (x)"), "voltage");
+  await choose(field("Column up the side (y)"), "pressure");
   await field("Expression of the line").fill("offset + gain * voltage");
 
   // test a candidate by hand: the current settings of the example
-  await side("Candidate").click();
+  await side("Test a candidate").click();
   await field("offset (kPa)").fill("0");
   await field("gain (kPa/V)").fill("24");
   await button("Test this candidate").click();
@@ -353,32 +411,32 @@ async function check(browser, prefix) {
   await side("Variables").click();
   await button("Add a variable").click();
   await field("Name", card(0)).fill("take");
-  await field("What it holds", card(0)).selectOption("binary");
-  await field("Shape", card(0)).selectOption("1");
+  await choose(field("What it holds", card(0)), "binary");
+  await choose(field("Shape", card(0)), "1");
   await field("Number of values", card(0)).fill("20");
   await side("Objective").click();
-  await field("Goal").selectOption("max");
+  await choose(field("Goal"), "max");
   await field("Unit").fill("$");
   await page.getByText("Write the expression from a preset").click();
-  await field("Preset").selectOption("selected-total");
-  await field("Value of each item (data column)").selectOption("value");
+  await choose(field("Preset"), "selected-total");
+  await choose(field("Value of each item (data column)"), "value");
   await button("Write the expression").click();
   assert.equal(await field("Expression").inputValue(), "sum(value * take)");
   await side("Constraints").click();
   await page.getByText("Add a capacity limit from a preset").click();
-  await field("Size of each item (data column)").selectOption("weight");
+  await choose(field("Size of each item (data column)"), "weight");
   await field("Limit").fill("50");
   await button("Add the capacity limit").click();
   assert.deepEqual(
-    [await field("Name", card(0)).inputValue(), await field("Left side").inputValue(), await field("Comparison").inputValue(), await field("Right side").inputValue(), await field("Unit", card(0)).inputValue()],
+    [await field("Name", card(0)).inputValue(), await field("Left side").inputValue(), await chosen(field("Comparison")), await field("Right side").inputValue(), await field("Unit", card(0)).inputValue()],
     ["Total weight", "sum(weight * take)", "<=", "50", "kg"],
   );
   await side("Drawing").click();
-  await field("What to draw").selectOption("selection");
-  assert.equal(await field("Yes or no variable").inputValue(), "take");
-  await field("Column for the size of each item").selectOption("weight");
+  await choose(field("What to draw"), "selection");
+  assert.equal(await chosen(field("Yes or no variable")), "take");
+  await choose(field("Column for the size of each item"), "weight");
   // check boxes that were never touched are zeros: nothing taken, then item 4 alone (2 kg, 86 $)
-  await side("Candidate").click();
+  await side("Test a candidate").click();
   assert.equal(await page.locator("fieldset.checks input").count(), 20);
   await button("Test this candidate").click();
   await tested.filter({ hasText: /Objective \(to maximize\)\s*0 \$/ }).waitFor();
@@ -395,7 +453,7 @@ async function check(browser, prefix) {
   // a second experiment, as a copy with another solver and one of its settings changed
   await button("New experiment").click();
   await field("Name of the experiment").fill("GA run");
-  await field("Solver").selectOption("ga");
+  await choose(field("Solver"), "ga");
   await note.waitFor({ state: "detached" });
   await page.getByText("Settings of Genetic Algorithm").click();
   // an empty setting is refused by the engine, with its message at that setting
@@ -409,7 +467,13 @@ async function check(browser, prefix) {
   await field("pop_size").fill("50");
   await settingProblems.waitFor({ state: "detached" });
   assert.equal(await page.locator(".sidebar ul").nth(2).getByRole("button").count(), 3);
-  assert.match(await page.locator(".pane .empty").innerText(), /"GA run" has no result yet/);
+  assert.match(await page.locator(".output .empty").innerText(), /"GA run" has no result yet/);
+  // an experiment asks before it is deleted, and Cancel keeps it
+  await button("Delete").click();
+  await dialog.getByText('"GA run" and its result will be deleted. This cannot be undone.').waitFor();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await page.locator(".sidebar ul").nth(2).getByRole("button").count(), 3);
 
   await side("PSO quick run").click();
   await button("Run").click();
@@ -459,7 +523,7 @@ async function check(browser, prefix) {
   await field("Function definitions").fill("def slow(a):\n    s = 0\n    for i in range(1000000000000):\n        s += i\n    return s\n");
   await side("Objective").click();
   await field("Expression").fill("sum(x ** 2) + slow(x)");
-  await side("Candidate").click();
+  await side("Test a candidate").click();
   const helpersBefore = helpWorkers;
   await button("Fill with a random candidate").click();
   await alert.filter({ hasText: "This takes too long, so it was stopped after 5 seconds." }).waitFor({ timeout: 20000 });
@@ -476,6 +540,8 @@ async function check(browser, prefix) {
   await Promise.all([page.waitForEvent("load"), cdp.send("Page.reload", { ignoreCache: true })]);
   await heading("Your projects").waitFor();
   assert.equal(await page.locator("main h2").first().innerText(), "Your projects");
+  // the theme chosen at the start is still applied after the reload
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
   assert.equal(await page.locator("table.projects tbody tr").count(), 7);
   await button("New blank project").waitFor();
   await fromList("Benchmark functions");

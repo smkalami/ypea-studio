@@ -39,8 +39,14 @@ export const de: Method = {
       // NumPy's argsort is not stable here, which shows only if two 53-bit keys are equal.
       for (let i = 0; i < n; i++) {
         rng.fill(keys)[i] = Infinity;
-        const order = Int32Array.from(keys, (_, a) => a).sort((a, b) => keys[a] - keys[b] || a - b);
-        idx.set(order.subarray(0, m), i * m);
+        // the m smallest keys in order, the first index winning a tie: the start of a stable sort,
+        // without sorting all n keys for every target
+        for (let j = 0; j < m; j++) {
+          let least = 0;
+          for (let a = 1; a < n; a++) if (keys[a] < keys[least]) least = a;
+          idx[i * m + j] = least;
+          keys[least] = Infinity;
+        }
       }
 
       const mutant = new Float64Array(n * d);
