@@ -24,6 +24,23 @@ export interface Constraint {
   tolerance?: number;
 }
 
+/** How a solution is drawn. The names are data columns and variables of the project. */
+export type View =
+  /** A closed tour through points whose coordinates are two data columns. */
+  | { kind: "route"; variable: string; x: string; y: string }
+  /** The data points, and the curve that the expression gives over the x column. */
+  | { kind: "line"; x: string; y: string; expression: string }
+  /** Which items are chosen. `size` is a data column that sets the size of each item. */
+  | { kind: "selection"; variable: string; size?: string };
+
+/** A solver setup: the method, its settings, the budget in evaluations and the seed. */
+export interface RunSetup {
+  method: string;
+  settings: Settings;
+  budget: number;
+  seed: number;
+}
+
 /** Values of the variables, keyed by name, in the shape `toPlain` gives. */
 export type PlainSolution = Record<string, unknown>;
 
@@ -47,7 +64,12 @@ export interface Project {
   baseline?: { label: string; solution: PlainSolution };
   /** A known answer: a known optimum value, or a known solution. */
   reference?: { label?: string; objective?: number; solution?: PlainSolution };
-  run: { method: string; settings: Settings; budget: number; seed: number };
+  /** The drawing of a solution. Without one, a solution is shown as a table only. */
+  view?: View;
+  /** The project's first experiment, and the one the command line runs. */
+  run: RunSetup & { name?: string };
+  /** More experiments. To run one, run a copy of the project whose `run` is that experiment. */
+  experiments?: (RunSetup & { id: string; name: string })[];
 }
 
 export type Solution = Record<string, Value>;
@@ -117,6 +139,8 @@ export function parseProject(json: unknown): Project {
   };
 
   let dataValues = 0;
+  /** Length of every data column, for the drawing. */
+  const columns = new Map<string, number>();
   if (p.data !== undefined && !Array.isArray(p.data)) fail(`"data" must be a list`);
   for (const t of p.data ?? []) {
     if (!isObject(t)) fail(`every data table must be an object`);
@@ -130,6 +154,7 @@ export function parseProject(json: unknown): Project {
         if (!Array.isArray(c.values) || !c.values.every(isFinite)) fail(`column "${c.name}": "values" must be a list of numbers`);
         if (c.values.length !== t.columns[0].values.length) fail(`table "${t.name}": all columns must have the same length`);
         dataValues += c.values.length;
+        columns.set(c.name, c.values.length);
       }
     } else if (t.kind === "matrix") {
       optionalText(t, "unit", `table "${t.name}":`);
@@ -192,12 +217,51 @@ export function parseProject(json: unknown): Project {
     if (p.reference.objective === undefined && p.reference.solution === undefined) fail(`"reference" needs an "objective" or a "solution"`);
   }
 
-  const r = p.run;
-  if (!isObject(r) || !isText(r.method)) fail(`"run.method" must be text`);
+  if (p.view !== undefined) {
+    const w = p.view;
+    if (!isObject(w)) fail(`"view" must be an object`);
+    const column = (key: string): number => {
+      if (!isText(w[key]) || !columns.has(w[key])) fail(`"view.${key}" must be the name of a data column`);
+      return columns.get(w[key])!;
+    };
+    const variable = (types: string[], what: string): Variable => {
+      const found = variables.find((v) => v.spec.name === w.variable);
+      if (!found || !types.includes(found.spec.type) || found.shape.length !== 1) fail(`"view.variable" must be the name of ${what}`);
+      return found!;
+    };
+    if (w.kind === "route") {
+      const n = variable(["permutation"], "a permutation variable").shape[0];
+      if (column("x") !== column("y") || column("x") < n) fail(`"view.x" and "view.y" must have the same length, with a row for every position of "${w.variable}"`);
+    } else if (w.kind === "line") {
+      if (column("x") !== column("y")) fail(`"view.x" and "view.y" must have the same length`);
+      if (!isText(w.expression)) fail(`"view.expression" must be text`);
+    } else if (w.kind === "selection") {
+      const n = variable(["binary", "binary_selection"], "a list of 0 or 1 values").shape[0];
+      if (w.size !== undefined && column("size") !== n) fail(`"view.size" must have one value for every item of "${w.variable}"`);
+    } else {
+      fail(`"view.kind" must be "route", "line" or "selection"`);
+    }
+  }
+
+  // `run` and every entry of `experiments` are checked in the same way
   const isSetting = (v: unknown) => isFinite(v) || isText(v) || typeof v === "boolean" || v === null;
-  if (!isObject(r.settings) || !Object.values(r.settings).every(isSetting)) fail(`"run.settings" must hold numbers, text, true, false or null`);
-  if (!isCount(r.budget, 1)) fail(`"run.budget" must be a positive whole number of evaluations`);
-  if (!isCount(r.seed, 0) || r.seed > 0xffffffff) fail(`"run.seed" must be a whole number from 0 to 4294967295`);
+  const checkSetup = (r: unknown, key: (field: string) => string): Record<string, any> => {
+    if (!isObject(r) || !isText(r.method)) return fail(`${key("method")} must be text`);
+    if (!isObject(r.settings) || !Object.values(r.settings).every(isSetting)) fail(`${key("settings")} must hold numbers, text, true, false or null`);
+    if (!isCount(r.budget, 1)) fail(`${key("budget")} must be a positive whole number of evaluations`);
+    if (!isCount(r.seed, 0) || r.seed > 0xffffffff) fail(`${key("seed")} must be a whole number from 0 to 4294967295`);
+    return r;
+  };
+  optionalText(checkSetup(p.run, (field) => `"run.${field}"`), "name", "the run's");
+  if (p.experiments !== undefined && !Array.isArray(p.experiments)) fail(`"experiments" must be a list`);
+  const ids = new Set<string>();
+  for (const e of p.experiments ?? []) {
+    if (!isObject(e) || !isText(e.id) || !/^[A-Za-z0-9_-]+$/.test(e.id)) fail(`every experiment needs an "id" made of letters, digits, underscores and hyphens`);
+    if (ids.has(e.id)) fail(`the experiment id "${e.id}" is used twice`);
+    ids.add(e.id);
+    if (!isText(e.name)) fail(`experiment "${e.id}": "name" must be text`);
+    checkSetup(e, (field) => `experiment "${e.id}": "${field}"`);
+  }
   return p as Project;
 }
 
@@ -272,5 +336,32 @@ export function buildProblem(project: Project): Problem {
     },
     named: (s) => Object.fromEntries(variables.map((v) => [v.spec.name, toPlain(v, s[v.spec.name])])),
     fromPlain: (plain) => solutionFromPlain(variables, plain),
+  };
+}
+
+/**
+ * For a project whose view is a fitted line: a function that gives the curve of a solution, one
+ * value for each row of the x column. Undefined for every other project. Throws a LanguageError
+ * when the view's expression is outside the language or does not give such a list.
+ */
+export function buildCurve(project: Project): ((plain: PlainSolution) => number[]) | undefined {
+  const view = project.view;
+  if (view?.kind !== "line") return undefined;
+  const variables = project.variables.map(makeVariable);
+  const [curve] = translate({
+    functions: project.functions,
+    data: dataInputs(project.data),
+    variables: variables.map(inputOf),
+    expressions: [{ label: "the drawing", source: view.expression, any: true }],
+  }).expressions;
+  const length = project.data?.flatMap((t) => (t.kind === "columns" ? t.columns : [])).find((c) => c.name === view.x)?.values.length;
+  const wrong = (): never => {
+    throw new LanguageError(`In the drawing, line 1, column 1: This must give a list with one value for each row of "${view.x}".`, "the drawing", 1, 1);
+  };
+  if (curve.shape !== "list") wrong();
+  return (plain) => {
+    const y = curve.value(solutionFromPlain(variables, plain)) as number[];
+    if (y.length !== length) wrong();
+    return y;
   };
 }

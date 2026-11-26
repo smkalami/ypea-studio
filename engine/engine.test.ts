@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { Evaluator } from "./evaluator.ts";
 import { npMean, npSum } from "./numpy.ts";
-import { buildProblem, parseProject, type Solution } from "./project.ts";
+import { buildCurve, buildProblem, parseProject, type Solution } from "./project.ts";
 import { deriveSeed, philox, Rng } from "./rng.ts";
 import { randomCandidate, runProject, testCandidate } from "./run.ts";
 import { makeVariable, toPlain } from "./variables.ts";
@@ -219,4 +219,77 @@ test("maximization, non-finite values and bad project files", () => {
   for (const name of ["constructor", "__proto__", "class", "for", "sum", "ops", "lambda"]) {
     bad((p) => (p.variables[0].name = name), /is reserved/);
   }
+});
+
+test("a view names real columns and variables, and a fitted line gives its curve", () => {
+  const fit = parseProject(read("../examples/linefit.json"));
+  assert.deepEqual(fit.view, { kind: "line", x: "voltage", y: "pressure", expression: "offset + gain * voltage" });
+  const curve = buildCurve(fit)!;
+  // voltage starts at 0.5 and ends at 4.5
+  const y = curve({ offset: 1, gain: 2 });
+  assert.equal(y.length, 12);
+  assert.deepEqual([y[0], y[11]], [2, 10]);
+  assert.throws(() => curve({ offset: 1 }), /every variable/);
+  assert.equal(buildCurve(parseProject(read("../examples/tsp.json"))), undefined);
+  assert.equal(buildCurve(benchmark()), undefined);
+
+  const bad = (name: string, change: (p: any) => void, message: RegExp) => {
+    const p = read(`../examples/${name}.json`);
+    change(p);
+    assert.throws(() => buildCurve(parseProject(p)), message);
+  };
+  bad("linefit", (p) => (p.view.x = "offset"), /"view.x" must be the name of a data column/);
+  bad("linefit", (p) => (p.view.expression = 3), /"view.expression" must be text/);
+  bad("linefit", (p) => (p.view.kind = "pie"), /"view.kind" must be/);
+  bad("linefit", (p) => (p.view = "line"), /"view" must be an object/);
+  bad("linefit", (p) => (p.view.expression = "offset + gain"), /In the drawing, line 1, column 1: This must give a list/);
+  // a list of another length is found when a solution is drawn
+  const short = read("../examples/linefit.json");
+  short.view.expression = "voltage[0:3] * gain";
+  assert.throws(() => buildCurve(parseProject(short))!({ offset: 1, gain: 2 }), /one value for each row of "voltage"/);
+  bad("linefit", (p) => (p.view.expression = "offset + window"), /In the drawing, line 1/);
+  bad("linefit", (p) => {
+    p.data.push({ name: "more", kind: "columns", columns: [{ name: "z", values: [1] }] });
+    p.view.y = "z";
+  }, /same length/);
+  bad("tsp", (p) => (p.view.variable = "x"), /"view.variable" must be the name of a permutation variable/);
+  bad("tsp", (p) => {
+    p.variables[0].n = 31;
+    p.baseline.solution.route.push(30);
+  }, /a row for every position of "route"/);
+  bad("knapsack", (p) => (p.view.variable = "weight"), /"view.variable" must be the name of a list of 0 or 1 values/);
+  bad("knapsack", (p) => (p.variables[0].shape = [19]), /"view.size" must have one value for every item of "take"/);
+  // the size column is optional
+  const knapsack = read("../examples/knapsack.json");
+  delete knapsack.view.size;
+  assert.equal(parseProject(knapsack).view!.kind, "selection");
+});
+
+test("a project carries more experiments, each checked as the run is", () => {
+  const json = read("../examples/benchmark.json");
+  json.run.name = "Quick run";
+  json.experiments = [{ id: "de-20k", name: "DE 20k", method: "de", settings: {}, budget: 20000, seed: 7 }];
+  const project = parseProject(json);
+  assert.equal(project.run.name, "Quick run");
+  // an experiment runs as a copy of the project whose run is that experiment
+  const { id, name, ...setup } = project.experiments![0];
+  const result = runProject({ ...project, run: setup });
+  assert.deepEqual([result.method, result.seed.base, result.evaluations.budget], ["de", 7, 20000]);
+  assert.equal(runProject(project).method, "pso");
+
+  const bad = (change: (p: any) => void, message: RegExp) => {
+    const p = structuredClone(json);
+    change(p);
+    assert.throws(() => parseProject(p), message);
+  };
+  bad((p) => (p.run.name = 3), /the run's "name" must be text/);
+  bad((p) => (p.experiments = {}), /"experiments" must be a list/);
+  bad((p) => (p.experiments[0].id = "de 20k"), /every experiment needs an "id"/);
+  bad((p) => delete p.experiments[0].id, /every experiment needs an "id"/);
+  bad((p) => p.experiments.push({ ...p.experiments[0] }), /the experiment id "de-20k" is used twice/);
+  bad((p) => delete p.experiments[0].name, /experiment "de-20k": "name" must be text/);
+  bad((p) => (p.experiments[0].method = 1), /experiment "de-20k": "method" must be text/);
+  bad((p) => (p.experiments[0].settings = { w: [1] }), /experiment "de-20k": "settings" must hold/);
+  bad((p) => (p.experiments[0].budget = 0), /experiment "de-20k": "budget" must be a positive whole number/);
+  bad((p) => (p.experiments[0].seed = 2 ** 32), /experiment "de-20k": "seed" must be a whole number/);
 });

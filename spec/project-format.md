@@ -19,7 +19,9 @@ This is version 1 of the format. Parts marked **provisional** may still change b
 | `constraints` | no | Each has `name`, `left`, `op` (`"<="`, `">="` or `"=="`), `right`, optional `unit`, and for `==` an optional `tolerance` |
 | `baseline` | no | The solution in use today: `label` and `solution` |
 | `reference` | no | A known answer: optional `label`, and `objective` (a known optimum value), `solution`, or both |
-| `run` | yes | `method`, `settings`, `budget` (evaluations) and `seed` (0 to 4294967295) |
+| `view` | no | How a solution is drawn (below) |
+| `run` | yes | The first experiment: `method`, `settings`, `budget` (evaluations) and `seed` (0 to 4294967295), with an optional `name` |
+| `experiments` | no | More experiments (below) |
 
 A `solution` gives one value for every variable, keyed by its name. Each value must be a valid value of its variable (within bounds, a real permutation, and so on), and a file with an invalid one is refused.
 
@@ -66,6 +68,32 @@ Positions start at 0 everywhere.
 A constraint holds when `left op right` holds. `==` may carry a `tolerance` in the constraint's own unit: the two sides then count as equal when they differ by no more than that. Without one the tolerance is 0, which real-valued variables can rarely meet exactly.
 
 The result of a run shows both sides of every constraint in its own unit. Internally each violation is divided by a scale that is fixed once per run (`engine/constraints.ts`), and the run records its scales.
+
+## View
+
+A view tells the app how to draw a solution. Without one, a solution is shown as a table only. There are three kinds:
+
+```json
+{ "kind": "route", "variable": "route", "x": "x", "y": "y" }
+{ "kind": "line", "x": "voltage", "y": "pressure", "expression": "offset + gain * voltage" }
+{ "kind": "selection", "variable": "take", "size": "weight" }
+```
+
+- **`route`** draws a closed tour. `variable` is a `permutation`, and `x` and `y` are two data columns of the same length that hold the coordinates of every position.
+- **`line`** draws the data points of two columns of the same length, and the curve that `expression` gives. The expression is written in the same language as the objective (`spec/language.md`), can use the same names, and must give a list with one value for each row of the `x` column (`buildCurve` in `engine/project.ts`).
+- **`selection`** draws which items are chosen. `variable` is a list of `binary` values or a `binary_selection`. The optional `size` is a data column with one value for each item, which sets how large each item is drawn.
+
+## Experiments
+
+An experiment is a solver setup: a method, its settings, a budget and a seed. `run` is the first experiment, and it is the one that the command line runs. It may carry a `name`. A project may hold more of them in `experiments`:
+
+```json
+"experiments": [
+  { "id": "de-20k", "name": "DE 20k", "method": "de", "settings": {}, "budget": 20000, "seed": 1 }
+]
+```
+
+Each entry has an `id` (unique in the project, made of letters, digits, underscores and hyphens), a `name`, and the same four fields as `run`, checked in the same way. To run an experiment, run a copy of the project whose `run` is that entry. Results are not part of the project file.
 
 ## Provisional parts
 

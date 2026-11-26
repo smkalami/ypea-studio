@@ -42,6 +42,7 @@ mkdirSync(here("data/"), { recursive: true });
     objective: { sense: "min", unit: "kPa^2", source: "sum((pressure - (offset + gain * voltage)) ** 2)" },
     baseline: { label: "Current settings", solution: { offset: 0, gain: 24 } },
     reference: { label: "Least-squares line", solution: { offset: mp - gain * mv, gain } },
+    view: { kind: "line", x: "voltage", y: "pressure", expression: "offset + gain * voltage" },
     run: { method: "pso", settings: {}, budget: 5000, seed: 1 },
   }, "calibration", ["voltage", "pressure"], voltage.map((v, i) => [v, pressure[i]]));
 }
@@ -62,6 +63,7 @@ mkdirSync(here("data/"), { recursive: true });
     variables: [{ name: "take", type: "binary", shape: [n] }],
     objective: { sense: "max", unit: "$", source: "sum(value * take)" },
     constraints: [{ name: "Total weight", left: "sum(weight * take)", op: "<=", right: "50", unit: "kg" }],
+    view: { kind: "selection", variable: "take", size: "weight" },
     run: { method: "random", settings: {}, budget: 20000, seed: 1 },
   }, "items", ["weight", "value"], weight.map((w, i) => [w, value[i]]));
 }
@@ -89,6 +91,7 @@ mkdirSync(here("data/"), { recursive: true });
     variables: [{ name: "route", type: "permutation", n }],
     objective: { sense: "min", unit: "km", source: "sum(distance[route, ops.roll(route, -1)])" },
     baseline: { label: "Nearest-neighbor tour", solution: { route } },
+    view: { kind: "route", variable: "route", x: "x", y: "y" },
     run: { method: "random", settings: {}, budget: 50000, seed: 1 },
   }, "cities", ["x", "y"], x.map((v, i) => [v, y[i]]));
 }

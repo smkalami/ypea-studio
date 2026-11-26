@@ -84,6 +84,12 @@
       "gain": 24.806819502403464
     }
   },
+  "view": {
+    "kind": "line",
+    "x": "voltage",
+    "y": "pressure",
+    "expression": "offset + gain * voltage"
+  },
   "run": {
     "method": "pso",
     "settings": {},

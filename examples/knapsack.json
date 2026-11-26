@@ -86,6 +86,11 @@
       "unit": "kg"
     }
   ],
+  "view": {
+    "kind": "selection",
+    "variable": "take",
+    "size": "weight"
+  },
   "run": {
     "method": "random",
     "settings": {},
