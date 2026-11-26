@@ -1,7 +1,7 @@
-// CMA-ES cannot follow ypea's trace bit for bit past the first iteration: ypea samples with
-// LAPACK's eigenvectors, whose signs (and basis, for a repeated eigenvalue) no rule reproduces.
-// These tests assert exactly
-// what is exact, and compare the rest as distributions.
+// CMA-ES follows ypea within a tolerance, not bit for bit. Both sides sample with the symmetric
+// root B D B^T z, so a run does not depend on which eigenvectors a decomposition returns. What
+// remains is rounding: this decomposition and its sums against LAPACK and BLAS, and log and
+// exp in the last digit. These tests assert exactly what is exact and bound the rest.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -23,32 +23,31 @@ for (const [name, lam] of Object.entries(RUNS)) {
   });
 }
 
-// Level 4: the median final value of 20 seeded runs against ypea's 20 runs with the same seeds,
-// as |log10 of the ratio of the medians|. The tolerance is not chosen to pass. It is the 95th
-// percentile of the same number between two random halves of 40 ypea runs (ypea against
-// itself), so it says "no further apart than two sets of ypea runs usually are". It is
-// provisional until the owner sets it.
-const LEVEL4 = [
-  { problem: "sphere", tolerance: 0.361 }, // 1000 evaluations. Measured: 0.243
-  { problem: "rosenbrock", tolerance: 0.1 }, // 2000 evaluations. Measured: 0.020
-];
-const median = (v: number[]) => {
-  const s = v.toSorted((a, b) => a - b);
-  return (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-};
+// Level 3: the best value so far at fixed evaluation counts, as a relative difference from
+// ypea's, over all 45 stored runs (5 parity runs and 20 seeds each on two problems).
+// Measured largest values on Node 26 against ypea 0.4.0: 1.7e-13 at 500 evaluations, 1.5e-11
+// at 1000 and 2.5e-9 at 2000. Each bound leaves a factor of a few hundred for other computers.
+// The difference grows with the run, because rounding compounds: at 3000 evaluations it was 1e-4.
+const BOUNDS = [[500, 1e-10], [1000, 1e-8], [2000, 1e-6]];
+const SEEDS = Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0"));
+const ALL = [...Object.keys(RUNS), ...["sphere", "rosenbrock"].flatMap((p) => SEEDS.map((n) => `cmaes_${p}_s${n}`))];
 
-for (const { problem, tolerance } of LEVEL4) {
-  test(`CMA-ES ${problem}: median of 20 final values close to ypea's`, () => {
-    const studio: number[] = [], ypea: number[] = [];
-    for (let seed = 1; seed <= 20; seed++) {
-      const trace = readTrace(`cmaes_${problem}_s${String(seed).padStart(2, "0")}`);
-      studio.push(runTrace(trace, cmaes).best.objective);
-      ypea.push(trace.traceF.at(-1)!);
+test("CMA-ES follows ypea's best value within a tight tolerance for the first 2000 evaluations", () => {
+  const bestAt = (nfe: number[], f: number[], point: number) => {
+    let k = -1;
+    while (k + 1 < nfe.length && nfe[k + 1] <= point) k++;
+    return f[k];
+  };
+  for (const name of ALL) {
+    const trace = readTrace(name), result = runTrace(trace, cmaes);
+    for (const [point, bound] of BOUNDS) {
+      if (point > trace.nfe) continue;
+      const a = bestAt(trace.traceNfe, trace.traceF, point), b = bestAt(result.trace.nfe, result.trace.objective, point);
+      const difference = a === b ? 0 : Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b));
+      assert.ok(difference <= bound, `${name} at ${point} evaluations: ypea ${a}, Studio ${b}, relative difference ${difference} is above ${bound}`);
     }
-    const distance = Math.abs(Math.log10(median(studio) / median(ypea)));
-    assert.ok(distance <= tolerance, `medians ${median(studio)} (Studio) and ${median(ypea)} (ypea): |log10 ratio| ${distance} is above ${tolerance}`);
-  });
-}
+  }
+});
 
 test("CMA-ES with default settings converges on the 10 variable sphere within 20000 evaluations", () => {
   const project = { ...(readTrace("cmaes_sphere").project as object), run: { method: "cmaes", settings: {}, budget: 20000, seed: 1 } };

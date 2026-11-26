@@ -1,11 +1,11 @@
 // Covariance Matrix Adaptation Evolution Strategy, from ypea/algorithms/cmaes.py.
 //
-// Parity with ypea (measured): the random draws
-// and everything up to the end of the first iteration's evaluations are the same bit for bit.
-// From the second iteration on the samples depend on the eigenvectors of C, which ypea takes
-// from LAPACK (np.linalg.eigh) and this file takes from the Jacobi method below. The two
-// differ in the sign of each eigenvector, and in the basis of a repeated eigenvalue, so the
-// runs separate completely and agree only as distributions.
+// Parity with ypea (measured): the random draws and everything up to the end of the first
+// iteration's evaluations are the same bit for bit. After that the two sides agree within a
+// tolerance that grows slowly with the run: the best value differs by about 1e-11 after 1000
+// evaluations. Both sides sample with the symmetric root B D B^T z, so a run does not depend on
+// which eigenvectors a decomposition returns (ypea takes them from LAPACK, this file from the
+// Jacobi method below).
 //
 // The matrix products (ypea's @) and the norm go through BLAS in ypea. Here they are plain
 // sums in index order.
@@ -115,10 +115,17 @@ export const cmaes: Method = {
 
     return () => {
       iter++;
-      // X = reflect(mean + (sigma * (Z * D)) @ B.T): Python reads sigma * (Z * D) @ B.T from the left
-      const X = new Float64Array(lam * n), step = new Float64Array(n);
+      // X = reflect(mean + (sigma * ((Z @ B) * D)) @ B.T), read from the left as Python does. This
+      // is the symmetric root B D B^T z, so a run does not depend on the signs or the basis of
+      // the eigenvectors, which differ between this decomposition and NumPy's.
+      const X = new Float64Array(lam * n), step = new Float64Array(n), z = new Float64Array(n);
       for (let i = 0; i < lam; i++) {
-        for (let k = 0; k < n; k++) step[k] = sigma * (rng.standardNormal() * D[k]);
+        for (let j = 0; j < n; j++) z[j] = rng.standardNormal();
+        for (let k = 0; k < n; k++) {
+          let w = 0;
+          for (let j = 0; j < n; j++) w += z[j] * B[j * n + k];
+          step[k] = sigma * (w * D[k]);
+        }
         for (let j = 0; j < n; j++) {
           let s = 0;
           for (let k = 0; k < n; k++) s += step[k] * B[j * n + k];

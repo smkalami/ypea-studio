@@ -88,20 +88,21 @@ export const ica: Method = {
       const tc = sum.map((s, e) => c[imps[e]] + zeta * (count[e] > 1 ? (s - c[imps[e]]) / (count[e] - 1) : 0));
       let weakest = 0;
       for (let e = 1; e < k; e++) if (tc[e] > tc[weakest]) weakest = e;
-      let p = probs(tc);
-      p[weakest] = 0;
-      const total = npSum(p);
-      p = p.map((v) => v / total);
+      // draw only among the other empires, so the weakest can never win its own colony
+      const others = Array.from({ length: k }, (_, e) => e).filter((e) => e !== weakest);
+      const all = probs(tc), share = others.map((e) => all[e]), total = npSum(share);
+      const p = share.map((v) => v / total);
+      const winner = () => others[rng.choice(p)];
       let colonies = 0, last = -1;
       for (let i = 0; i < n; i++) {
         if (empireOf[i] !== weakest || i === imps[weakest]) continue;
         colonies++;
         if (last < 0 || c[i] > c[last]) last = i;
       }
-      if (colonies) empireOf[last] = rng.choice(p);
+      if (colonies) empireOf[last] = winner();
       if (colonies <= 1) {
         // the weakest empire has no colonies left: its imperialist joins another empire
-        empireOf[imps[weakest]] = rng.choice(p);
+        empireOf[imps[weakest]] = winner();
         imps.splice(weakest, 1);
         for (let i = 0; i < n; i++) if (empireOf[i] > weakest) empireOf[i]--;
       }
