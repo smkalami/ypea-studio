@@ -154,6 +154,17 @@ export function makeVariable(raw: any): Variable {
           groups.forEach((group, j) => group.forEach((item) => (matrix[j * n + item] = 1)));
           return matrix;
         },
+        encode(value, codes, offset) {
+          // The items of group 0, a separator, the items of group 1, and so on get rising codes.
+          // The table of 0 and 1 holds no order inside a group, so its items go in index order.
+          let next = 0;
+          const put = (key: number) => (codes[offset + key] = (next++ + 0.5) / order.length);
+          for (let j = 0; j < k; j++) {
+            if (j) put(n + j - 1);
+            if (raw.type === "partition") for (const item of (value as Int32Array[])[j]) put(item);
+            else for (let i = 0; i < n; i++) if ((value as Int32Array)[j * n + i]) put(i);
+          }
+        },
       });
     }
 
@@ -194,7 +205,7 @@ export function makeVariable(raw: any): Variable {
 }
 
 /** Stable sort order of `out.length` codes: ties keep their index order. */
-function argsort(codes: Float64Array, offset: number, out: Int32Array): void {
+export function argsort(codes: Float64Array, offset: number, out: Int32Array): void {
   for (let i = 0; i < out.length; i++) out[i] = i;
   out.sort((i, j) => codes[offset + i] - codes[offset + j] || i - j);
 }

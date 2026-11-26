@@ -268,6 +268,37 @@ async function walk(browser, size, theme) {
   await audit("dialog-delete-experiment");
   await page.keyboard.press("Escape");
 
+  // compare: the form with two budgets, a comparison that runs, seen from another part too, the summary with its charts, and share
+  await field("Budget (evaluations)").fill("2000000000");
+  await go("Compare experiments");
+  await page.getByRole("note").waitFor();
+  await page.getByLabel("Add Random Search as a reference").check();
+  await field("Runs of each experiment").fill("0");
+  await audit("compare-form-refused");
+  await field("Runs of each experiment").fill("3");
+  await field("Budget of every run (evaluations)").fill("2000000000");
+  await button("Run the comparison").click();
+  await page.locator(".comparing").waitFor();
+  await audit("compare-running");
+  await go("Variables");
+  await audit("compare-running-seen-from-another-part");
+  await button("Show the comparison").click();
+  await button("Cancel the comparison").click();
+  await page.getByText("Comparison cancelled.").waitFor();
+  await audit("compare-cancelled-and-empty");
+  await field("Budget of every run (evaluations)").fill("3000");
+  await button("Run the comparison").click();
+  await page.getByText("Comparison finished.").waitFor({ timeout: 120000 });
+  await audit("compare-summary");
+  await page.getByText("What ran: the setups and the seeds").click();
+  await audit("compare-seeds-open");
+  await go("Share");
+  await audit("share");
+  await field("Result to share").click();
+  await page.getByRole("listbox").waitFor();
+  await audit("share-choice-open");
+  await page.keyboard.press("Escape");
+
   // vehicle routing: ordered groups, the drawing of several routes with its form, and the two presets that write helper functions
   await toList();
   await button("Vehicle routing").click();

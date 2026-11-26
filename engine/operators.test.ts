@@ -6,17 +6,17 @@ import {
   roundHalfEven, type Row, scramble, swap, uniformCrossover,
 } from "./operators.ts";
 import { Rng } from "./rng.ts";
-import { fromPlain, makeVariable, toPlain, type Variable } from "./variables.ts";
+import { fromPlain, makeVariable, toPlain, type Value, type Variable } from "./variables.ts";
 
 const read = (name: string) => JSON.parse(readFileSync(new URL(`../spec/parity/${name}.json`, import.meta.url), "utf8"));
-const batch = (v: Variable, plain: unknown[]): Batch => plain.map((row) => fromPlain(v, row) as Row);
-const plain = (v: Variable, rows: Batch) => rows.map((row) => toPlain(v, row));
+const batch = (v: Variable, plain: unknown[]): Batch<Value> => plain.map((row) => fromPlain(v, row));
+const plain = (v: Variable, rows: Batch<Value>) => rows.map((row) => toPlain(v, row));
 const ints = (rows: number[][]): Batch => rows.map((row) => Int32Array.from(row));
 const lists = (rows: Batch) => rows.map((row) => Array.from(row));
 
 test("every type with native operators encodes as ypea encodes it", () => {
   const { cases } = read("encode");
-  assert.deepEqual([...new Set(cases.map((c: any) => c.variable.type))], ["real", "integer", "binary", "permutation", "selection", "binary_selection"]);
+  assert.deepEqual([...new Set(cases.map((c: any) => c.variable.type))], ["real", "integer", "binary", "permutation", "selection", "binary_selection", "partition", "binary_partition"]);
   for (const { variable, values, encoded } of cases) {
     const v = makeVariable(variable);
     values.forEach((value: unknown, i: number) => {
@@ -36,9 +36,9 @@ test("halves round to the even neighbor, as in Python and NumPy", () => {
 
 test("types without native operators have no encoder and no operators", () => {
   for (const spec of [
-    { name: "v", type: "partition", n: 4, k: 2 },
-    { name: "v", type: "binary_partition", n: 4, k: 2 },
     { name: "v", type: "fixed_sum", shape: [3], target: 1 },
+    { name: "v", type: "fixed_row_sum", shape: [2, 3], target: 1 },
+    { name: "v", type: "fixed_column_sum", shape: [2, 3], target: 1 },
   ]) {
     assert.equal(makeVariable(spec).encode, undefined);
     assert.equal(defaultOperators(makeVariable(spec)), null);
@@ -83,8 +83,14 @@ test("the default operators of every type match ypea, value for value and draw f
 });
 
 // What must hold for a value of each type, whatever the operators did to it.
-function assertValid(v: Variable, row: Row, label: string): void {
-  const spec = v.spec, values = Array.from(row);
+function assertValid(v: Variable, row: Value, label: string): void {
+  const spec = v.spec;
+  if (spec.type === "partition" || spec.type === "binary_partition") {
+    // fromPlain refuses anything but k groups that hold every item once, or a table with one 1 in every column
+    assert.doesNotThrow(() => fromPlain(v, toPlain(v, row)), label);
+    return;
+  }
+  const values = Array.from(row as Row);
   const whole = (low: number, high: number) => values.every((x) => Number.isInteger(x) && x >= low && x <= high);
   const at = (bound: number | number[], i: number) => (typeof bound === "number" ? bound : bound[i]);
   if (spec.type === "real" || spec.type === "integer") {
@@ -116,18 +122,26 @@ const SPECS = [
   { name: "v", type: "binary_selection", n: 9, k: 4 },
   { name: "v", type: "binary_selection", n: 5, k: 1 },
   { name: "v", type: "binary_selection", n: 4, k: 4 },
+  { name: "v", type: "partition", n: 9, k: 3 },
+  { name: "v", type: "partition", n: 5, k: 1 },
+  { name: "v", type: "partition", n: 1, k: 1 },
+  { name: "v", type: "partition", n: 2, k: 4 },
+  { name: "v", type: "binary_partition", n: 9, k: 3 },
+  { name: "v", type: "binary_partition", n: 1, k: 2 },
 ];
 
 for (const spec of SPECS) {
   test(`operators keep the invariant of ${JSON.stringify(spec).replace('"name":"v",', "")}`, () => {
     const v = makeVariable(spec), rng = new Rng(7), rows = 12;
     const ops = defaultOperators(v, { alpha: 0.5, rate: 0.4, sigma: 0.5 })!;
-    let a: Batch = [], b: Batch = [];
+    // toPlain and fromPlain copy a value out of the buffer that decode reuses
+    const decoded = (codes: Float64Array) => fromPlain(v, toPlain(v, v.decode(codes, 0)));
+    let a: Batch<Value> = [], b: Batch<Value> = [];
     for (let r = 0; r < rows; r++) {
-      a.push((v.decode(rng.fill(new Float64Array(v.codeSize)), 0) as Row).slice());
-      b.push((v.decode(rng.fill(new Float64Array(v.codeSize)), 0) as Row).slice());
+      a.push(decoded(rng.fill(new Float64Array(v.codeSize))));
+      b.push(decoded(rng.fill(new Float64Array(v.codeSize))));
     }
-    const check = (rowsOut: Batch, label: string) => {
+    const check = (rowsOut: Batch<Value>, label: string) => {
       assert.equal(rowsOut.length, rows);
       rowsOut.forEach((row) => {
         assertValid(v, row, label);
@@ -136,11 +150,11 @@ for (const spec of SPECS) {
         const codes = new Float64Array(v.codeSize);
         v.encode!(row, codes, 0);
         assert.ok(codes.every((c) => c >= 0 && c <= 1), `${label}: codes outside [0, 1]`);
-        const back = (v.decode(codes, 0) as Row).slice();
-        if (spec.type !== "real") assert.deepEqual(Array.from(back), Array.from(row), `${label}: does not decode back`);
+        const back = decoded(codes);
+        if (spec.type !== "real") assert.deepEqual(toPlain(v, back), toPlain(v, row), `${label}: does not decode back`);
         else {
           assertValid(v, back, `${label}, decoded back`);
-          back.forEach((x, i) => assert.ok(Math.abs(x - row[i]) <= 1e-14, `${label}: ${x} decodes back far from ${row[i]}`));
+          (back as Row).forEach((x, i) => assert.ok(Math.abs(x - (row as Row)[i]) <= 1e-14, `${label}: ${x} decodes back far from ${(row as Row)[i]}`));
         }
       });
     };
@@ -148,10 +162,10 @@ for (const spec of SPECS) {
       [a, b] = ops.crossover(a, b, rng);
       check(a, "first child");
       check(b, "second child");
-      const inputs = lists(a);
+      const inputs = plain(v, a);
       b = ops.mutate(a, rng);
       check(b, "mutant");
-      assert.deepEqual(lists(a), inputs, "mutate must not change its input");
+      assert.deepEqual(plain(v, a), inputs, "mutate must not change its input");
     }
   });
 }
@@ -159,7 +173,7 @@ for (const spec of SPECS) {
 test("NativeOperators handles each variable on its own slice, and code operators fill the rest", () => {
   const variables = [
     { name: "x", type: "real", shape: [2], lb: -1, ub: 1 },
-    { name: "g", type: "partition", n: 4, k: 2 },
+    { name: "g", type: "fixed_sum", shape: [5], target: 1 },
     { name: "p", type: "permutation", n: 5 },
   ].map(makeVariable);
   const dim = 2 + 5 + 5, rows = 6, rng = new Rng(3);
@@ -177,7 +191,7 @@ test("NativeOperators handles each variable on its own slice, and code operators
     for (const y of out) {
       for (let r = 0; r < rows; r++) {
         const row = Array.from(y.subarray(r * dim, (r + 1) * dim));
-        assert.deepEqual(row.slice(2, 7), [0.25, 0.25, 0.25, 0.25, 0.25], "the partition slice comes from the code operator");
+        assert.deepEqual(row.slice(2, 7), [0.25, 0.25, 0.25, 0.25, 0.25], "the fixed sum slice comes from the code operator");
         assert.deepEqual([...row.slice(7)].sort(), [0.1, 0.3, 0.5, 0.7, 0.9], "the ordering slice holds the codes of an ordering");
         assert.ok(row.slice(0, 2).every((c) => c >= 0 && c <= 1));
       }

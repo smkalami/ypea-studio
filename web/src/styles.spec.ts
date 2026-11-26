@@ -57,7 +57,9 @@ test("every class that the component styles name is used in the app", () => {
   const css = withoutComments(read("styles/components.css") + read("styles/app.css") + read("styles/base.css"));
   const named = new Set([...css.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((match) => match[1]));
   // `alert-…` and `btn-…` names are put together in code, and `in-project` is set on the body
-  const unused = [...named].filter((name) => !new RegExp(`\\b${name}\\b`).test(code) && !/^alert-/.test(name));
+  // The charts of a comparison are the markup of the report's drawings, shown as it is, so its classes count too.
+  const shown = code + readFileSync(new URL("../../export/report-drawings.ts", here), "utf8");
+  const unused = [...named].filter((name) => !new RegExp(`\\b${name}\\b`).test(shown) && !/^alert-/.test(name));
   assert.deepEqual(unused, []);
 });
 

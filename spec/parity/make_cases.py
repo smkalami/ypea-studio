@@ -73,6 +73,13 @@ def load_ypea():
     return ypea
 
 
+def plain(value):
+    """A decoded value as JSON: nested lists, and for ordered groups a list of groups."""
+    if isinstance(value, list):
+        return [plain(g) for g in value]
+    return np.asarray(value).tolist()
+
+
 def numpy_cases():
     rng = StudioRng(77)
     cases = []
@@ -104,11 +111,6 @@ def variable_cases():
         ({"type": "fixed_column_sum", "shape": [3, 4], "target": 5}, lambda: ypea.FixedSum("v", (3, 4), 5, axis=0)),
     ]
     rng = StudioRng(2026)
-
-    def plain(value):
-        if isinstance(value, list):
-            return [np.asarray(g).tolist() for g in value]
-        return np.asarray(value).tolist()
 
     cases = []
     for spec, make in specs:
@@ -167,6 +169,15 @@ def encode_cases():
         {"type": "binary_selection", "n": 7, "k": 3},
         {"type": "binary_selection", "n": 5, "k": 1},
         {"type": "binary_selection", "n": 4, "k": 4},
+        # ordered groups: k = 1, one item, and more groups than items, so some are empty
+        {"type": "partition", "n": 6, "k": 3},
+        {"type": "partition", "n": 4, "k": 1},
+        {"type": "partition", "n": 1, "k": 1},
+        {"type": "partition", "n": 2, "k": 4},
+        {"type": "binary_partition", "n": 6, "k": 3},
+        {"type": "binary_partition", "n": 4, "k": 1},
+        {"type": "binary_partition", "n": 1, "k": 1},
+        {"type": "binary_partition", "n": 2, "k": 4},
     ]
     rng = StudioRng(2027)
     cases = []
@@ -175,7 +186,7 @@ def encode_cases():
         d = var.code_size
         # the values of random codes, of coarse codes (ties), and of both ends of every range
         values = var.decode(np.vstack([rng.random((5, d)), np.round(rng.random((3, d)), 1), np.zeros((1, d)), np.ones((1, d))]))
-        cases.append({"variable": {"name": "v", **spec}, "values": values.tolist(), "encoded": var.encode(values).tolist()})
+        cases.append({"variable": {"name": "v", **spec}, "values": plain(values), "encoded": var.encode(values).tolist()})
     write("encode.json", {"cases": cases})
 
 
@@ -241,6 +252,15 @@ def operator_cases():
         ({"type": "binary_selection", "n": 7, "k": 3}, {}),
         ({"type": "binary_selection", "n": 5, "k": 1}, {}),
         ({"type": "binary_selection", "n": 4, "k": 4}, {}),
+        ({"type": "partition", "n": 6, "k": 3}, {}),
+        ({"type": "partition", "n": 5, "k": 1}, {}),
+        ({"type": "partition", "n": 1, "k": 1}, {}),
+        ({"type": "partition", "n": 1, "k": 2}, {}),
+        ({"type": "partition", "n": 2, "k": 4}, {}),
+        ({"type": "binary_partition", "n": 6, "k": 3}, {}),
+        ({"type": "binary_partition", "n": 5, "k": 1}, {}),
+        ({"type": "binary_partition", "n": 1, "k": 1}, {}),
+        ({"type": "binary_partition", "n": 2, "k": 4}, {}),
     ]
     defaults = []
     for spec, params in specs:
@@ -252,7 +272,7 @@ def operator_cases():
             rng = StudioRng(seed)
             result = op.crossover(x1, x2, rng) if method == "crossover" else (op.mutate(x1, rng),)
             defaults.append({"variable": {"name": "v", **spec}, "params": params, "method": method, "seed": seed,
-                             "x1": x1.tolist(), "x2": x2.tolist(), "result": [y.tolist() for y in result], "next": rng.random()})
+                             "x1": plain(x1), "x2": plain(x2), "result": [plain(y) for y in result], "next": rng.random()})
     write("operators.json", {"orderings": orderings, "moves": moves, "arrays": arrays, "defaults": defaults})
 
 

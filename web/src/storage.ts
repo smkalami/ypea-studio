@@ -1,8 +1,11 @@
 // Projects and results in the browser (IndexedDB), in two stores, and the
 // project files that go to and from disk.
 
+import { checkComparable } from "../../engine/compare.ts";
 import { parseProject, type Project } from "../../engine/project.ts";
 import type { RunResult } from "../../engine/run.ts";
+import { parseResultFile, RESULT_FORMAT, RESULT_FORMAT_VERSION, type ResultFile } from "../../export/data.ts";
+import { readComparison, runsOf, type StoredComparison } from "./compare.ts";
 
 export interface StoredProject {
   id: string;
@@ -108,6 +111,9 @@ export function readResult(record: any, projectId: string, experiment: string): 
     typeof r.evaluations?.used === "number" && typeof r.evaluations.budget === "number" &&
     Array.isArray(r.history?.nfe) && Array.isArray(r.history.best) && typeof r.seed?.base === "number" &&
     typeof r.timeMs === "number" && isObject(r.versions) &&
+    // what the chart, the report and the Python script read
+    Array.isArray(r.trace?.nfe) && Array.isArray(r.trace.violation) && isObject(r.settings) && Array.isArray(r.scales) &&
+    typeof r.seed.runIndex === "number" && typeof r.seed.run === "number" && typeof r.versions.app === "string" && typeof r.versions.ypeaTested === "string" &&
     isObject(p) && isObject(p.objective) && Array.isArray(p.variables) && isObject(p.run) &&
     (record.curve === undefined || Array.isArray(record.curve));
   return ok ? { ...record, projectId, experiment } : undefined;
@@ -137,6 +143,19 @@ export function deleteResult(projectId: string, experiment: string): Promise<voi
   return transact([RESULTS], "readwrite", (tx) => void tx.objectStore(RESULTS).delete(keyOf(projectId, experiment)));
 }
 
+// The comparison of a project: one, the last that finished. Its key is in the range of the
+// project's results, so it goes with the project, and no experiment id can be the same text.
+const COMPARISON = "*comparison";
+
+export async function loadComparison(projectId: string): Promise<StoredComparison | undefined> {
+  const record = await transact([RESULTS], "readonly", (tx) => tx.objectStore(RESULTS).get(keyOf(projectId, COMPARISON)));
+  return readComparison(record, projectId);
+}
+
+export function saveComparison(comparison: StoredComparison): Promise<void> {
+  return transact([RESULTS], "readwrite", (tx) => void tx.objectStore(RESULTS).put({ ...comparison, projectId: keyOf(comparison.projectId, COMPARISON) }));
+}
+
 const BUNDLE = "ypea-studio-projects";
 
 /** The content of the "Download all projects" file. */
@@ -144,15 +163,92 @@ export function bundleProjects(projects: Project[]) {
   return { format: BUNDLE, version: 1, projects };
 }
 
-/** The projects in a file from disk: one project file, or a file of all projects. Throws a message for the user. */
-export function projectsFromFile(text: string): Project[] {
+/** A project of a file, with the results and the comparison that the file carries for it. */
+export interface FileProject {
+  project: Project;
+  results: Omit<StoredResult, "projectId">[];
+  comparison?: Omit<StoredComparison, "projectId">;
+}
+
+const isoTime = (ms: number) => new Date(ms).toISOString();
+
+/**
+ * The content of a project file with results: the file of projects with one project, the
+ * stored result of each experiment as a result file, and the comparison. A file cannot hold a
+ * number that is not finite, so a result that would not read back is left out and counted.
+ */
+export function projectWithResults(project: Project, results: StoredResult[], comparison?: StoredComparison) {
+  const entries = results.map((r) => ({
+    project: 0, experiment: r.experiment, curve: r.curve,
+    file: { format: RESULT_FORMAT, version: RESULT_FORMAT_VERSION, versions: r.result.versions, finished: isoTime(r.finished), project: r.project, result: r.result } satisfies ResultFile,
+  }));
+  const compared = comparison ? [{ project: 0, finished: isoTime(comparison.finished), versions: comparison.versions, definition: comparison.project, experiments: comparison.experiments }] : [];
+  // each part is read back the way a file from a stranger is read, and what does not pass stays out
+  const reads = (part: object) => {
+    try {
+      readProjectFile(JSON.stringify({ ...bundleProjects([project]), ...part }));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const kept = entries.filter((entry) => reads({ results: [entry] })), keptCompared = compared.filter((entry) => reads({ comparisons: [entry] }));
+  return {
+    file: { ...bundleProjects([project]), results: kept, comparisons: keptCompared },
+    leftOut: entries.length - kept.length + compared.length - keptCompared.length,
+  };
+}
+
+/**
+ * The projects in a file from disk, each with the results the file carries for it: one project
+ * file, a file of all projects, or a project with results. Everything is checked as untrusted
+ * input, and one bad part refuses the whole file. Throws a message for the user.
+ */
+export function readProjectFile(text: string): FileProject[] {
   let json: any;
   try {
     json = JSON.parse(text);
   } catch {
     throw new Error("This file is not a project file: it is not valid JSON.");
   }
-  if (json?.format !== BUNDLE) return [parseProject(json)];
+  if (json?.format !== BUNDLE) return [{ project: parseProject(json), results: [] }];
   if (json.version !== 1 || !Array.isArray(json.projects)) throw new Error("This file of projects is damaged or comes from a newer version.");
-  return json.projects.map(parseProject);
+  const all: FileProject[] = json.projects.map((p: unknown) => ({ project: parseProject(p), results: [] }));
+  const damaged = (what: string): never => {
+    throw new Error(`This file holds ${what} that cannot be read. It is damaged or comes from a newer version.`);
+  };
+  const owner = (entry: any, what: string): FileProject => all[Number.isInteger(entry?.project) ? entry.project : -1] ?? damaged(what);
+  const time = (value: unknown, what: string): number => (typeof value === "string" && Number.isFinite(Date.parse(value)) ? Date.parse(value) : damaged(what));
+
+  if (json.results !== undefined && !Array.isArray(json.results)) damaged("results");
+  for (const entry of json.results ?? []) {
+    const what = "a result", into = owner(entry, what), id = entry.experiment;
+    const ids = ["", ...(into.project.experiments ?? []).map((e) => e.id)];
+    if (!ids.includes(id) || into.results.some((r) => r.experiment === id)) damaged(what);
+    if (entry.curve !== undefined && !(Array.isArray(entry.curve) && entry.curve.every((v: unknown) => v === null || typeof v === "number"))) damaged(what);
+    const file = parseResultFile(entry.file);
+    // then the same guard as for a result that this browser stored
+    const read = readResult({ v: RESULT_VERSION, finished: time(file.finished, what), project: file.project, result: file.result, curve: entry.curve }, "", id) ?? damaged(what);
+    const { projectId, ...result } = read;
+    into.results.push(result);
+  }
+
+  if (json.comparisons !== undefined && !Array.isArray(json.comparisons)) damaged("comparisons");
+  for (const entry of json.comparisons ?? []) {
+    const what = "a comparison", into = owner(entry, what);
+    if (into.comparison) damaged(what);
+    const read = readComparison({ v: 1, finished: time(entry.finished, what), versions: entry.versions, project: entry.definition, experiments: entry.experiments }, "") ?? damaged(what);
+    // the definition with every setup is checked as a project file is, and the runs must be what they say they are
+    for (const runs of runsOf(read)) parseProject(runs.project);
+    const problems = checkComparable(runsOf(read));
+    if (problems.length > 0) throw new Error(`This file holds a comparison that cannot be read. ${problems[0]}`);
+    const { projectId, ...comparison } = read;
+    into.comparison = comparison;
+  }
+  return all;
+}
+
+/** The projects in a file from disk, without what else the file carries. Throws a message for the user. */
+export function projectsFromFile(text: string): Project[] {
+  return readProjectFile(text).map((entry) => entry.project);
 }

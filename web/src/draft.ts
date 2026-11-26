@@ -134,6 +134,18 @@ export function unsuited(project: Project, methodId: string): VariableKind[] {
   return [...kinds].filter((kind) => !method.suits.includes(kind));
 }
 
+/**
+ * Words for the settings and the choices whose own names say little. The names of the project
+ * file stay as they are. A setting that is not here is shown under its own name.
+ */
+export const SETTING_WORDS: Record<string, { label: string; hint: string; options: Record<string, string> }> = {
+  space: {
+    label: "Work on",
+    hint: "Codes suit every kind of value. Working on the values themselves changes orderings, selections and yes or no values directly, which suits routes and assignments.",
+    options: { encoded: "Codes between 0 and 1", native: "The values themselves" },
+  },
+};
+
 // Comparisons and numbers.
 
 /**

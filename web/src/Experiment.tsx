@@ -1,10 +1,12 @@
 // An experiment: its setup form (solver, budget, seed and the solver's own settings), and
 // the result panel of its last run.
 
+import type { ReactNode } from "react";
 import { METHODS, type SettingValue } from "../../engine/methods/index.ts";
 import type { Project } from "../../engine/project.ts";
+import { difference } from "../../export/report.ts";
 import { ConstraintTable } from "./Candidate.tsx";
-import { count, type Experiment, KIND_WORDS, percentChange, show, unsuited, withUnit } from "./draft.ts";
+import { count, type Experiment, KIND_WORDS, SETTING_WORDS, show, unsuited, withUnit } from "./draft.ts";
 import { Drawing, HistoryChart } from "./Drawing.tsx";
 import type { Issue } from "./protocol.ts";
 import type { StoredResult } from "./storage.ts";
@@ -96,9 +98,11 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
                 return <CheckField key={key} label={key} hint={spec.help} issues={at(key)} checked={value === true} onChange={(checked) => setting(key, checked)} />;
               }
               if (spec.kind === "choice") {
+                // readable words where the own name of a setting says little. The project file keeps the names.
+                const words = Object.hasOwn(SETTING_WORDS, key) ? SETTING_WORDS[key] : undefined;
                 return (
-                  <Field key={key} label={key} hint={spec.help} className="setting" issues={at(key)}>
-                    {(tie) => <Select {...tie} value={String(value)} options={spec.options.map((option) => ({ value: option, label: option }))} onChange={(option) => setting(key, option)} />}
+                  <Field key={key} label={words?.label ?? key} hint={words?.hint ?? spec.help} className="setting" issues={at(key)}>
+                    {(tie) => <Select {...tie} value={String(value)} options={spec.options.map((option) => ({ value: option, label: words?.options[option] ?? option }))} onChange={(option) => setting(key, option)} />}
                   </Field>
                 );
               }
@@ -122,16 +126,6 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
 
 const time = (ms: number) => (ms < 1000 ? `${ms.toFixed(0)} ms` : `${(ms / 1000).toFixed(1)} s`);
 
-/** How the result stands against a comparison value: the difference in objective units, and a percent change where it means something. */
-function difference(value: number, other: { objective: number; difference: number }, sense: "min" | "max", unit?: string): string {
-  const percent = percentChange(value, other.objective);
-  const d = other.difference;
-  // a gap far below the precision of the numbers is rounding, not a better or worse result
-  if (Math.abs(d) <= 1e-9 * Math.max(Math.abs(value), Math.abs(other.objective))) return "None: the two values agree";
-  const verdict = (d < 0) === (sense === "min") ? "better" : "worse";
-  return `${withUnit(d, unit)}${percent === undefined || d === 0 ? "" : ` (${show(Number(Math.abs(percent).toPrecision(3)))}% ${d < 0 ? "lower" : "higher"})`}, which is ${verdict}`;
-}
-
 interface ResultProps {
   stored: StoredResult;
   name: string;
@@ -139,9 +133,11 @@ interface ResultProps {
   changed: boolean;
   /** Absent while a run is going on. */
   onRerun?: () => void;
+  /** The downloads that are offered next to the result. */
+  children?: ReactNode;
 }
 
-export function Result({ stored, name, changed, onRerun }: ResultProps) {
+export function Result({ stored, name, changed, onRerun, children }: ResultProps) {
   // everything here comes from the stored snapshot, not from the live project
   const { result, project } = stored;
   const { sense, unit } = project.objective;
@@ -166,7 +162,8 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
             <dt>In use today: {baseline.label}</dt>
             <dd>{withUnit(baseline.objective, unit)}{baseline.feasible === false ? " (it breaks a constraint)" : ""}</dd>
             <dt>Difference from what is in use today</dt>
-            <dd>{difference(best.objective, baseline, sense, unit)}</dd>
+            {/* the words of the report: "better" and "worse" are said only of two feasible solutions */}
+            <dd>{difference(best.objective, baseline, sense, best.feasible, unit)}</dd>
           </>
         )}
         {reference && (
@@ -174,7 +171,7 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
             <dt>Known answer: {reference.label ?? "reference"}</dt>
             <dd>{withUnit(reference.objective, unit)}{reference.feasible === false ? " (it breaks a constraint)" : ""}</dd>
             <dt>Difference from the known answer</dt>
-            <dd>{difference(best.objective, reference, sense, unit)}</dd>
+            <dd>{difference(best.objective, reference, sense, best.feasible, unit)}</dd>
           </>
         )}
         <dt>Evaluations</dt>
@@ -213,7 +210,7 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
       </div>
       <div className="figures">
         <Drawing project={project} solution={best.solution} curve={stored.curve} />
-        <HistoryChart history={result.history} unit={unit} />
+        <HistoryChart result={result} unit={unit} />
       </div>
 
       <div className="honest">
@@ -227,6 +224,7 @@ export function Result({ stored, name, changed, onRerun }: ResultProps) {
         Finished {new Date(stored.finished).toLocaleString()}. App version {result.versions.app}, tested with ypea {result.versions.ypeaTested}.
         The project definition that produced this result is stored with it.
       </p>
+      {children}
     </section>
   );
 }

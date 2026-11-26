@@ -3,6 +3,8 @@
 // caption that says in words what the picture shows.
 
 import type { PlainSolution, Project } from "../../engine/project.ts";
+import type { RunResult } from "../../engine/run.ts";
+import { historyLines } from "../../export/report-drawings.ts";
 import { count, show } from "./draft.ts";
 import { columnsOf } from "./presets.ts";
 
@@ -177,33 +179,31 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
   );
 }
 
-/** The best value at the checkpoints of a run, against evaluations. */
-export function HistoryChart({ history, unit }: { history: { nfe: number[]; best: (number | null)[] }; unit?: string }) {
-  const points = history.nfe.map((n, i) => [n, history.best[i]] as const).filter((p): p is readonly [number, number] => typeof p[1] === "number" && Number.isFinite(p[1]));
-  if (points.length < 2) return null;
-  const values = points.map(([, v]) => v), low = Math.min(...values), high = Math.max(...values);
-  // a best value that falls through many powers of ten is flat on a plain scale
-  const log = low > 0 && high / low > 1000;
-  const f = (v: number) => (log ? Math.log10(v) : v);
-  const budget = history.nfe.at(-1)!;
-  const px = scale(0, budget, PAD.left, W - PAD.right), py = scale(f(low), f(high), H - PAD.bottom, PAD.top);
-  // the best value holds until the next improvement, so the line moves in steps
-  const d = points.map(([n, v], k) => (k ? `H${px(n)} V${py(f(v))}` : `M${px(n)},${py(f(v))}`)).join(" ");
-  const [first, last] = [points[0], points.at(-1)!];
+/**
+ * The best value at the checkpoints of a run, against evaluations. The lines and the words are
+ * those of the report: where the best candidate so far breaks a constraint, its value is not a
+ * result, so that part of the line is dashed and the caption says so.
+ */
+export function HistoryChart({ result, unit }: { result: RunResult; unit?: string }) {
+  const h = historyLines(result, unit);
+  if (!h) return null;
   const suffix = unit ? ` ${unit}` : "";
-  const words = `The best value went from ${show(first[1])}${suffix} after ${count(first[0])} evaluations to ${show(last[1])}${suffix} after ${count(last[0])}.`;
-  const band = (W - PAD.left - PAD.right) / points.length;
+  const band = (W - PAD.left - PAD.right) / h.points.length;
   return (
     <figure className="drawing">
-      <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={words}>
-        <Axes x={[0, budget]} y={[low, high]} xTitle="Evaluations" yTitle={`Best value${unitOf(unit)}${log ? ", log scale" : ""}`} />
-        <path className="mark-line" d={d} />
+      <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={h.words}>
+        <Axes x={[0, h.budget]} y={[h.low, h.high]} xTitle="Evaluations" yTitle={h.yTitle} />
+        <path className="mark-line" d={h.result} />
+        <path className="mark-line not-result" d={h.notResult} />
         {/* one band per checkpoint, so that pointing at the chart shows the value there */}
-        {points.map(([n, v]) => (
-          <rect key={n} className="hover-band" x={px(n) - band} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom} data-tip={`After ${count(n)} evaluations: ${show(v)}${suffix}`} />
+        {h.points.map((p) => (
+          <rect
+            key={p.n} className="hover-band" x={h.px(p.n) - band} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom}
+            data-tip={`After ${count(p.n)} evaluations: ${show(p.v)}${suffix}${p.ok ? "" : ", from a candidate that breaks a constraint"}`}
+          />
         ))}
       </svg></div>
-      <figcaption>{words}</figcaption>
+      <figcaption>{h.words}</figcaption>
     </figure>
   );
 }

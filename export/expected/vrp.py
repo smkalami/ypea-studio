@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.4.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.4.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.5.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.5.0
 #
 # Vehicle routing
 # Plan the routes of 4 vehicles that leave one depot, serve 15 customers and return, so that the
@@ -16,7 +16,7 @@
 #   then take a slightly different path. Write x * x for a square that must be exact.
 #
 # The solver of this run is ypea.SA.
-# In the app it gave the objective value 629.0899999999999 after 50000 evaluations.
+# In the app it gave the objective value 584.3499999999999 after 50000 evaluations.
 
 import json
 import os
@@ -284,7 +284,7 @@ def main():
         mutation_rate=0.1,
         mutation_step_size=0.3,
         mutation_step_size_damp=1,
-        space="encoded",
+        space="native",
         max_nfe=50000,  # the budget, in evaluations
     )
     base_seed = 1  # the seed of the experiment in the app

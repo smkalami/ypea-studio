@@ -3,13 +3,19 @@
 // which builds first. No browser is downloaded.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { summarize } from "../../engine/compare.ts";
+import { METHODS } from "../../engine/methods/index.ts";
 import { parseProject } from "../../engine/project.ts";
-import { runProject, testCandidate } from "../../engine/run.ts";
+import { deriveSeed } from "../../engine/rng.ts";
+import { runProject, testCandidate, YPEA_TESTED } from "../../engine/run.ts";
+import { parseResultFile } from "../../export/data.ts";
 
 const dist = new URL("../dist/", import.meta.url);
 const example = async (name) => JSON.parse(await readFile(new URL(`../../examples/${name}.json`, import.meta.url), "utf8"));
@@ -18,6 +24,7 @@ const benchmark = await example("benchmark");
 const linefit = await example("linefit");
 const tsp = await example("tsp");
 const vrp = await example("vrp");
+const knapsack = await example("knapsack");
 // The bundled benchmark finishes in a few milliseconds, so the cancel check needs a run that lasts.
 // The engine reports progress only when the best improves. With 100 values the best keeps
 // improving for millions of evaluations (with 10 it stops after 36,000, with 1000 it starts late).
@@ -501,6 +508,17 @@ async function check(browser, prefix) {
   await choose(field("Solver"), "ga");
   await note.waitFor({ state: "detached" });
   await page.getByText("Settings of Genetic Algorithm").click();
+  // a setting whose own name says little has readable words on screen, and the project keeps the names of the file
+  assert.deepEqual(await choices(field("Work on")), ["Codes between 0 and 1", "The values themselves"]);
+  await page.getByText("Working on the values themselves changes orderings, selections and yes or no values directly, which suits routes and assignments.").waitFor();
+  assert.equal(await page.getByLabel("space", { exact: true }).count(), 0);
+  await choose(field("Work on"), "native");
+  assert.equal(await chosen(field("Work on")), "native");
+  await saved();
+  [download] = await Promise.all([page.waitForEvent("download"), button("Download project").click()]);
+  assert.deepEqual((await read(download)).experiments[0].settings, { space: "native" });
+  await button("Reset to the defaults of the solver").click();
+  assert.equal(await chosen(field("Work on")), "encoded");
   // an empty setting is refused by the engine, with its message at that setting
   await field("pop_size").fill("");
   const settingProblems = page.locator(".field", { has: field("pop_size") }).locator(".problems");
@@ -657,6 +675,313 @@ async function check(browser, prefix) {
   await saved();
   say(`ordered groups from a blank project: the presets wrote "total_length(routes)", the constraint "Largest load": heaviest_load(routes) <= 60 kg, and the three helper functions of the example. A function changed by hand was kept. The run gives ${shown(byEngine.best.objective)} km, as the engine does`);
 
+  // Compare: two experiments of the knapsack example and Random Search, five runs each.
+  await toList();
+  await button("0/1 knapsack").click();
+  await heading("0/1 knapsack").waitFor();
+  await button("Run").click();
+  await finished();
+  const quick = await result.innerText();
+  // a second experiment with another solver and another budget of its own
+  await button("New experiment").click();
+  await field("Name of the experiment").fill("PSO run");
+  await choose(field("Solver"), "pso");
+  // The example may get another solver, budget or seed later, so nothing below names its numbers: they are read from the example.
+  const sack = { solver: METHODS[knapsack.run.method].name, budget: knapsack.run.budget, half: knapsack.run.budget / 2 };
+  const commas = (n) => n.toLocaleString("en-US");
+  await field("Budget (evaluations)").fill(String(sack.half));
+  await side("Compare experiments").click();
+  await heading("Compare experiments").waitFor();
+  await page.locator(".output .empty").filter({ hasText: "No comparison yet." }).waitFor();
+  // Run stays the one filled button, and the comparison has its own, which is not filled
+  assert.deepEqual(await page.locator(".btn-primary").allInnerTexts(), ["Run"]);
+  assert.equal(await field("Runs of each experiment").inputValue(), "10");
+  assert.equal(await page.getByLabel(`Quick run (${sack.solver})`).isChecked() && await page.getByLabel("PSO run (Particle Swarm Optimization)").isChecked(), true);
+  // different budgets are said plainly, and one budget is set for the comparison
+  assert.equal(
+    (await page.getByRole("note").innerText()).replace(/\s+/g, " "),
+    `Note: the chosen experiments have different budgets (Quick run: ${commas(sack.budget)}, PSO run: ${commas(sack.half)}). A comparison gives every run the same number of evaluations, so one budget is set here for all of them.`,
+  );
+  assert.equal(await field("Budget of every run (evaluations)").inputValue(), String(sack.budget));
+  // a number of runs that cannot be is refused at its field, and the comparison does not start
+  await field("Runs of each experiment").fill("0");
+  await page.locator(".problems").filter({ hasText: "The number of runs must be a whole number from 1 to 100." }).waitFor();
+  assert.equal(await button("Run the comparison").getAttribute("aria-disabled"), "true");
+  const cores = await page.evaluate(() => navigator.hardwareConcurrency);
+  // the app's own rule: one core is left to the page, at most eight workers, and never more than there are runs
+  const pool = Math.max(1, Math.min((cores || 2) - 1, 8, 15));
+  const runsBeforeCompare = runWorkers;
+  // forced, because the button says that it cannot be used
+  await button("Run the comparison").click({ force: true });
+  await page.waitForTimeout(200);
+  assert.equal(runWorkers, runsBeforeCompare);
+  // the usual numbers of runs are one click away, and the field takes any other
+  await page.getByText("Papers in this field usually report 20 to 30 runs.").waitFor();
+  for (const runs of ["30", "20", "10"]) {
+    await button(`${runs} runs`).click();
+    assert.equal(await field("Runs of each experiment").inputValue(), runs);
+  }
+  await page.getByText(`This will do 20 runs of ${commas(sack.budget)} evaluations each, in the background.`).waitFor();
+  await field("Runs of each experiment").fill("5");
+  await page.getByLabel("Add Random Search as a reference").check();
+  await page.getByText(`This will do 15 runs of ${commas(sack.budget)} evaluations each, in the background.`).waitFor();
+  await shot("13-compare-form");
+
+  // a comparison that lasts: it shows in the run bar from every part, the page stays in use, and it can be cancelled
+  await field("Budget of every run (evaluations)").fill("2000000000");
+  await button("Run the comparison").click();
+  const comparing = page.locator(".comparing span");
+  await comparing.filter({ hasText: "Comparison: 0 of 15 runs done" }).waitFor();
+  await page.getByText("The comparison is running. You can keep working in this project.").waitFor();
+  await side("Variables").click();
+  await heading("Variables").waitFor();
+  assert.equal(await comparing.innerText(), "Comparison: 0 of 15 runs done");
+  await field("Unit", card(0)).fill("item");
+  await saved();
+  await field("Unit", card(0)).fill("");
+  await button("Show the comparison").click();
+  await heading("Compare experiments").waitFor();
+  // the button went away with the part it was on, so the heading of the new part has the focus
+  await page.waitForFunction(() => document.activeElement.id === "panel-heading" && document.activeElement.textContent === "Compare experiments");
+  // the browser reports its workers a moment after they start, so the count is given time to arrive, and then it must be exact
+  for (let tries = 0; tries < 100 && runWorkers < runsBeforeCompare + pool; tries++) await page.waitForTimeout(100);
+  assert.equal(runWorkers, runsBeforeCompare + pool);
+  await button("Cancel the comparison").click();
+  await page.getByText("Comparison cancelled. Nothing was kept from it.").waitFor();
+  await button("Run the comparison").waitFor();
+  await page.waitForTimeout(300); // ended workers post nothing more
+  assert.equal(await comparing.count(), 0);
+  await page.locator(".output .empty").filter({ hasText: "No comparison yet." }).waitFor();
+  say(`a comparison of 15 long runs started in ${pool} workers, showed in the run bar while another part was edited, and was cancelled with nothing kept`);
+
+  // the comparison itself, with a budget of its own
+  await field("Budget of every run (evaluations)").fill("5000");
+  await button("Run the comparison").click();
+  await page.getByText("Comparison finished.").waitFor({ timeout: 120000 });
+  assert.equal(runWorkers, runsBeforeCompare + 2 * pool);
+  const table = page.locator(".comparison table").first();
+  const rows = (await table.locator("tbody tr").allInnerTexts()).map((row) => row.split("\t").map((cell) => cell.trim()));
+  // the same runs, done here by the engine: the summary must not depend on how the workers shared them
+  const setups = [
+    { ...knapsack.run, budget: 5000 },
+    { name: "PSO run", method: "pso", settings: {}, budget: 5000, seed: knapsack.run.seed },
+    { name: "Random Search (reference)", method: "random", settings: {}, budget: 5000, seed: knapsack.run.seed },
+  ];
+  const summary = summarize(setups.map((run) => {
+    const project = parseProject({ ...knapsack, run });
+    return { name: run.name, project, results: [0, 1, 2, 3, 4].map((runIndex) => runProject(project, { runIndex })) };
+  }));
+  const solvers = [sack.solver, "Particle Swarm Optimization", "Random Search"];
+  assert.deepEqual(rows, summary.experiments.map((e, n) => [
+    e.name, solvers[n], `${e.feasibleRuns} of 5`,
+    `${e.evaluations.usedMin === e.evaluations.usedMax ? "5,000" : `${e.evaluations.usedMin.toLocaleString("en-US")} to ${e.evaluations.usedMax.toLocaleString("en-US")}`} of 5,000`,
+    ...(e.objective ? [`${shown(e.objective.median)} $`, `${shown(e.objective.q1)} to ${shown(e.objective.q3)} $`, `${shown(e.objective.best)} $`] : ["No numbers, because no run was feasible"]),
+  ]));
+  // the experiments stay in the order of the project, whatever their numbers are
+  assert.deepEqual(rows.map((row) => row[0]), ["Quick run", "PSO run", "Random Search (reference)"]);
+  assert.ok(summary.experiments.some((e) => e.feasibleRuns > 0 && e.objective));
+  assert.match(await page.locator("#comparison-words").innerText(), /^Every experiment was run 5 times, each run with its own seed and with 5,000 evaluations\. The objective is maximized, in \$\. The median, the quartiles and the best value are over the feasible runs only/);
+  await page.getByText("These numbers only describe the runs, and the conclusion is the reader's.").waitFor();
+  // one chart for each experiment with a feasible run, drawn as the report draws it
+  const drawn = summary.experiments.filter((e) => e.feasibleRuns > 0);
+  assert.equal(await page.locator(".charts svg").count(), drawn.length);
+  await page.locator(".charts").getByRole("img", { name: new RegExp(`^${drawn[0].name}\\. Feasible runs: ${drawn[0].feasibleRuns} of 5\\. The median of the best value went from`) }).waitFor();
+  assert.equal(await page.locator(".charts .figure-box").first().getAttribute("tabindex"), "0");
+  // nothing on the page judges: no winner, no ranking, no test
+  const judging = /winner|best solver|significan|p-value|\branking|\branked|statistic|outperform/i;
+  assert.doesNotMatch(await page.locator("body").innerText(), judging);
+  assert.equal(await page.locator(".comparison table .holds, .comparison table strong, .comparison table mark").count(), 0);
+  // every seed is on record
+  await page.getByText("What ran: the setups and the seeds").click();
+  const seeds = (await page.locator(".comparison .disclosure tbody tr").first().innerText()).split("\t").at(-1).trim();
+  assert.equal(seeds, [0, 1, 2, 3, 4].map((runIndex) => deriveSeed(knapsack.run.seed, runIndex)).join(", "));
+  await shot("14-compare-summary");
+  const compared = await table.innerText();
+  // the experiments kept their own budgets
+  await side("PSO run").click();
+  assert.equal(await field("Budget (evaluations)").inputValue(), String(sack.half));
+  // an edit of a compared experiment is said next to the summary, and going back takes the note away
+  await field("Seed").fill("5");
+  await side("Compare experiments").click();
+  await page.locator(".comparison").getByText("has changed since this comparison").waitFor();
+  assert.equal(await table.innerText(), compared);
+  await side("PSO run").click();
+  await field("Seed").fill(String(knapsack.run.seed));
+  await side("Compare experiments").click();
+  await table.waitFor();
+  assert.equal(await page.locator(".comparison").getByText("has changed since this comparison").count(), 0);
+  await saved();
+  say(`comparison of ${rows.length} experiments with 5 runs each: ${rows.map((row) => `${row[0]} ${row[2]} feasible, median ${row[4]}`).join("; ")}. No judging word on the page, the order is the user's, and an edit afterwards is noted`);
+
+  // Share: every download of the result and of the comparison.
+  const text = async (download) => readFile(await download.path(), "utf8");
+  const save = async (name, within = page) => (await Promise.all([page.waitForEvent("download"), within.getByRole("button", { name, exact: true }).click()]))[0];
+  // the two most used files are next to the result
+  await side("Quick run").click();
+  assert.equal(await result.innerText(), quick);
+  download = await save("Download the report");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-Quick-run-report.html");
+  await button("All downloads").click();
+  await heading("Share").waitFor();
+  await page.waitForFunction(() => document.activeElement.id === "panel-heading" && document.activeElement.textContent === "Share");
+  // and from the summary of a comparison in the same way, with the keyboard
+  await side("Compare experiments").click();
+  await button("Download the summary and the charts").focus();
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.activeElement.id === "panel-heading" && document.activeElement.textContent === "Share");
+  assert.deepEqual(await page.locator(".btn-primary").allInnerTexts(), ["Run"]);
+  assert.equal(await chosen(field("Result to share")), "");
+  await shot("15-share");
+  const objectiveShown = Number(quick.match(/Objective \(maximized\)\s+(\S+)/)[1]);
+  const resultOnScreen = { used: Number(quick.match(/Evaluations\s+([\d,]+) of/)[1].replaceAll(",", "")) };
+  assert.match(quick, /Best feasible solution found\./);
+
+  download = await save("Download the Python script");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-Quick-run.py");
+  const script = await text(download);
+  assert.match(script, /^# Exported from YPEA Studio \d+\.\d+\.\d+\. Tested with ypea \d+\.\d+\.\d+, which needs Python 3\.12 or newer\.\n/);
+  assert.ok(script.includes("import ypea") && script.includes(`# In the app it gave the objective value ${objectiveShown} after ${resultOnScreen.used} evaluations.`));
+
+  download = await save("Download the report");
+  const report = await text(download);
+  assert.match(report, /^<!doctype html>\n<html lang="en">/);
+  assert.equal(report.match(/<html/g).length, 1);
+  assert.doesNotMatch(report, /<script|<link|<img|src=|url\(/i);
+  assert.ok(report.includes("<h1>0/1 knapsack</h1>") && report.includes("Comparison of experiments") && report.includes("Random Search (reference)"));
+  // without the comparison, when the user says so
+  await page.getByLabel("Include the comparison in the report and in the result file").uncheck();
+  assert.equal((await text(await save("Download the report"))).includes("Comparison of experiments"), false);
+  await page.getByLabel("Include the comparison in the report and in the result file").check();
+  // printing: the report opens in a tab of its own, where the print command of the browser prints it
+  const [tab] = await Promise.all([context.waitForEvent("page"), button("Open the report to print").click()]);
+  await tab.waitForURL(/^blob:/);
+  await tab.getByRole("heading", { name: "0/1 knapsack", exact: true }).waitFor();
+  assert.equal(await tab.locator("script").count(), 0);
+  await tab.close();
+
+  download = await save("Result (JSON)");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-Quick-run-result.json");
+  const resultFile = JSON.parse(await text(download));
+  assert.deepEqual([resultFile.format, resultFile.version, resultFile.experiment, resultFile.result.best.objective], ["ypea-studio-result", 1, "Quick run", objectiveShown]);
+  assert.equal(resultFile.comparison.experiments.length, 3);
+  assert.equal(parseResultFile(resultFile).project.name, "0/1 knapsack");
+  download = await save("Solution (CSV)");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-Quick-run-solution.csv");
+  const solutionRows = (await text(download)).trimEnd().split("\r\n");
+  assert.deepEqual([solutionRows[0], solutionRows.length], ["variable,position,value,unit", 21]);
+  assert.deepEqual(solutionRows.slice(1).map((row) => Number(row.split(",")[2])), resultFile.result.best.solution.take);
+  download = await save("History of the run (CSV)");
+  const historyRows = (await text(download)).trimEnd().split("\r\n");
+  assert.deepEqual([historyRows[0], historyRows.length, historyRows.at(-1)], ["evaluations,best_value,feasible", 101, `${sack.budget},${objectiveShown},yes`]);
+  download = await save("Summary (CSV)");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-comparison.csv");
+  const summaryRows = (await text(download)).trimEnd().split("\r\n");
+  assert.equal(summaryRows[0], "experiment,solver,runs,feasible_runs,budget,evaluations_used_min,evaluations_used_max,median,first_quartile,third_quartile,best,unit");
+  assert.deepEqual(summaryRows.slice(1).map((row) => row.split(",").slice(0, 5).join(",")), summary.experiments.map((e) => `${e.name},${e.method},5,${e.feasibleRuns},5000`));
+
+  // charts: an SVG file that needs no page, and a PNG picture of it
+  const png = async (download) => {
+    const bytes = await readFile(await download.path());
+    assert.deepEqual([...bytes.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    return [bytes.readUInt32BE(16), bytes.readUInt32BE(20), bytes.length];
+  };
+  for (const [name, file, words, height] of [
+    ["History chart", "0-1-knapsack-Quick-run-history", /<title id="history-title">The best value went from /, 300],
+    ["Drawing of the solution", "0-1-knapsack-Quick-run-drawing", /<title id="drawing-title">\d+ of 20 items are chosen: positions /, 202],
+    ["Comparison charts", "0-1-knapsack-comparison", /<title id="comparison-title">Quick run\. Feasible runs: /, undefined],
+  ]) {
+    download = await save(`${name} (SVG)`);
+    assert.equal(download.suggestedFilename(), `${file}.svg`);
+    const svg = await text(download);
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 440 \d+" width="440" height="\d+" role="img" aria-labelledby="[a-z-]+"><title /);
+    assert.match(svg, words);
+    assert.match(svg, /<\/title><style>[^<]+<\/style><rect width="100%" height="100%" fill="#ffffff"\/>/);
+    assert.doesNotMatch(svg, /var\(|<script|href=|class="figure|currentColor/);
+    const tall = Number(svg.match(/ height="(\d+)"/)[1]);
+    if (height) assert.equal(tall, height);
+    // the file stands on its own: a browser draws it as a picture, with the size it names
+    assert.deepEqual(await page.evaluate(async (source) => {
+      const image = new Image();
+      image.src = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
+      await image.decode();
+      return [image.naturalWidth, image.naturalHeight];
+    }, svg), [440, tall]);
+    download = await save(`${name} (PNG)`);
+    assert.equal(download.suggestedFilename(), `${file}.png`);
+    const [wide, high, size] = await png(download);
+    assert.deepEqual([wide, high], [880, 2 * tall]);
+    assert.ok(size > 3000, `${name}: a picture of ${size} bytes is empty`);
+  }
+  await page.getByText("Pictures are saved in the light theme, whatever theme the app has").waitFor();
+  assert.equal(await alert.count(), 0);
+  say("share: the Python script, the report with and without the comparison, the report in a tab for printing, the result as JSON, three CSV files, and the history chart, the drawing and the comparison charts as SVG and PNG all hold what they should");
+
+  // the downloaded script, run in real Python with the pinned ypea, gives the result of the screen
+  const python = [new URL("../../.venv/Scripts/python.exe", import.meta.url), new URL("../../.venv/bin/python", import.meta.url)].map(fileURLToPath).find(existsSync);
+  const pinned = python && spawnSync(python, ["-c", "import ypea; print(ypea.__version__)"], { encoding: "utf8" });
+  if (!python) say("SKIPPED: the downloaded script was not run in Python, because the project has no .venv folder");
+  else if (pinned.status !== 0 || pinned.stdout.trim() !== YPEA_TESTED) say(`SKIPPED: the downloaded script was not run in Python, because the .venv does not hold ypea ${YPEA_TESTED}`);
+  else {
+    const ran = spawnSync(python, ["-"], { input: script, encoding: "utf8", env: { ...process.env, YPEA_STUDIO_JSON: "1", PYTHONIOENCODING: "utf-8" } });
+    assert.equal(ran.status, 0, ran.stderr);
+    const lines = ran.stdout.trimEnd().split(/\r?\n/), inPython = JSON.parse(lines.at(-1));
+    assert.equal(lines[0], "Best feasible solution found");
+    assert.equal(inPython.best.obj_value, objectiveShown);
+    assert.equal(inPython.best.obj_value, resultFile.result.best.objective);
+    assert.equal(inPython.nfe, resultFile.result.evaluations.used);
+    assert.deepEqual(inPython.best.position, resultFile.result.best.codes);
+    assert.deepEqual(inPython.best.solution.take, resultFile.result.best.solution.take);
+    assert.deepEqual(inPython.trace.nfe, resultFile.result.trace.nfe);
+    say(`the downloaded script ran in Python with ypea ${YPEA_TESTED}: objective ${inPython.best.obj_value} after ${inPython.nfe} evaluations, the same solution and the same improvements as on screen`);
+  }
+
+  // the project with its results, opened as a new project the way a colleague would open it
+  download = await save("Download the project with results");
+  assert.equal(download.suggestedFilename(), "0-1-knapsack-with-results.json");
+  const shared = await read(download);
+  assert.deepEqual([shared.format, shared.version, shared.projects.length, shared.results.map((r) => r.experiment), shared.comparisons.length], ["ypea-studio-projects", 1, 1, [""], 1]);
+  assert.equal(parseProject(shared.projects[0]).name, "0/1 knapsack");
+  assert.equal(shared.projects[0].results, undefined);
+  // the plain project file still holds the definition only
+  assert.equal((await read(await save("Download the project"))).format, "ypea-studio-project");
+  await toList();
+  await projectFile.setInputFiles({ name: "shared.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...shared, projects: [{ ...shared.projects[0], name: "Shared knapsack" }] })) });
+  await heading("Shared knapsack").waitFor();
+  const workersBeforeShared = runWorkers;
+  await result.waitFor();
+  assert.equal(await result.innerText(), quick);
+  await side("Compare experiments").click();
+  assert.equal(await table.innerText(), compared);
+  assert.equal(await page.locator(".comparison").getByText("has changed since this comparison").count(), 0);
+  assert.equal(runWorkers, workersBeforeShared);
+  // a file whose results were tampered with is refused as a whole
+  await toList();
+  const tampered = structuredClone(shared);
+  tampered.comparisons[0].experiments[0].results[1].seed.run = 1;
+  await projectFile.setInputFiles({ name: "tampered.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(tampered)) });
+  await alert.filter({ hasText: "This file holds a comparison that cannot be read." }).waitFor();
+  assert.equal(await page.locator("table.projects tbody tr").count(), 12);
+  await fromList("Shared knapsack");
+  say("a project downloaded with its results opens as a new project with the same result and the same comparison, without a run. A file with a changed seed is refused");
+
+  // The result that is not feasible: the difference from the baseline, and no "better" or "worse".
+  await toList();
+  await projectFile.setInputFiles({ name: "overloaded.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...vrp, name: "Overloaded routes", constraints: [{ ...vrp.constraints[0], right: "20" }] })) });
+  await heading("Overloaded routes").waitFor();
+  await button("Run").click();
+  await page.waitForFunction(() => document.querySelector("[role=status]").textContent.includes("Run finished"));
+  const overloaded = await result.innerText();
+  assert.match(overloaded, /No feasible solution found\./);
+  assert.match(overloaded, /Difference from what is in use today\s+-?[\d.]+ km \([\d.]+% (lower|higher)\)\n/);
+  assert.doesNotMatch(overloaded, /which is (better|worse)/);
+  // and its history says that its values are not results, with the whole line dashed
+  assert.match(overloaded, /No candidate was feasible during this run\. The whole line is dashed: its values belong to candidates that break a constraint, and they are not results\./);
+  const historyLines = await result.locator("figure").last().locator("path.mark-line").evaluateAll((paths) => paths.map((path) => [path.getAttribute("class"), path.getAttribute("d").length > 0, getComputedStyle(path).strokeDasharray]));
+  assert.deepEqual(historyLines.map((line) => [line[0], line[1]]), [["mark-line", false], ["mark-line not-result", true]]);
+  assert.notEqual(historyLines[1][2], "none");
+  await shot("16-not-feasible-result");
+  say(`a result that is not feasible: "${overloaded.match(/Difference from what is in use today\s+(.*)/)[1]}" with no verdict, and a dashed history that says its values are not results`);
+
   // 10. Code that takes too long is stopped, by ending its worker.
   await toList();
   await fromList("Long benchmark");
@@ -683,7 +1008,7 @@ async function check(browser, prefix) {
   assert.equal(await page.locator("main h2").first().innerText(), "Your projects");
   // the theme chosen at the start is still applied after the reload
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
-  assert.equal(await page.locator("table.projects tbody tr").count(), 10);
+  assert.equal(await page.locator("table.projects tbody tr").count(), 13);
   await button("New blank project").waitFor();
   await fromList("Benchmark functions");
   await result.waitFor();
@@ -711,6 +1036,21 @@ async function check(browser, prefix) {
   assert.equal(await result.innerText(), again2);
   assert.equal(await field("pop_size").inputValue(), "50");
   assert.equal(await field("Seed").inputValue(), "2");
+  // the comparison is still there, with the definition it ran, and so is the note when the project has changed since
+  await toList();
+  await fromList("0/1 knapsack");
+  await side("Compare experiments").click();
+  assert.equal(await page.locator(".comparison table").first().innerText(), compared);
+  assert.equal(await page.locator(".comparison").getByText("has changed since this comparison").count(), 0);
+  await side("Objective").click();
+  await field("Expression").fill("sum(value * take) + 0");
+  await side("Compare experiments").click();
+  await page.locator(".comparison").getByText("has changed since this comparison").waitFor();
+  assert.equal(await page.locator(".comparison table").first().innerText(), compared);
+  await saved();
+  await toList();
+  await fromList("My knapsack");
+  await side("GA run").click();
   // the downloaded file carries both experiments, and no results
   [download] = await Promise.all([page.waitForEvent("download"), button("Download project").click()]);
   const file = await read(download);
@@ -718,11 +1058,13 @@ async function check(browser, prefix) {
   assert.deepEqual(file.experiments, [{ id: "e2", name: "GA run", method: "ga", settings: { pop_size: 50 }, budget: 20000, seed: 2 }]);
   assert.equal(parseProject(file).name, "My knapsack");
   await shot("08-after-reload");
-  say("after a hard reload: 10 projects listed first, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, and each experiment of the knapsack keeps its own result");
+  say("after a hard reload: 13 projects listed first, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, each experiment of the knapsack keeps its own result, and the stored comparison is there and notes a later edit");
 
-  assert.equal(runWorkers, 12, "one worker per run");
+  // one worker per run, and for each of the two comparisons as many workers as the app's rule gives on this computer
+  const pools = 2 * Math.max(1, Math.min(((await page.evaluate(() => navigator.hardwareConcurrency)) || 2) - 1, 8, 15));
+  assert.equal(runWorkers, 14 + pools, "one worker per run, and one pool per comparison");
   assert.deepEqual(problems, []);
-  say(`${runWorkers} run workers and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
+  say(`${runWorkers} run workers (14 runs and ${pools} for two comparisons) and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
   await context.close();
 }
 

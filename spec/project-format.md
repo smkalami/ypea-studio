@@ -97,7 +97,28 @@ An experiment is a solver setup: a method, its settings, a budget and a seed. `r
 ]
 ```
 
-Each entry has an `id` (unique in the project, made of letters, digits, underscores and hyphens), a `name`, and the same four fields as `run`, checked in the same way. To run an experiment, run a copy of the project whose `run` is that entry. Results are not part of the project file.
+Each entry has an `id` (unique in the project, made of letters, digits, underscores and hyphens), a `name`, and the same four fields as `run`, checked in the same way. To run an experiment, run a copy of the project whose `run` is that entry. Results are not part of the project file. A file that carries them is described next.
+
+## A file of projects, with or without results
+
+The app also writes and reads a second kind of file, which wraps project files:
+
+```json
+{ "format": "ypea-studio-projects", "version": 1,
+  "projects": [ { "format": "ypea-studio-project", "...": "..." } ],
+  "results": [ { "project": 0, "experiment": "", "curve": [14.2, 26.1], "file": { "format": "ypea-studio-result", "...": "..." } } ],
+  "comparisons": [ { "project": 0, "finished": "2026-11-26T10:30:28.000Z", "versions": { "app": "0.1.0", "ypeaTested": "0.5.0" },
+                     "definition": { "format": "ypea-studio-project", "...": "..." }, "experiments": [ "..." ] } ] }
+```
+
+- **`projects`** is a list of project files. "Download all projects" writes every project of the browser into it, without results.
+- **`results`** and **`comparisons`** are optional. "Download the project with results" writes one project with both. A reader that does not know them still reads the projects.
+- **A result** names its project by its position in `projects` and its experiment by its `id` (the empty text for `run`). `file` is a result file exactly as the app downloads one on its own (`export/data.ts`): the result, the project definition as it was when the run started, the versions and the finish time, which is required here. `curve` is optional: for a project that draws a fitted line, the line of the best solution, so that a reader does not have to compute it. A project has at most one result for each experiment.
+- **A comparison** names its project in the same way. `definition` is the project as it was when the comparison started (its own `run` is not used). Each entry of `experiments` has a `name`, a `setup` (`method`, `settings`, `budget`, `seed`, with the budget of the comparison), `"reference": true` when it is the Random Search that the comparison added, and `results`: one entry for each run, in any order, with `best` (`objective`, `feasible`), `evaluations` (`used`, `budget`), `history` (`nfe`, `best`), `trace` (`nfe`, `violation`, which may stop after the first entry with a violation of zero), `seed` (`base`, `runIndex`, `run`), `method` and `settings`. A project has at most one comparison.
+
+Everything in such a file is untrusted and is checked when it is opened. Every project passes `parseProject`. Every result passes `parseResultFile` and the check that the app applies to a result it stored itself, and its experiment must exist in its project. For a comparison, the definition with every setup passes `parseProject`, and the runs pass `checkComparable` (`engine/compare.ts`): one budget, the stated solver and settings, distinct run indices, and seeds that follow from the base seed. One part that fails refuses the whole file. Results and comparisons go to the browser's store of results, never into the project.
+
+A number that is not finite cannot be written in JSON. The app leaves a result with such a best value out of the file and says so, because the file would not open again.
 
 ## Provisional parts
 

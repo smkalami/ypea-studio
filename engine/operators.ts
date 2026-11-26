@@ -8,18 +8,18 @@
 // before the next kind, and it draws them even when a row ends up not using them.
 
 import type { Rng } from "./rng.ts";
-import type { Variable } from "./variables.ts";
+import { argsort, type Value, type Variable } from "./variables.ts";
 
 /** The decoded value of one variable in one solution, flat in row-major order. */
 export type Row = Float64Array | Int32Array;
-/** One row per solution. */
-export type Batch = Row[];
+/** One value per solution: a row, or for ordered groups the list of groups. */
+export type Batch<T extends Value = Row> = T[];
 
-export interface Operators {
+export interface Operators<T extends Value = Row> {
   /** Step size of the mutation. The solver updates it as its own step size decays. */
   sigma: number;
-  crossover(x1: Batch, x2: Batch, rng: Rng): [Batch, Batch];
-  mutate(x: Batch, rng: Rng): Batch;
+  crossover(x1: Batch<T>, x2: Batch<T>, rng: Rng): [Batch<T>, Batch<T>];
+  mutate(x: Batch<T>, rng: Rng): Batch<T>;
 }
 
 /** ypea's defaults: `alpha` widens blend crossover, `rate` is the share of elements a mutation changes. */
@@ -343,8 +343,39 @@ function binarySelectionOperators(k: number): Operators {
   };
 }
 
+/** A value of its own, where decode gives one that lives in the variable's buffer. */
+const own = (value: Value): Value => (Array.isArray(value) ? value.map((group) => group.slice()) : value.slice());
+
+/**
+ * Ordered groups, as a list of groups or as a table of 0 and 1: the operators of an ordering,
+ * on the ordering of n items and k - 1 separators that the groups come from. The ordering is
+ * read from the codes of the value, not from the codes of the parent, so the separators are
+ * numbered by group position, and a table lists the items of a group in index order.
+ */
+function partitionOperators(v: Variable): Operators<Value> {
+  const size = v.codeSize, base = permutationOperators(), codes = new Float64Array(size);
+  const orders = (x: Batch<Value>): Int32Array[] => x.map((value) => {
+    const order = new Int32Array(size);
+    v.encode!(value, codes, 0);
+    argsort(codes, 0, order);
+    return order;
+  });
+  const values = (x: Batch): Batch<Value> => x.map((order) => {
+    order.forEach((key, rank) => (codes[key] = (rank + 0.5) / size));
+    return own(v.decode(codes, 0));
+  });
+  return {
+    sigma: 0,
+    crossover(x1, x2, rng) {
+      const [y1, y2] = base.crossover(orders(x1), orders(x2), rng);
+      return [values(y1), values(y2)];
+    },
+    mutate: (x, rng) => values(base.mutate(orders(x), rng)),
+  };
+}
+
 /** The native operators of a variable, or null if its type has none. */
-export function defaultOperators(variable: Variable, params: OperatorParams = {}): Operators | null {
+export function defaultOperators(variable: Variable, params: OperatorParams = {}): Operators<Value> | null {
   const spec = variable.spec;
   switch (spec.type) {
     case "real":
@@ -359,6 +390,9 @@ export function defaultOperators(variable: Variable, params: OperatorParams = {}
       return selectionOperators(spec.n);
     case "binary_selection":
       return binarySelectionOperators(spec.k);
+    case "partition":
+    case "binary_partition":
+      return partitionOperators(variable);
     default:
       return null;
   }
@@ -374,7 +408,7 @@ export type CodeOperator = (parts: Float64Array[], rows: number, width: number) 
 export class NativeOperators {
   private readonly variables: Variable[];
   private readonly dim: number;
-  private readonly defaults: (Operators | null)[];
+  private readonly defaults: (Operators<Value> | null)[];
 
   constructor(variables: Variable[], params: OperatorParams = {}) {
     this.variables = variables;
@@ -405,10 +439,10 @@ export class NativeOperators {
           for (let r = 0; r < rows; r++) out[o].set(y.subarray(r * width, (r + 1) * width), r * dim + start);
         });
       } else {
-        // decode gives a buffer that the variable reuses, so every row is copied
-        const values = parents.map((p) => Array.from({ length: rows }, (_, r) => (v.decode(p, r * dim + start) as Row).slice()));
+        // decode gives a buffer that the variable reuses, so every value is copied
+        const values = parents.map((p) => Array.from({ length: rows }, (_, r) => own(v.decode(p, r * dim + start))));
         const results = method === "crossover" ? ops.crossover(values[0], values[1], rng) : [ops.mutate(values[0], rng)];
-        results.forEach((y, o) => y.forEach((row, r) => v.encode!(row, out[o], r * dim + start)));
+        results.forEach((y, o) => y.forEach((value, r) => v.encode!(value, out[o], r * dim + start)));
       }
       start += width;
     });

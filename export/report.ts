@@ -33,8 +33,9 @@ const DATA_ROWS = 5, DATA_COLUMNS = 8, LIST_VALUES = 60, LIST_LINES = 30;
 
 // The few values the report needs from the design tokens of the app, copied here because the
 // report must be one file that depends on nothing. Light and dark on a screen, light on paper.
-// The block holds no text from a project.
-const STYLE = html`
+// The block holds no text from a project. The app reads the rules of the drawings from it for a
+// chart that is saved as a file of its own, so each of those rules stays on one line.
+export const STYLE = html`
 :root { color-scheme: light; --ink: #0f172a; --ink-2: #334155; --ink-3: #475569; --line: #e2e8f0; --control-border: #64748b; --surface: #ffffff; --surface-2: #f8fafc; --accent: #2563eb; --accent-ink: #1d4ed8; --success-ink: #15803d; --danger-ink: #b91c1c; --warning-soft: #fffbeb; --warning-line: #fde68a; }
 @media screen and (prefers-color-scheme: dark) {
   :root { color-scheme: dark; --ink: #f8fafc; --ink-2: #cbd5e1; --ink-3: #a3b1c6; --line: #243044; --control-border: #64748b; --surface: #0b1220; --surface-2: #111a2e; --accent: #60a5fa; --accent-ink: #60a5fa; --success-ink: #4ade80; --danger-ink: #f87171; --warning-soft: #2a2410; --warning-line: #78350f; }
@@ -144,8 +145,8 @@ function percentChange(value: number, comparison: number): number | undefined {
   return ((value - comparison) / Math.abs(comparison)) * 100;
 }
 
-/** How the result stands against a comparison value: the difference in objective units, and a percent change where it means something. */
-function difference(value: unknown, other: { objective: unknown; difference: unknown; feasible?: boolean }, sense: "min" | "max", feasible: boolean, unit?: string): string {
+/** How the result stands against a comparison value: the difference in objective units, and a percent change where it means something. The app shows the same words. */
+export function difference(value: unknown, other: { objective: unknown; difference: unknown; feasible?: boolean }, sense: "min" | "max", feasible: boolean, unit?: string): string {
   const d = other.difference, o = other.objective;
   if (typeof value !== "number" || typeof o !== "number" || typeof d !== "number" || Number.isNaN(d)) return "Not available";
   // a gap far below the precision of the numbers is rounding, not a better or worse result

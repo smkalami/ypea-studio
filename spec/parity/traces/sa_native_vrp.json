@@ -1,0 +1,230 @@
+{
+ "ypea": "0.5.0",
+ "project": {
+  "format": "ypea-studio-project",
+  "version": 1,
+  "name": "Native operators parity",
+  "data": [
+   {
+    "name": "distance",
+    "kind": "matrix",
+    "values": [
+     [
+      0.0,
+      64.63,
+      36.4,
+      27.89,
+      55.23,
+      56.4,
+      20.52,
+      46.86,
+      16.28
+     ],
+     [
+      64.63,
+      0.0,
+      86.09,
+      73.25,
+      9.85,
+      47.01,
+      82.28,
+      48.01,
+      75.06
+     ],
+     [
+      36.4,
+      86.09,
+      0.0,
+      62.07,
+      76.32,
+      55.01,
+      21.59,
+      46.27,
+      47.01
+     ],
+     [
+      27.89,
+      73.25,
+      62.07,
+      0.0,
+      65.79,
+      80.16,
+      41.77,
+      71.4,
+      15.52
+     ],
+     [
+      55.23,
+      9.85,
+      76.32,
+      65.79,
+      0.0,
+      40.26,
+      72.53,
+      39.82,
+      66.37
+     ],
+     [
+      56.4,
+      47.01,
+      55.01,
+      80.16,
+      40.26,
+      0.0,
+      63.25,
+      9.85,
+      72.47
+     ],
+     [
+      20.52,
+      82.28,
+      21.59,
+      41.77,
+      72.53,
+      63.25,
+      0.0,
+      53.45,
+      26.31
+     ],
+     [
+      46.86,
+      48.01,
+      46.27,
+      71.4,
+      39.82,
+      9.85,
+      53.45,
+      0.0,
+      63.03
+     ],
+     [
+      16.28,
+      75.06,
+      47.01,
+      15.52,
+      66.37,
+      72.47,
+      26.31,
+      63.03,
+      0.0
+     ]
+    ]
+   },
+   {
+    "name": "customers",
+    "kind": "columns",
+    "columns": [
+     {
+      "name": "demand",
+      "values": [
+       12.0,
+       7.0,
+       18.0,
+       6.0,
+       8.0,
+       12.0,
+       6.0,
+       17.0
+      ]
+     }
+    ]
+   }
+  ],
+  "variables": [
+   {
+    "name": "routes",
+    "type": "partition",
+    "n": 8,
+    "k": 3
+   }
+  ],
+  "functions": "def route_length(g):\n    if len(g) == 0:\n        return 0\n    return distance[0, g[0] + 1] + sum(distance[g[:-1] + 1, g[1:] + 1]) + distance[g[-1] + 1, 0]\n\ndef total_length(groups):\n    total = 0\n    for g in groups:\n        total += route_length(g)\n    return total\n\ndef heaviest_load(groups):\n    worst = 0\n    for g in groups:\n        load = sum(demand[g])\n        if load > worst:\n            worst = load\n    return worst\n",
+  "objective": {
+   "sense": "min",
+   "source": "total_length(routes)"
+  },
+  "constraints": [
+   {
+    "name": "Heaviest load",
+    "left": "heaviest_load(routes)",
+    "op": "<=",
+    "right": "45",
+    "unit": "kg"
+   }
+  ],
+  "run": {
+   "method": "sa",
+   "settings": {
+    "pop_size": 5,
+    "initial_temp": 10,
+    "final_temp": 0.01,
+    "mutation_step_size": 0.3,
+    "mutation_step_size_damp": 1,
+    "space": "native"
+   },
+   "budget": 3007,
+   "seed": 126
+  }
+ },
+ "scales": [
+  12.5
+ ],
+ "nfe": 3007,
+ "traceNfe": [
+  1,
+  3,
+  61,
+  92,
+  113,
+  158,
+  159,
+  178,
+  184,
+  264,
+  338,
+  382,
+  410
+ ],
+ "traceF": [
+  549.6100000000001,
+  407.81,
+  386.20000000000005,
+  375.69,
+  374.88,
+  373.15999999999997,
+  366.07,
+  366.03,
+  343.22999999999996,
+  318.75,
+  309.65,
+  307.0,
+  305.34
+ ],
+ "traceV": [
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "bestCodes": [
+  0.15,
+  0.45,
+  0.75,
+  0.05,
+  0.25,
+  0.95,
+  0.35,
+  0.65,
+  0.55,
+  0.85
+ ]
+}

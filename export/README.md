@@ -53,8 +53,8 @@ The second group needs the project's `.venv` folder with the pinned ypea (`YPEA_
 
 ```
 python -m venv .venv
-.venv/Scripts/python -m pip install ypea==0.4.0      (Windows)
-.venv/bin/python -m pip install ypea==0.4.0          (elsewhere)
+.venv/Scripts/python -m pip install ypea==0.5.0      (Windows)
+.venv/bin/python -m pip install ypea==0.5.0          (elsewhere)
 ```
 
 Without it, or with another ypea version in it, these tests are skipped and each one says why.

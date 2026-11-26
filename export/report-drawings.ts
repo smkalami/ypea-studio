@@ -169,13 +169,15 @@ ${taken.length <= 24 && html`<text x="${c(x + w / 2)}" y="${top + tall + 16}" te
 const needsLog = (low: number, high: number) => low > 0 && high / low > 1000;
 
 /**
- * The best value at the checkpoints of a run, against evaluations. Where the best candidate so
- * far breaks a constraint, its value is not a result, and the line is dashed there.
+ * The history of a run as its chart needs it: the best value at the checkpoints against
+ * evaluations, as two lines. Where the best candidate so far breaks a constraint, its value is
+ * not a result, and that part is the dashed line. Undefined when the run recorded too few values.
+ * The report and the app both draw from this, so they show the same lines and the same words.
  */
-export function historyChart(result: RunResult, unit: string | undefined, id: string): Markup {
+export function historyLines(result: RunResult, unit: string | undefined) {
   const feasible = feasibleAt(result);
   const points = result.history.nfe.map((n, i) => ({ n, v: result.history.best[i] as number, ok: feasible[i] })).filter((p) => typeof p.v === "number" && Number.isFinite(p.v) && typeof p.n === "number");
-  if (points.length < 2) return html`<p class="note">The run recorded too few values to draw its history.</p>`;
+  if (points.length < 2) return undefined;
   const values = points.map((p) => p.v), low = Math.min(...values), high = Math.max(...values);
   const log = needsLog(low, high), f = (v: number) => (log ? Math.log10(v) : v);
   const budget = result.history.nfe.at(-1)!;
@@ -193,10 +195,17 @@ export function historyChart(result: RunResult, unit: string | undefined, id: st
       ? ` Before ${evaluations(since.n)} the best candidate broke a constraint. That part of the line is dashed, and its values are not results.`
       : "";
   const words = `The best value went from ${show(first.v)}${suffix} after ${evaluations(first.n)} to ${show(last.v)}${suffix} after ${count(last.n)}.${honest}`;
-  return figure(id, H, words, html`
-${axes([0, budget], [low, high], "Evaluations", `Best value${unitOf(unit)}${log ? ", log scale" : ""}`)}
-<path class="mark-line" d="${steps(true)}"/>
-<path class="mark-line not-result" d="${steps(false)}"/>`, html`${words}`);
+  return { points, low, high, log, budget, px, result: steps(true), notResult: steps(false), words, yTitle: `Best value${unitOf(unit)}${log ? ", log scale" : ""}` };
+}
+
+/** The chart of the history of a run. */
+export function historyChart(result: RunResult, unit: string | undefined, id: string): Markup {
+  const h = historyLines(result, unit);
+  if (!h) return html`<p class="note">The run recorded too few values to draw its history.</p>`;
+  return figure(id, H, h.words, html`
+${axes([0, h.budget], [h.low, h.high], "Evaluations", h.yTitle)}
+<path class="mark-line" d="${h.result}"/>
+<path class="mark-line not-result" d="${h.notResult}"/>`, html`${h.words}`);
 }
 
 /**

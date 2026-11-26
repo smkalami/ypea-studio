@@ -185,7 +185,7 @@ mkdirSync(here("data/"), { recursive: true });
     constraints: [{ name: "Heaviest load", left: "heaviest_load(routes)", op: "<=", right: String(capacity), unit: "kg" }],
     baseline: { label: "Nearest customer that still fits, one vehicle after another", solution: { routes } },
     view: { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0 },
-    run: { name: "Quick run", method: "sa", settings: { initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
+    run: { name: "Quick run", method: "sa", settings: { space: "native", initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
   };
   // the plan in use today must keep the limit, or the comparison with it means nothing
   if (!testCandidate(parseProject(structuredClone(project)), { routes }).feasible) throw new Error("vehicle routing: the greedy plan breaks the capacity limit");

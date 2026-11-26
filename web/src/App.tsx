@@ -7,12 +7,13 @@ import { createPortal } from "react-dom";
 import type { Project } from "../../engine/project.ts";
 import { blankProject, experimentsOf, tidy } from "./draft.ts";
 import { EXAMPLES } from "./examples.ts";
-import { bundleProjects, deleteProject, listProjects, projectsFromFile, saveProject, type StoredProject } from "./storage.ts";
+import { download } from "./share.ts";
+import { bundleProjects, deleteProject, listProjects, readProjectFile, saveComparison, saveProject, saveResult, type StoredProject } from "./storage.ts";
 import { Alert, IconButton, Loading, ThemeSwitch } from "./ui/controls.tsx";
 import { ConfirmDialog, NameDialog } from "./ui/Dialog.tsx";
 import { FileButton } from "./ui/fields.tsx";
 import { Icon } from "./ui/Icon.tsx";
-import { download, Workspace } from "./Workspace.tsx";
+import { Workspace } from "./Workspace.tsx";
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -54,7 +55,13 @@ export function App() {
   const openFile = (file: File) =>
     act(async () => {
       const saved: StoredProject[] = [];
-      for (const project of projectsFromFile(await file.text())) saved.push(await saveProject(project));
+      for (const { project, results, comparison } of readProjectFile(await file.text())) {
+        const record = await saveProject(project);
+        saved.push(record);
+        // the results that the file carries go to the store of results, never into the project
+        for (const result of results) await saveResult({ ...result, projectId: record.id });
+        if (comparison) await saveComparison({ ...comparison, projectId: record.id });
+      }
       // a file of all projects stays on the list, and a single project opens
       if (saved.length === 1) setOpenId(saved[0].id);
     });
@@ -152,7 +159,7 @@ export function App() {
             <p>{has ? "Load a project file from this computer." : "Begin with a blank project, or load a project file from this computer."}</p>
             <div className="row">
               {projects?.length === 0 && <button type="button" className="btn btn-secondary" onClick={() => add(blankProject())}><Icon name="plus" />New blank project</button>}
-              <FileButton id="project-file" accept=".json,application/json" label="Open a project" hint="A JSON file that was downloaded from YPEA Studio." onFile={openFile} />
+              <FileButton id="project-file" accept=".json,application/json" label="Open a project" hint="A JSON file that was downloaded from YPEA Studio, with or without results." onFile={openFile} />
             </div>
           </section>
 

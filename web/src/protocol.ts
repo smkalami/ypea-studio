@@ -8,9 +8,15 @@ import { LanguageError } from "../../engine/lang/index.ts";
 import { METHODS, resolveSettings } from "../../engine/methods/index.ts";
 import { buildCurve, buildProblem, parseProject, type PlainSolution, type Project } from "../../engine/project.ts";
 import { randomCandidate, runProject, testCandidate, type Inspection, type Progress, type RunResult } from "../../engine/run.ts";
+import { exportPython } from "../../export/python.ts";
+import { problemDrawing } from "../../export/report-drawings.ts";
+import { reportHtml, type ReportInput } from "../../export/report.ts";
 
-/** Page to run worker. One worker does one run. Cancel is `worker.terminate()`, so it needs no message. */
-export type RunRequest = { type: "run"; project: unknown; runIndex?: number };
+/**
+ * Page to run worker. A worker does one run at a time. Cancel is `worker.terminate()`, so it
+ * needs no message. A quiet run posts no progress, only its result or its error.
+ */
+export type RunRequest = { type: "run"; project: unknown; runIndex?: number; quiet?: boolean };
 
 /** Run worker to page. `result` or `error` comes once and is the last message. `curve` is the fitted line of a line view. */
 export type RunMessage =
@@ -18,11 +24,18 @@ export type RunMessage =
   | { type: "result"; result: RunResult; curve?: number[] }
   | { type: "error"; message: string };
 
-/** Page to helper worker. One worker answers one request. */
+/**
+ * Page to helper worker. One worker answers one request. The last three write a file from a
+ * stored result: the Python script, the report, and the drawing of the solution as markup.
+ * They are asked of a worker because each of them translates the text of the project.
+ */
 export type HelpRequest =
   | { type: "check"; project: unknown }
   | { type: "test"; project: unknown; solution: PlainSolution }
-  | { type: "random"; project: unknown; seed: number };
+  | { type: "random"; project: unknown; seed: number }
+  | { type: "python"; project: unknown; result: RunResult }
+  | { type: "report"; input: Omit<ReportInput, "project"> & { project: unknown } }
+  | { type: "drawing"; project: unknown; solution: PlainSolution; curve?: number[] };
 
 /**
  * A problem in a project, and the part of the editor it belongs to. `where` is a path such as
@@ -41,6 +54,7 @@ export type HelpReply =
   | { type: "checked"; issues: Issue[] }
   | { type: "tested"; inspection: Inspection; curve?: number[] }
   | { type: "candidate"; solution: PlainSolution }
+  | { type: "text"; text: string }
   | { type: "error"; message: string };
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -61,7 +75,7 @@ export function handleRun(request: RunRequest, post: (message: RunMessage) => vo
     };
     const result = runProject(project, {
       runIndex: request.runIndex,
-      onProgress(progress) {
+      onProgress: request.quiet ? undefined : (progress) => {
         const now = performance.now();
         if (now - last < minIntervalMs) return;
         last = now;
@@ -194,7 +208,11 @@ export function checkProject(json: unknown): Issue[] {
 export function handleHelp(request: HelpRequest): HelpReply {
   try {
     if (request.type === "check") return { type: "checked", issues: checkProject(request.project) };
+    if (request.type === "report") return { type: "text", text: reportHtml({ ...request.input, project: parseProject(request.input.project) }) };
     const project = parseProject(request.project);
+    if (request.type === "python") return { type: "text", text: exportPython(project, request.result) };
+    // empty when the project has no drawing
+    if (request.type === "drawing") return { type: "text", text: problemDrawing(project, request.solution, "drawing-title", request.curve)?.text ?? "" };
     if (request.type === "random") return { type: "candidate", solution: randomCandidate(project, request.seed) };
     const inspection = testCandidate(project, request.solution);
     let curve: number[] | undefined;
@@ -237,4 +255,46 @@ export function ask(worker: WorkerLike, request: HelpRequest, limitMs = TIME_LIM
     worker.onerror = (event) => end({ type: "error", message: `The check could not run. ${event.message ?? ""}`.trim() });
     worker.postMessage(request);
   });
+}
+
+/**
+ * Does every request, each in one of `size` workers, and tells where each result belongs by the
+ * position of its request. So nothing depends on the order in which the workers finish. The
+ * first error ends all of it. Returns the way to stop: it ends every worker, and nothing is
+ * told after it.
+ */
+export function runJobs(
+  requests: RunRequest[], size: number, spawn: () => WorkerLike,
+  on: { result: (index: number, result: RunResult) => void; error: (message: string) => void },
+): () => void {
+  const workers: WorkerLike[] = [];
+  let next = 0, stopped = false;
+  const stop = () => {
+    stopped = true;
+    for (const worker of workers) worker.terminate();
+  };
+  const fail = (message: string) => {
+    if (stopped) return;
+    stop();
+    on.error(message);
+  };
+  for (let k = 0; k < Math.min(size, requests.length); k++) {
+    const worker = spawn();
+    workers.push(worker);
+    let index = -1;
+    const take = () => {
+      if (next >= requests.length) return void worker.terminate();
+      index = next++;
+      worker.postMessage(requests[index]);
+    };
+    worker.onmessage = ({ data }: { data: RunMessage }) => {
+      if (stopped || data.type === "progress") return;
+      if (data.type === "error") return fail(data.message);
+      on.result(index, data.result);
+      take();
+    };
+    worker.onerror = (event) => fail(`A run could not start. ${event.message ?? ""}`.trim());
+    take();
+  }
+  return stop;
 }

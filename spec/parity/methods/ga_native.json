@@ -3766,6 +3766,873 @@
      "seed": 110
     }
    }
+  },
+  {
+   "name": "ga_native_partition",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "space": "native"
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Native operators parity",
+    "data": [
+     {
+      "name": "distance",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        64.63,
+        36.4,
+        27.89,
+        55.23,
+        56.4,
+        20.52,
+        46.86,
+        16.28
+       ],
+       [
+        64.63,
+        0.0,
+        86.09,
+        73.25,
+        9.85,
+        47.01,
+        82.28,
+        48.01,
+        75.06
+       ],
+       [
+        36.4,
+        86.09,
+        0.0,
+        62.07,
+        76.32,
+        55.01,
+        21.59,
+        46.27,
+        47.01
+       ],
+       [
+        27.89,
+        73.25,
+        62.07,
+        0.0,
+        65.79,
+        80.16,
+        41.77,
+        71.4,
+        15.52
+       ],
+       [
+        55.23,
+        9.85,
+        76.32,
+        65.79,
+        0.0,
+        40.26,
+        72.53,
+        39.82,
+        66.37
+       ],
+       [
+        56.4,
+        47.01,
+        55.01,
+        80.16,
+        40.26,
+        0.0,
+        63.25,
+        9.85,
+        72.47
+       ],
+       [
+        20.52,
+        82.28,
+        21.59,
+        41.77,
+        72.53,
+        63.25,
+        0.0,
+        53.45,
+        26.31
+       ],
+       [
+        46.86,
+        48.01,
+        46.27,
+        71.4,
+        39.82,
+        9.85,
+        53.45,
+        0.0,
+        63.03
+       ],
+       [
+        16.28,
+        75.06,
+        47.01,
+        15.52,
+        66.37,
+        72.47,
+        26.31,
+        63.03,
+        0.0
+       ]
+      ]
+     },
+     {
+      "name": "customers",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "demand",
+        "values": [
+         12.0,
+         7.0,
+         18.0,
+         6.0,
+         8.0,
+         12.0,
+         6.0,
+         17.0
+        ]
+       }
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "routes",
+      "type": "partition",
+      "n": 8,
+      "k": 3
+     }
+    ],
+    "functions": "def route_length(g):\n    if len(g) == 0:\n        return 0\n    return distance[0, g[0] + 1] + sum(distance[g[:-1] + 1, g[1:] + 1]) + distance[g[-1] + 1, 0]\n\ndef total_length(groups):\n    total = 0\n    for g in groups:\n        total += route_length(g)\n    return total\n\ndef heaviest_load(groups):\n    worst = 0\n    for g in groups:\n        load = sum(demand[g])\n        if load > worst:\n            worst = load\n    return worst\n",
+    "objective": {
+     "sense": "min",
+     "source": "total_length(routes) + heaviest_load(routes) / 4"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "space": "native"
+     },
+     "budget": 2503,
+     "seed": 119
+    }
+   }
+  },
+  {
+   "name": "ga_native_binary_partition",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 20,
+     "selection": "tournament",
+     "space": "native"
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Native operators parity",
+    "data": [
+     {
+      "name": "customers",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "demand",
+        "values": [
+         12.0,
+         7.0,
+         18.0,
+         6.0,
+         8.0,
+         12.0,
+         6.0,
+         17.0
+        ]
+       }
+      ]
+     },
+     {
+      "name": "cost",
+      "kind": "matrix",
+      "values": [
+       [
+        18.0,
+        27.0,
+        22.0,
+        6.0,
+        4.0,
+        19.0,
+        19.0,
+        21.0
+       ],
+       [
+        7.0,
+        12.0,
+        4.0,
+        18.0,
+        23.0,
+        3.0,
+        19.0,
+        2.0
+       ],
+       [
+        20.0,
+        7.0,
+        16.0,
+        22.0,
+        18.0,
+        14.0,
+        25.0,
+        11.0
+       ]
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "assign",
+      "type": "binary_partition",
+      "n": 8,
+      "k": 3
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(sum(cost * assign)) + max(ops.sum(assign * demand, axis=1))"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 20,
+      "selection": "tournament",
+      "space": "native"
+     },
+     "budget": 2505,
+     "seed": 120
+    }
+   }
+  },
+  {
+   "name": "ga_native_vrp",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "mutation_prob": 0.5,
+     "space": "native"
+    }
+   },
+   "scales": [
+    12.5
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Native operators parity",
+    "data": [
+     {
+      "name": "distance",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        64.63,
+        36.4,
+        27.89,
+        55.23,
+        56.4,
+        20.52,
+        46.86,
+        16.28
+       ],
+       [
+        64.63,
+        0.0,
+        86.09,
+        73.25,
+        9.85,
+        47.01,
+        82.28,
+        48.01,
+        75.06
+       ],
+       [
+        36.4,
+        86.09,
+        0.0,
+        62.07,
+        76.32,
+        55.01,
+        21.59,
+        46.27,
+        47.01
+       ],
+       [
+        27.89,
+        73.25,
+        62.07,
+        0.0,
+        65.79,
+        80.16,
+        41.77,
+        71.4,
+        15.52
+       ],
+       [
+        55.23,
+        9.85,
+        76.32,
+        65.79,
+        0.0,
+        40.26,
+        72.53,
+        39.82,
+        66.37
+       ],
+       [
+        56.4,
+        47.01,
+        55.01,
+        80.16,
+        40.26,
+        0.0,
+        63.25,
+        9.85,
+        72.47
+       ],
+       [
+        20.52,
+        82.28,
+        21.59,
+        41.77,
+        72.53,
+        63.25,
+        0.0,
+        53.45,
+        26.31
+       ],
+       [
+        46.86,
+        48.01,
+        46.27,
+        71.4,
+        39.82,
+        9.85,
+        53.45,
+        0.0,
+        63.03
+       ],
+       [
+        16.28,
+        75.06,
+        47.01,
+        15.52,
+        66.37,
+        72.47,
+        26.31,
+        63.03,
+        0.0
+       ]
+      ]
+     },
+     {
+      "name": "customers",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "demand",
+        "values": [
+         12.0,
+         7.0,
+         18.0,
+         6.0,
+         8.0,
+         12.0,
+         6.0,
+         17.0
+        ]
+       }
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "routes",
+      "type": "partition",
+      "n": 8,
+      "k": 3
+     }
+    ],
+    "functions": "def route_length(g):\n    if len(g) == 0:\n        return 0\n    return distance[0, g[0] + 1] + sum(distance[g[:-1] + 1, g[1:] + 1]) + distance[g[-1] + 1, 0]\n\ndef total_length(groups):\n    total = 0\n    for g in groups:\n        total += route_length(g)\n    return total\n\ndef heaviest_load(groups):\n    worst = 0\n    for g in groups:\n        load = sum(demand[g])\n        if load > worst:\n            worst = load\n    return worst\n",
+    "objective": {
+     "sense": "min",
+     "source": "total_length(routes)"
+    },
+    "constraints": [
+     {
+      "name": "Heaviest load",
+      "left": "heaviest_load(routes)",
+      "op": "<=",
+      "right": "45",
+      "unit": "kg"
+     }
+    ],
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "mutation_prob": 0.5,
+      "space": "native"
+     },
+     "budget": 3007,
+     "seed": 121
+    }
+   }
+  },
+  {
+   "name": "ga_native_partition_mixed",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30,
+     "mutation_rate": 0.25,
+     "space": "native"
+    }
+   },
+   "scales": [
+    7.5
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Native operators parity",
+    "data": [
+     {
+      "name": "distance",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        64.63,
+        36.4,
+        27.89,
+        55.23,
+        56.4,
+        20.52,
+        46.86,
+        16.28
+       ],
+       [
+        64.63,
+        0.0,
+        86.09,
+        73.25,
+        9.85,
+        47.01,
+        82.28,
+        48.01,
+        75.06
+       ],
+       [
+        36.4,
+        86.09,
+        0.0,
+        62.07,
+        76.32,
+        55.01,
+        21.59,
+        46.27,
+        47.01
+       ],
+       [
+        27.89,
+        73.25,
+        62.07,
+        0.0,
+        65.79,
+        80.16,
+        41.77,
+        71.4,
+        15.52
+       ],
+       [
+        55.23,
+        9.85,
+        76.32,
+        65.79,
+        0.0,
+        40.26,
+        72.53,
+        39.82,
+        66.37
+       ],
+       [
+        56.4,
+        47.01,
+        55.01,
+        80.16,
+        40.26,
+        0.0,
+        63.25,
+        9.85,
+        72.47
+       ],
+       [
+        20.52,
+        82.28,
+        21.59,
+        41.77,
+        72.53,
+        63.25,
+        0.0,
+        53.45,
+        26.31
+       ],
+       [
+        46.86,
+        48.01,
+        46.27,
+        71.4,
+        39.82,
+        9.85,
+        53.45,
+        0.0,
+        63.03
+       ],
+       [
+        16.28,
+        75.06,
+        47.01,
+        15.52,
+        66.37,
+        72.47,
+        26.31,
+        63.03,
+        0.0
+       ]
+      ]
+     },
+     {
+      "name": "customers",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "demand",
+        "values": [
+         12.0,
+         7.0,
+         18.0,
+         6.0,
+         8.0,
+         12.0,
+         6.0,
+         17.0
+        ]
+       }
+      ]
+     },
+     {
+      "name": "legs",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        43.01,
+        14.21,
+        48.05,
+        64.33,
+        67.9
+       ],
+       [
+        43.01,
+        0.0,
+        36.06,
+        71.51,
+        85.04,
+        75.15
+       ],
+       [
+        14.21,
+        36.06,
+        0.0,
+        40.71,
+        56.46,
+        56.04
+       ],
+       [
+        48.05,
+        71.51,
+        40.71,
+        0.0,
+        16.28,
+        29.0
+       ],
+       [
+        64.33,
+        85.04,
+        56.46,
+        16.28,
+        0.0,
+        24.33
+       ],
+       [
+        67.9,
+        75.15,
+        56.04,
+        29.0,
+        24.33,
+        0.0
+       ]
+      ]
+     },
+     {
+      "name": "cost2",
+      "kind": "matrix",
+      "values": [
+       [
+        8.0,
+        8.0,
+        6.0,
+        5.0,
+        4.0
+       ],
+       [
+        3.0,
+        4.0,
+        2.0,
+        5.0,
+        9.0
+       ]
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       3
+      ],
+      "lb": -2,
+      "ub": 2
+     },
+     {
+      "name": "routes",
+      "type": "partition",
+      "n": 8,
+      "k": 3
+     },
+     {
+      "name": "order",
+      "type": "permutation",
+      "n": 6
+     },
+     {
+      "name": "assign",
+      "type": "binary_partition",
+      "n": 5,
+      "k": 2
+     },
+     {
+      "name": "t",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 1
+     }
+    ],
+    "functions": "def route_length(g):\n    if len(g) == 0:\n        return 0\n    return distance[0, g[0] + 1] + sum(distance[g[:-1] + 1, g[1:] + 1]) + distance[g[-1] + 1, 0]\n\ndef total_length(groups):\n    total = 0\n    for g in groups:\n        total += route_length(g)\n    return total\n\ndef heaviest_load(groups):\n    worst = 0\n    for g in groups:\n        load = sum(demand[g])\n        if load > worst:\n            worst = load\n    return worst\n",
+    "objective": {
+     "sense": "min",
+     "source": "total_length(routes) * (1 + (t - 0.25) * (t - 0.25)) + 10 * sum((x - 0.5) * (x - 0.5)) + sum(legs[order, ops.roll(order, -1)]) + sum(sum(cost2 * assign))"
+    },
+    "constraints": [
+     {
+      "name": "Heaviest load",
+      "left": "heaviest_load(routes)",
+      "op": "<=",
+      "right": "45",
+      "unit": "kg"
+     }
+    ],
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30,
+      "mutation_rate": 0.25,
+      "space": "native"
+     },
+     "budget": 2509,
+     "seed": 122
+    }
+   }
+  },
+  {
+   "name": "ga_native_partition_edges",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 20,
+     "selection": "random",
+     "space": "native"
+    }
+   },
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Native operators parity",
+    "data": [
+     {
+      "name": "loads",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "size",
+        "values": [
+         3.5,
+         1.25,
+         4.0,
+         0.75,
+         2.0,
+         5.5
+        ]
+       }
+      ]
+     },
+     {
+      "name": "legs",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        43.01,
+        14.21,
+        48.05,
+        64.33,
+        67.9
+       ],
+       [
+        43.01,
+        0.0,
+        36.06,
+        71.51,
+        85.04,
+        75.15
+       ],
+       [
+        14.21,
+        36.06,
+        0.0,
+        40.71,
+        56.46,
+        56.04
+       ],
+       [
+        48.05,
+        71.51,
+        40.71,
+        0.0,
+        16.28,
+        29.0
+       ],
+       [
+        64.33,
+        85.04,
+        56.46,
+        16.28,
+        0.0,
+        24.33
+       ],
+       [
+        67.9,
+        75.15,
+        56.04,
+        29.0,
+        24.33,
+        0.0
+       ]
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "one_group",
+      "type": "partition",
+      "n": 6,
+      "k": 1
+     },
+     {
+      "name": "one_item",
+      "type": "partition",
+      "n": 1,
+      "k": 1
+     },
+     {
+      "name": "one_item_groups",
+      "type": "partition",
+      "n": 1,
+      "k": 3
+     },
+     {
+      "name": "sparse",
+      "type": "partition",
+      "n": 2,
+      "k": 4
+     },
+     {
+      "name": "pairs",
+      "type": "partition",
+      "n": 6,
+      "k": 2
+     },
+     {
+      "name": "cell",
+      "type": "binary_partition",
+      "n": 1,
+      "k": 1
+     },
+     {
+      "name": "row",
+      "type": "binary_partition",
+      "n": 3,
+      "k": 1
+     },
+     {
+      "name": "thin",
+      "type": "binary_partition",
+      "n": 2,
+      "k": 3
+     }
+    ],
+    "functions": "def weight(g):\n    total = 0\n    for j in range(len(g)):\n        s = 0\n        for i in g[j]:\n            s += size[i]\n        total += (j + 1) * s * s + len(g[j])\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "sum(legs[one_group[0], ops.roll(one_group[0], -1)]) + weight(one_item) + 7 * weight(one_item_groups) + 5 * weight(sparse) + weight(pairs) + cell[0, 0] + sum(row[0]) + sum(thin[0]) + 4 * sum(thin[1]) + 9 * sum(thin[2])"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 20,
+      "selection": "random",
+      "space": "native"
+     },
+     "budget": 2511,
+     "seed": 123
+    }
+   }
   }
  ]
 }

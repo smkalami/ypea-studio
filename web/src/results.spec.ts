@@ -61,6 +61,13 @@ test("a result that an older build stored counts as no result yet", async () => 
   assert.equal(without((r) => delete r.result.history), undefined);
   assert.equal(without((r) => delete r.result.evaluations), undefined);
   assert.equal(without((r) => delete r.result.seed), undefined);
+  // what the chart, the report and the Python script read: a record without it is not shown, so nothing can fail on it later
+  assert.equal(without((r) => delete r.result.trace), undefined);
+  assert.equal(without((r) => delete r.result.trace.violation), undefined);
+  assert.equal(without((r) => delete r.result.scales), undefined);
+  assert.equal(without((r) => delete r.result.settings), undefined);
+  assert.equal(without((r) => delete r.result.seed.runIndex), undefined);
+  assert.equal(without((r) => delete r.result.versions.ypeaTested), undefined);
   assert.equal(without((r) => delete r.project), undefined);
   assert.equal(without((r) => (r.curve = "line")), undefined);
   for (const nothing of [undefined, null, 5, "text", []]) assert.equal(readResult(nothing, "p", ""), undefined);

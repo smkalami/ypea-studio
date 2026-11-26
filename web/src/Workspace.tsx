@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 import type { Project } from "../../engine/project.ts";
 import type { Progress } from "../../engine/run.ts";
 import { CandidatePanel, candidateTexts, type Outcome, type Texts } from "./Candidate.tsx";
+import { comparableRun, COMPARISON_VERSION, jobsOf, type Plan, poolSize, type StoredComparison } from "./compare.ts";
+import { COMPARE_FORM, ComparePanel } from "./Compare.tsx";
 import {
   count, DEFAULT_SETUP, definitionOf, EXPERIMENT, type Experiment, experimentsOf, FIRST, newExperimentId, partOf, projectFor, show, tidy,
   withExperiment, withoutExperiment, withUnit,
@@ -19,8 +21,10 @@ import {
 import { Drawing } from "./Drawing.tsx";
 import { ExperimentForm, Result, solverName } from "./Experiment.tsx";
 import { ConstraintsPanel, DataPanel, FunctionsPanel, ObjectivePanel, OverviewPanel, VariablesPanel, ViewPanel } from "./Problem.tsx";
-import { ask, type HelpRequest, type Issue, type RunMessage, type RunRequest, TIME_LIMIT_MS, tooLong } from "./protocol.ts";
-import { deleteResult, loadResults, RESULT_VERSION, saveProject, saveResult, type StoredProject, type StoredResult } from "./storage.ts";
+import { ask, type HelpRequest, type Issue, type RunMessage, type RunRequest, runJobs, TIME_LIMIT_MS, tooLong } from "./protocol.ts";
+import { download } from "./share.ts";
+import { ResultDownloads, SharePanel } from "./Share.tsx";
+import { deleteResult, loadComparison, loadResults, RESULT_VERSION, saveComparison, saveProject, saveResult, type StoredProject, type StoredResult } from "./storage.ts";
 import { Alert, Loading } from "./ui/controls.tsx";
 import { ConfirmDialog } from "./ui/Dialog.tsx";
 import { Icon } from "./ui/Icon.tsx";
@@ -30,14 +34,8 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 /** One request to a fresh helper worker, ended after its answer or at the time limit. */
 const help = (request: HelpRequest) => ask(new Worker(new URL("./helper.ts", import.meta.url), { type: "module" }), request);
 
-export function download(name: string, content: unknown): void {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: "application/json" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${String(name).replace(/[\\/:*?"<>|\s]+/g, "-")}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+/** A fresh run worker. One does one run at a time, and a comparison uses several. */
+const runWorker = () => new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
 
 const PARTS = [
   ["overview", "Overview"], ["data", "Data"], ["variables", "Variables"], ["objective", "Objective"],
@@ -82,6 +80,14 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
   const [said, setSaid] = useState("");
   const [loadFailure, setLoadFailure] = useState("");
   const [removing, setRemoving] = useState<Experiment>();
+  // The comparison: the last one that finished, the one that runs, how the last try ended, and the form.
+  const [comparison, setComparison] = useState<StoredComparison>();
+  const [comparing, setComparing] = useState<{ done: number; total: number }>();
+  const [compareEnded, setCompareEnded] = useState<{ failed: boolean; text: string }>();
+  const [compareForm, setCompareForm] = useState(COMPARE_FORM);
+  const stopComparing = useRef<() => void>(undefined);
+  /** The experiment whose result the Share part shows. Nothing until the user chooses: then it is the one of the run bar. */
+  const [shared, setShared] = useState<string>();
   const worker = useRef<Worker | null>(null);
   const drawer = useRef<HTMLDialogElement>(null);
   const narrow = useNarrow();
@@ -131,11 +137,14 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
       (all) => setResults(Object.fromEntries(all.map((r) => [r.experiment, r]))),
       (error) => setLoadFailure(`The stored results could not be read. ${messageOf(error)}`),
     );
+    // a comparison that cannot be read counts as none
+    loadComparison(record.id).then(setComparison, () => {});
     return () => {
       window.removeEventListener("pagehide", onHide);
       void flush();
-      // leaving the project cancels its run
+      // leaving the project cancels its run and its comparison
       worker.current?.terminate();
+      stopComparing.current?.();
     };
   }, [record.id, flush]);
 
@@ -166,6 +175,11 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     if (key.startsWith(EXPERIMENT)) setCurrent(key.slice(EXPERIMENT.length));
     if (drawer.current?.open) drawer.current.close();
   };
+  /** Shows a part from a button that goes away with the part it was on, and gives the focus to the heading of the new part. */
+  const go = (key: string) => {
+    select(key);
+    setTimeout(() => document.getElementById("panel-heading")?.focus());
+  };
   const start = (experiment: Experiment, base: Project = project) => {
     // Problems found in an older state of the project do not refuse a run. The run worker
     // checks the project again, and its message is shown if it still cannot run.
@@ -177,7 +191,7 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     }
     // the snapshot: the definition this run starts from, with this experiment's setup as its run
     const snapshot = projectFor(base, experiment);
-    const w = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    const w = runWorker();
     worker.current = w;
     setRun({ state: "running", id: experiment.id, snapshot });
     // the experiment that runs comes into view, with its live preview and then its result
@@ -210,6 +224,46 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     worker.current?.terminate();
     worker.current = null;
     setRun({ state: "cancelled", id: run.id });
+  };
+  // A comparison runs beside everything else: in workers of its own, from a snapshot of the
+  // project, so the user can go on editing and can still press Run.
+  const compare = (plan: Plan) => {
+    const blocking = known.find((i) => !i.where.startsWith(EXPERIMENT));
+    if (project === checked && blocking) return setCompareEnded({ failed: true, text: `This project cannot run yet. ${blocking.message}` });
+    const jobs = jobsOf(plan), slots = plan.experiments.map(() => [] as ReturnType<typeof comparableRun>[]);
+    let done = 0;
+    const end = (ended: { failed: boolean; text: string }) => {
+      stopComparing.current = undefined;
+      setComparing(undefined);
+      setCompareEnded(ended);
+    };
+    setCompareEnded(undefined);
+    setComparing({ done: 0, total: jobs.length });
+    stopComparing.current = runJobs(jobs.map((job) => job.request), poolSize(navigator.hardwareConcurrency, jobs.length), runWorker, {
+      error: (message) => end({ failed: true, text: `The comparison stopped, and nothing was kept from it. ${message}` }),
+      async result(index, result) {
+        // each result goes to the place of its own run, whatever order the workers finish in
+        slots[jobs[index].experiment][jobs[index].runIndex] = comparableRun(result);
+        if (++done < jobs.length) return setComparing({ done, total: jobs.length });
+        const stored: StoredComparison = {
+          v: COMPARISON_VERSION, projectId: record.id, finished: Date.now(), versions: result.versions, project: plan.project,
+          experiments: plan.experiments.map((e, n) => ({ ...e, results: slots[n] })),
+        };
+        setComparison(stored);
+        try {
+          await saveComparison(stored);
+          end({ failed: false, text: "Comparison finished." });
+        } catch (error) {
+          end({ failed: true, text: `The comparison finished, but it could not be saved: ${messageOf(error)}` });
+        }
+      },
+    });
+  };
+  const cancelComparing = () => {
+    stopComparing.current?.();
+    stopComparing.current = undefined;
+    setComparing(undefined);
+    setCompareEnded({ failed: false, text: "Comparison cancelled. Nothing was kept from it." });
   };
   const rerun = (experiment: Experiment) => {
     // the new seed is written into the experiment, so the form and the result agree
@@ -281,6 +335,7 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
         {experiments.map((e) => entry(EXPERIMENT + e.id, e.name || "Unnamed"))}
         <li><button type="button" className="nav-item new" onClick={() => addExperiment(edited)}><Icon name="plus" />New experiment</button></li>
       </ul>
+      <ul aria-label="Compare and share">{entry("compare", "Compare experiments")}{entry("share", "Share")}</ul>
     </nav>
   );
 
@@ -353,6 +408,16 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
           {!running && results[shown.id] && selected !== EXPERIMENT + shown.id && (
             <button type="button" className="btn btn-quiet" onClick={() => select(EXPERIMENT + shown.id)}>Show the result<Icon name="chevron-right" /></button>
           )}
+          {/* a comparison shows here from every part, for as long as it runs */}
+          {comparing && (
+            <div className="comparing">
+              <p className="progress">
+                <progress aria-label="Runs of the comparison that are done" max={comparing.total} value={comparing.done} />
+                <span>Comparison: {count(comparing.done)} of {count(comparing.total)} runs done</span>
+              </p>
+              {selected !== "compare" && <button type="button" className="btn btn-quiet" onClick={() => go("compare")}>Show the comparison<Icon name="chevron-right" /></button>}
+            </div>
+          )}
         </div>
 
         <div className="panel">
@@ -363,6 +428,15 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
               project={project} set={update} issues={known} texts={texts} outcome={outcome} help={help} say={say}
               setTexts={setTexts} setOutcome={(next) => (setOutcome(next), next === undefined && setSaid(""))}
             />
+          )}
+          {selected === "compare" && (
+            <ComparePanel
+              project={project} form={compareForm} setForm={setCompareForm} running={comparing !== undefined} ended={compareEnded} stored={comparison}
+              onStart={compare} onCancel={cancelComparing} onShare={() => go("share")}
+            />
+          )}
+          {selected === "share" && (
+            <SharePanel project={project} results={results} comparison={comparison} experimentId={shared ?? current} setExperimentId={setShared} help={help} />
           )}
           {edited && (
             <>
@@ -387,7 +461,9 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
                   <Result
                     stored={results[edited.id]} name={edited.name} onRerun={running ? undefined : () => (setSaid(""), rerun(edited))}
                     changed={definitionOf(results[edited.id].project) !== definitionOf(projectFor(project, edited))}
-                  />
+                  >
+                    <ResultDownloads help={help} stored={results[edited.id]} name={edited.name} comparison={comparison} onMore={() => (setShared(edited.id), go("share"))} />
+                  </Result>
                 ) : (
                   <p className="empty">"{edited.name}" has no result yet. Press Run to get one.</p>
                 )}

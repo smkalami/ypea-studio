@@ -72,6 +72,7 @@ body.in-project .site-bar { max-inline-size: none; }
 .run-status[data-state="error"] { color: var(--danger-ink); font-weight: var(--weight-medium); }
 .run-status .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
 .run-status p[role="status"]:not(.visually-hidden) { flex: 0 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
+.comparing { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); }
 .progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 .panel { display: grid; gap: var(--space-md); padding: var(--space-md) var(--gutter) var(--space-2xl); }

@@ -6,8 +6,9 @@ import { METHODS } from "../engine/methods/index.ts";
 import { parseProject, type Project } from "../engine/project.ts";
 import { deriveSeed } from "../engine/rng.ts";
 import { runProject } from "../engine/run.ts";
+import { historyLines } from "./report-drawings.ts";
 import { escapeHtml, html } from "./report-html.ts";
-import { reportHtml } from "./report.ts";
+import { difference, reportHtml } from "./report.ts";
 
 const examples = new URL("../examples/", import.meta.url);
 const names = readdirSync(examples).filter((f) => f.endsWith(".json"));
@@ -182,6 +183,32 @@ test("with a comparison: the table and the charts, with the count of feasible ru
   const empty = reportHtml({ project: impossible, result: runProject(impossible), comparison: none });
   assert.ok(empty.includes(`<td>0 of 3</td>\n<td>300 of 300</td>\n<td colspan="3">No numbers, because no run was feasible</td>`));
   assert.ok(empty.includes("No experiment has a feasible run, so there is no chart."));
+});
+
+test("the history of a run is two lines: results, and values of candidates that break a constraint", () => {
+  // a knapsack that must carry at least 15 items within 50 kg cannot be done, so no value of the run is a result
+  const knapsack = example("knapsack.json");
+  const never = runProject(quick({ ...knapsack, constraints: [...knapsack.constraints!, { name: "At least 15 items", left: "sum(take)", op: ">=", right: "15" }] }));
+  const dashed = historyLines(never, "$")!;
+  assert.equal(never.best.feasible, false);
+  assert.deepEqual([dashed.result, dashed.notResult.startsWith("M")], ["", true]);
+  assert.match(dashed.words, /No candidate was feasible during this run\. The whole line is dashed/);
+  // a run without constraints is all results, and its words end after the two values
+  const free = historyLines(runProject(quick(example("benchmark.json"))), undefined)!;
+  assert.deepEqual([free.result.startsWith("M"), free.notResult], [true, ""]);
+  assert.match(free.words, /^The best value went from \S+ after 4 evaluations to \S+ after 400\.$/);
+  assert.equal(free.points.length, 100);
+  // too few values is no chart
+  assert.equal(historyLines({ ...never, history: { nfe: [1], best: [2] } }, undefined), undefined);
+});
+
+test("better and worse are said only of two feasible solutions", () => {
+  const other = { objective: 10, difference: -2, feasible: true };
+  assert.equal(difference(8, other, "min", true, "km"), "-2 km (20% lower), which is better");
+  assert.equal(difference(8, other, "max", true, "km"), "-2 km (20% lower), which is worse");
+  assert.equal(difference(8, other, "min", false, "km"), "-2 km (20% lower)");
+  assert.equal(difference(8, { ...other, feasible: false }, "min", true, "km"), "-2 km (20% lower)");
+  assert.equal(difference(10, { ...other, difference: 0 }, "min", true), "None: the two values agree");
 });
 
 test("a view of an unknown kind is skipped with a sentence", () => {

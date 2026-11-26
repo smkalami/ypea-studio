@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.4.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.4.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.5.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.5.0
 #
 # Calibration line fit
 # Fit the offset and gain of a pressure sensor to calibration readings. The data are synthetic.

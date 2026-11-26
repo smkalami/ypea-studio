@@ -144,6 +144,8 @@
 .table td { overflow-wrap: anywhere; }
 .table .num { text-align: end; font-variant-numeric: tabular-nums; }
 .table caption { caption-side: top; padding-block-end: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); text-align: start; }
+/* a table of many columns keeps its words whole and scrolls in its box */
+.comparison .table th, .comparison .table td { overflow-wrap: normal; }
 .table .actions { white-space: nowrap; }
 .table .actions .btn { vertical-align: middle; }
 .table .actions .btn + .btn { margin-inline-start: var(--space-2xs); }
@@ -232,7 +234,7 @@ progress::-moz-progress-bar { background: var(--accent-ink); }
    A drawing keeps its natural width, so its text keeps its size, and scrolls in its own box when the window is narrower. */
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--figure)), 1fr)); gap: var(--space-md); align-items: start; }
 .drawing { margin: 0; max-inline-size: var(--figure-max); min-inline-size: 0; }
-.drawing-box { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.drawing-box, .figure-box { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .drawing svg { display: block; inline-size: 100%; min-inline-size: var(--figure); block-size: auto; max-inline-size: none; }
 .drawing figcaption { margin-block-start: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); }
 .drawing text { font-family: inherit; font-size: var(--text-xs); fill: var(--ink-3); }
@@ -240,6 +242,13 @@ progress::-moz-progress-bar { background: var(--accent-ink); }
 .drawing .axes line.grid { stroke: var(--line); stroke-dasharray: 3 3; }
 .drawing .axes text.title { fill: var(--ink); }
 .drawing .mark-line { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linejoin: round; }
+/* the part of a history that belongs to candidates that break a constraint: not a result, so not the line of results */
+.drawing .mark-line.not-result { stroke: var(--ink-3); stroke-dasharray: 6 4; }
+/* the charts of a comparison: the quartiles as thin lines, and the band between them */
+.drawing .mark-line.thin { stroke-width: 1; }
+.drawing .band { fill: var(--accent); fill-opacity: 0.16; stroke: none; }
+.drawing.charts { max-inline-size: none; }
+.charts figure { margin: 0; max-inline-size: var(--figure-max); min-inline-size: 0; }
 .drawing .mark-point { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
 .drawing .mark-point.hollow { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
 .drawing .mark-start { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
