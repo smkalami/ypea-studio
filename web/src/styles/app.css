@@ -44,6 +44,16 @@ body.in-project .site-bar { max-inline-size: none; }
 .page aside p { flex: 1 1 var(--field); max-inline-size: var(--measure); }
 #root:focus-visible { box-shadow: none; }
 
+/* ---------------------------------------------------------------- guide
+   A page of running text on the header and the styles of the app. Text keeps to the reading width. */
+.guide nav { display: grid; gap: var(--space-sm); }
+.guide section > * { max-inline-size: var(--measure); }
+.guide h3 { margin-block-start: var(--space-sm); }
+.guide section ul { display: grid; gap: var(--space-2xs); padding-inline-start: var(--space-md); list-style: disc; }
+/* a link in a sentence is a target as tall as a small control, without moving the lines */
+.guide a { padding-block: var(--space-2xs); overflow-wrap: anywhere; }
+.guide code { overflow-wrap: anywhere; }
+
 /* ---------------------------------------------------------------- workspace
    A sidebar that stays in view and the main area. Below 1180px the sidebar is a drawer. */
 .workspace { display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); align-items: start; }

@@ -1,5 +1,5 @@
 // Checks a deployed copy of the app: node scripts/check-live.mjs <address>
-// It opens the address in the installed Chrome, runs the line fit example and reads the result.
+// It opens the address in the installed Chrome, runs the line fit example, reads the result and opens the guide.
 
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -26,8 +26,10 @@ try {
   const text = await result.innerText();
   assert.match(text, /Best feasible solution found/);
   assert.match(text, /Known answer: Least-squares line/);
+  await page.getByRole("link", { name: "Guide", exact: true }).click();
+  await page.getByRole("heading", { name: "What YPEA Studio is" }).waitFor();
   assert.deepEqual(problems, []);
-  console.log(`${address}: the line fit ran. ${text.split("\n").slice(1, 5).join(" | ")}`);
+  console.log(`${address}: the line fit ran, and the guide opens. ${text.split("\n").slice(1, 5).join(" | ")}`);
 } finally {
   await browser.close();
 }

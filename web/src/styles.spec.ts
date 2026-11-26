@@ -13,8 +13,8 @@ const sources = (readdirSync(here, { recursive: true }) as string[])
   .map((name) => name.replaceAll("\\", "/"))
   .filter((name) => /\.tsx?$/.test(name) && !name.endsWith(".spec.ts"));
 const scripts = sources.map(read).join("\n");
-// the page itself holds the static header
-const code = scripts + readFileSync(new URL("../index.html", here), "utf8");
+// the page itself holds the static header, and the guide is a page of static text
+const code = scripts + readFileSync(new URL("../index.html", here), "utf8") + readFileSync(new URL("../guide.html", here), "utf8");
 const withoutComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 test("styles read tokens: no raw color, size, radius, duration or layer outside the token file", () => {

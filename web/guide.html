@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YPEA Studio guide</title>
+    <meta name="description" content="How to describe an optimization problem in YPEA Studio, run it, and read, compare and share the result. With the roadmap and how to cite the app." />
+    <link rel="icon" href="data:," />
+    <script src="./theme.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#root">Skip to the content</a>
+    <!-- The whole page is static, so it reads without scripts. The script adds the theme choice. -->
+    <header class="site">
+      <div class="site-bar">
+        <h1>YPEA Studio guide</h1>
+        <div id="bar-project"></div>
+        <a href="./">Open the app</a>
+        <a href="https://pypi.org/project/ypea/">Use YPEA in Python</a>
+        <div id="bar-tools"></div>
+      </div>
+      <p class="intro">
+        <span>How to describe an optimization problem in YPEA Studio, run it, and read, compare and share the result.</span>
+      </p>
+    </header>
+    <main id="root" class="page guide" tabindex="-1">
+      <nav aria-labelledby="contents-heading">
+        <h2 id="contents-heading">Contents</h2>
+        <ul class="cards">
+          <li><a href="#what">What YPEA Studio is</a></li>
+          <li><a href="#private">What stays on your computer</a></li>
+          <li><a href="#example">A first project, from start to result</a></li>
+          <li><a href="#workspace">The workspace</a></li>
+          <li><a href="#data">Data</a></li>
+          <li><a href="#variables">Variables</a></li>
+          <li><a href="#objective">Objective</a></li>
+          <li><a href="#constraints">Constraints</a></li>
+          <li><a href="#functions">Functions</a></li>
+          <li><a href="#drawing">Drawing</a></li>
+          <li><a href="#candidate">Test a candidate</a></li>
+          <li><a href="#experiments">Experiments and results</a></li>
+          <li><a href="#compare">Compare experiments</a></li>
+          <li><a href="#share">Share</a></li>
+          <li><a href="#editing">Undo, removing and renaming</a></li>
+          <li><a href="#repeat">Repeating a run</a></li>
+          <li><a href="#limits">Limits</a></li>
+          <li><a href="#cite">How to cite</a></li>
+          <li><a href="#roadmap">Roadmap</a></li>
+        </ul>
+      </nav>
+
+      <section aria-labelledby="what">
+        <h2 id="what">What YPEA Studio is</h2>
+        <p>
+          YPEA Studio, by Yarpiz, is a free app that runs in your browser. You describe an optimization problem in forms: the numbers it
+          uses, what may change, what to make as small or as large as possible, and the limits a solution must keep. The app then searches
+          for a good solution with a metaheuristic, which the app calls a solver, and shows the result in the terms of your problem.
+        </p>
+        <p>
+          You do not need to program, and you do not need to know the solvers to get a first answer. When you want more, you can compare
+          solvers over repeated runs, share a project with a colleague, or continue in Python with the <code>ypea</code> package.
+        </p>
+      </section>
+
+      <section aria-labelledby="private">
+        <h2 id="private">What stays on your computer</h2>
+        <p>
+          Everything. Your browser downloads the app from this site, and from then on all the work happens inside the browser. Nothing you
+          type, import or compute is sent anywhere. There are no accounts and nothing to install.
+        </p>
+        <ul>
+          <li>Your projects and their results are kept in the storage of this browser, on this computer, and nowhere else.</li>
+          <li>Changes are saved as you work. The header of an open project says "All changes saved" when the last change is stored.</li>
+          <li>Another browser or another computer does not see your projects. To move one, download its file and open it there.</li>
+          <li>
+            Clearing the data of the browser deletes your projects. Download a copy to keep them safe: "Download project" in the header of an
+            open project, or "Download all projects" at the end of the start page.
+          </li>
+          <li>Every report, script, table and picture is made in the browser and saved to your computer.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="example">
+        <h2 id="example">A first project, from start to result</h2>
+        <p>
+          This walk uses the worked example "0/1 knapsack": 20 items, each with a weight and a value, and a bag that carries at most 50 kg.
+          Which items give the largest total value? The data are synthetic.
+        </p>
+
+        <h3>Open the example</h3>
+        <p>
+          On the start page, under "Try an example", choose "0/1 knapsack". The example becomes a project of your own, so you can change
+          anything in it. The project opens on its experiment, "Quick run". The sidebar lists the parts of the project. In a narrow window
+          the sidebar is behind the menu button at the start of the header.
+        </p>
+
+        <h3>Look at the data</h3>
+        <p>
+          Choose "Data" in the sidebar. The project has one table, <code>items</code>, with two columns: <code>weight</code> in kg and
+          <code>value</code> in $. The first 5 of its 20 rows are shown. Positions start at 0, so the first item is item 0 and the last is
+          item 19.
+        </p>
+
+        <h3>Look at the variables</h3>
+        <p>
+          Choose "Variables". A variable is what the solver may change. This project has one, <code>take</code>. It holds "Yes or no values
+          (0 or 1)" as a list of 20 values, one for each item: 1 means the item is taken and 0 means it is left.
+        </p>
+
+        <h3>Look at the objective</h3>
+        <p>
+          Choose "Objective". The goal is "Maximize", the unit is $, and the expression is:
+        </p>
+        <p class="code solution-text">sum(value * take)</p>
+        <p>
+          Each value is multiplied by its 0 or 1 and the products are added up, which gives the total value of the items that are taken.
+          Under the expression the app says "Checked: this gives one number." when the whole project has no problem.
+        </p>
+
+        <h3>Look at the constraints</h3>
+        <p>
+          Choose "Constraints". There is one, "Total weight". Its left side is <code>sum(weight * take)</code>, its comparison is "at most
+          (&lt;=)", its right side is <code>50</code> and its unit is kg.
+        </p>
+
+        <h3>Test a candidate</h3>
+        <p>
+          Before any run, check that the problem says what you mean. Choose "Test a candidate", check the boxes of positions 0, 2 and 4, and
+          press "Test this candidate". The app answers with an objective of 231 $ and a total weight of 18 kg, which is at most 50 kg, so
+          the constraint holds and its breach is "None".
+        </p>
+        <p>
+          Now also check positions 1, 8, 11 and 17 and test again. The objective is 558 $, but the total weight is 72 kg. The constraint
+          reads "No, broken", with the breach "Over by 22 kg (44% of the limit)". A wrong column or a wrong sign would show up here, in
+          numbers you can check by hand.
+        </p>
+
+        <h3>Run</h3>
+        <p>
+          Press "Run", which is at the top of every part. Beside it the app says what will run: "Quick run: Genetic Algorithm, 20,000
+          evaluations, seed 1". An evaluation is one candidate that the solver tries. While the run goes on you see the best solution so
+          far, and "Cancel" stops it. A cancelled run keeps nothing. This run is over in a moment.
+        </p>
+
+        <h3>Read the result</h3>
+        <ul>
+          <li>The status: "Best feasible solution found". Feasible means that every constraint holds.</li>
+          <li>The objective: 617 $ with seed 1.</li>
+          <li>The evaluations used, 20,000 of 20,000, and the time the run took.</li>
+          <li>The constraints, each with its value and its limit: the total weight is 50 kg, at most 50 kg, so it holds.</li>
+          <li>The solution: the 0 or 1 of every item, and a drawing that shows which items are chosen.</li>
+          <li>A chart of the best value against the evaluations used.</li>
+        </ul>
+        <p>
+          The result also says that it is one run of a randomized solver with a recorded seed. "Run again with a new seed" shows how much
+          the answer moves from run to run. Under the result, "Download the report" and "Download the Python script" save the two files
+          that are asked for most, and "All downloads" leads to the rest.
+        </p>
+      </section>
+
+      <section aria-labelledby="workspace">
+        <h2 id="workspace">The workspace</h2>
+        <p>
+          The start page lists your projects, the worked examples, "New blank project" and "Open a project", which loads a project file
+          from your computer. An open project is one screen:
+        </p>
+        <ul>
+          <li>The header has "All projects" (back to the start page), the name of the project, the saving state and "Download project".</li>
+          <li>
+            The sidebar lists the parts of the problem (Overview, Data, Variables, Objective, Constraints, Functions, Drawing), then "Test a
+            candidate", the experiments, "Compare experiments" and "Share". A part that has a problem is marked there.
+          </li>
+          <li>The main area edits the part that is selected.</li>
+          <li>
+            The run bar stays at the top: the "Run" button, the experiment it will run, and one line for messages. After a run that you
+            started from another part, "Back to" returns you to that part.
+          </li>
+        </ul>
+        <p>
+          A problem is shown next to the field that causes it, and the Overview part says what to fix first. A project that still has a
+          problem does not run, and the app shows the part that holds the problem.
+        </p>
+
+        <h3 id="data">Data</h3>
+        <p>Data are tables of numbers that you import from CSV files. There are two buttons, because a header row changes what a file means:</p>
+        <ul>
+          <li>"Import a table" reads a file whose first row holds the names of the columns. An expression uses a column by its name.</li>
+          <li>"Import a matrix" reads a file of numbers only, without a header row, such as a table of distances. An expression uses it by the name of the table.</li>
+        </ul>
+        <p>
+          The values in a file may be separated by commas, semicolons or tabs. Every cell must be a number, and a message names the line and
+          the column of a cell that is not. The table takes its name from the file, and names are tidied so that expressions can use them.
+          You can change the names, give each column a unit, and remove a column you do not need. Units are labels only. Nothing is
+          converted.
+        </p>
+
+        <h3 id="variables">Variables</h3>
+        <p>
+          Variables are what the solver may change. "Add a variable" adds one, and "What it holds" sets its kind. The fields that follow
+          depend on the kind: limits, a total, or the number of items.
+        </p>
+        <ul>
+          <li><strong>Decimal numbers within limits.</strong> One number, a list or a table, each value between a lowest and a highest value. For example the offset and the gain of a fitted line.</li>
+          <li><strong>Whole numbers within limits.</strong> The same, with whole numbers. For example how many units to order.</li>
+          <li><strong>Yes or no values (0 or 1).</strong> For example which items to take.</li>
+          <li><strong>An ordering of n items.</strong> Every position from 0 to n - 1, each once. For example the order in which to visit cities.</li>
+          <li><strong>k items picked out of n, in order.</strong> For example which 3 of 10 sites to visit, and in which order.</li>
+          <li><strong>Exactly k of n switched on (0 or 1).</strong> A list of yes or no values with exactly k ones.</li>
+          <li><strong>Ordered groups (n items in k groups).</strong> For the routes of several vehicles or the jobs on several machines. The order inside a group counts. Every group is alike.</li>
+          <li><strong>Groups without order (n items in k groups), as a table of 0 and 1.</strong> Only the group of each item counts.</li>
+          <li><strong>Shares of a fixed total.</strong> A list or a table of values that add up to a total you give.</li>
+          <li><strong>A table in which every row adds up to a fixed total.</strong></li>
+          <li><strong>A table in which every column adds up to a fixed total.</strong></li>
+        </ul>
+
+        <h3 id="objective">Objective</h3>
+        <p>
+          The objective is one expression that gives one number, with the goal "Minimize" or "Maximize" and an optional unit. It can use the
+          variables, the data and your functions by name, and <code>sum</code>, <code>min</code>, <code>max</code>, <code>abs</code>,
+          <code>len</code> and <code>ops</code>. Arithmetic on a list works on every value of the list, so
+          <code>sum(value * take)</code> needs no loop.
+        </p>
+        <p>
+          "Write the expression from a preset" writes the common ones for you: a weighted sum, the cost of a route, the total length of
+          several routes, the total of selected items, the cost of an assignment, and the squared error of a straight line. What a preset
+          writes is ordinary text that you can edit.
+        </p>
+
+        <h3 id="constraints">Constraints</h3>
+        <p>
+          A constraint is a limit that a solution must keep: a left side, a comparison ("at most", "at least" or "equal to") and a right
+          side, with a name and an optional unit. "Add a constraint from a preset" writes a capacity limit or a limit on the largest load of
+          a group. A project without constraints allows every candidate.
+        </p>
+        <ul>
+          <li>
+            <strong>Tolerance.</strong> Only an "equal to" constraint has one. It is "Exact" at first, and the list offers "Within 0.1% of
+            the right side", "Within 1% of the right side", "Within a fixed amount" in the unit of the constraint, and "Both, typed by
+            hand". The rule is that the two sides may differ by the fixed amount plus the fraction times the size of the right side. A
+            percentage of a right side of 0 allows nothing, and the form says so.
+          </li>
+          <li>
+            <strong>Turning a constraint off.</strong> Clear "Check this constraint" to turn a constraint off without removing it. Runs
+            and the candidate test then skip it. The sidebar counts it as off, and every result says which constraints were not checked.
+          </li>
+          <li>
+            <strong>How a breach reads.</strong> Results show each constraint with both sides in its own unit, whether it holds, and its
+            breach: the difference between the two sides, and that difference as a percentage of the limit, for example "Over by 22 kg (44%
+            of the limit)". The word is "Over" for "at most", "Short" for "at least" and "Apart" for "equal to". The percentage is left
+            out when the limit is 0.
+          </li>
+        </ul>
+
+        <h3 id="functions">Functions</h3>
+        <p>
+          When one expression cannot hold the logic, write helper functions. They are written in a small part of Python:
+          <code>def</code>, assignment, <code>if</code>, <code>for</code> and <code>return</code>. A function gets the variables it needs as
+          arguments, and positions start at 0. There are no imports, classes, <code>while</code> loops or strings, and text that the app
+          does not support is refused with a message and its line number.
+        </p>
+        <p>
+          The complete rules are in
+          <a href="https://github.com/smkalami/ypea-studio/blob/main/spec/language.md">the language rules in the repository of the app on GitHub</a>.
+        </p>
+
+        <h3 id="drawing">Drawing</h3>
+        <p>
+          A drawing shows a solution as a picture, while a run improves it and in its result. Under "What to draw" you choose "A route
+          through points", "Several routes from one depot", "A fitted line over data points" or "Which items are chosen", and then name the
+          variable and the columns it uses. With "No drawing" a solution is shown as a table. For routes, an optional table of distances
+          lets the drawing give the length of each route.
+        </p>
+
+        <h3 id="candidate">Test a candidate</h3>
+        <p>
+          Here you try one solution by hand before any run. Type the values, or use "Fill from the baseline" or "Fill with a random
+          candidate", then press "Test this candidate". The app shows the objective value, every constraint with both sides, and the
+          drawing. Modeling mistakes show up here, where they are cheap.
+        </p>
+        <p>The same part stores the two comparison values of a project. Every result is compared with them when they are given:</p>
+        <ul>
+          <li>"In use today (baseline)" is the solution you use now. "Store this candidate as the baseline" keeps it.</li>
+          <li>"Known answer (reference)" is an answer that is already known: a known objective value, a known solution, or both.</li>
+        </ul>
+        <p>A result says "better" or "worse" only when both solutions keep every constraint.</p>
+
+        <h3 id="experiments">Experiments and results</h3>
+        <p>
+          An experiment is one solver with a budget and a seed. A project can keep several, each with its own name, and each keeps the
+          result of its last run. "New experiment" in the sidebar adds one: a copy of the experiment on screen, or, from any other part, one with the suggested
+          solver. "Duplicate" also copies the one on screen.
+        </p>
+        <ul>
+          <li>
+            <strong>Solver.</strong> This version has nine: Random Search, Particle Swarm Optimization, Differential Evolution, Success
+            History based Adaptive Differential Evolution, Genetic Algorithm, Simulated Annealing, Covariance Matrix Adaptation Evolution
+            Strategy, Nelder-Mead Simplex and Imperialist Competitive Algorithm. The settings of the chosen solver are one click away, under
+            "Settings of" and its name.
+          </li>
+          <li><strong>Budget (evaluations).</strong> How many candidates the solver may try. The budget is the only measure of effort, so that solvers can be compared fairly.</li>
+          <li><strong>Seed.</strong> The number that starts the random choices of a run. The same seed gives the same run again.</li>
+        </ul>
+        <p>
+          In a blank project the first experiment starts with a suggested solver, with one sentence that says why, and a budget of 20,000
+          evaluations. The suggestion follows your variables: Covariance Matrix Adaptation Evolution Strategy for decimal numbers only,
+          Simulated Annealing for orderings, selections and groups, and the Genetic Algorithm for yes or no values, for whole numbers, and
+          for a mix of orderings with other kinds. The app only suggests. Once you change the solver, a setting or the budget, the
+          experiment is yours and the app no longer touches it. When a solver was designed for other kinds of values than your project has,
+          a note says so. It is a note and not an error, because such a solver may still work well.
+        </p>
+        <p>
+          A result states its status ("Best feasible solution found" or "No feasible solution found"), the objective, the differences from
+          the baseline and the reference when they are given, every constraint, the solution, the evaluations used and the time. When no feasible solution was
+          found, the candidate that breaks the constraints least is shown and marked as not feasible. If you change the project after a
+          run, the result says that it belongs to the definition as it was then.
+        </p>
+
+        <h3 id="compare">Compare experiments</h3>
+        <p>
+          One run of a randomized solver can be lucky or unlucky. This part runs each chosen experiment several times, every run with its
+          own seed and all with the same budget, and describes the runs side by side. A first result does not need it.
+        </p>
+        <ul>
+          <li>A comparison starts with 10 runs of each experiment. "20 runs" and "30 runs" are one click away, because papers in this field usually report 20 to 30. Any number from 1 to 100 can be typed.</li>
+          <li>One experiment is enough. Its runs are then compared with each other.</li>
+          <li>"Add Random Search as a reference" adds runs that only try random candidates, with the same budget, as a simple reference.</li>
+          <li>A comparison runs in the background, so you can keep working in the project. Leaving the project or closing the page stops it.</li>
+        </ul>
+        <p>
+          The summary gives, for each experiment, the number of feasible runs, the evaluations used, and the median, the first to third
+          quartile and the best value over the feasible runs only. A chart for each experiment shows the median and the middle half of
+          the runs against the evaluations. The summary only describes the runs. It names no winner, ranks nothing and prints no
+          significance test, so the conclusion is yours.
+        </p>
+
+        <h3 id="share">Share</h3>
+        <p>This part holds every file you can take away. Each one is made in the browser and saved to your computer.</p>
+        <ul>
+          <li><strong>The project</strong>, as one JSON file. "Download the project" holds the definition and every experiment. "Download the project with results" also carries the stored results and the comparison. A colleague opens the file with "Open a project" on the start page and can run it again.</li>
+          <li><strong>Report.</strong> One HTML page with the result, its drawings and the definition that produced it. It opens in any browser and prints well.</li>
+          <li><strong>Python script.</strong> One file that repeats the run with the <code>ypea</code> package.</li>
+          <li><strong>Results as data.</strong> The result as JSON, and the solution and the history of the run as CSV.</li>
+          <li><strong>Charts as pictures.</strong> The history chart and the drawing of the solution, as SVG and PNG. Pictures are saved in the light theme, so that they read well in a document.</li>
+          <li><strong>The comparison.</strong> Its summary as CSV and its charts as SVG and PNG.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="editing">
+        <h2 id="editing">Undo, removing and renaming</h2>
+        <ul>
+          <li>
+            <strong>Undo and redo.</strong> Every edit of the problem and of the setup of an experiment can be taken back with
+            <kbd>Ctrl+Z</kbd> and made again with <kbd>Ctrl+Y</kbd> or <kbd>Ctrl+Shift+Z</kbd> (<kbd>Cmd</kbd> on a Mac). Inside a text
+            field these keys undo your typing in that field, as in any form, so click outside the field first. Up to 100 steps are kept
+            while the project is open. Runs and stored results are never undone.
+          </li>
+          <li>
+            <strong>Removing.</strong> Removing a table, a column, a variable or a constraint happens at once, and the message line of the
+            run bar says so with an "Undo" button beside it. When other parts of the project use what you remove, a dialog first names each
+            of those places. If you choose "Remove anyway", nothing in those places is rewritten. Each shows a problem until you change it.
+          </li>
+          <li>
+            <strong>Renaming.</strong> When you rename a table, a column, a variable or a function that other parts use, a line under the
+            field says how many places still use the old name and offers "Rename there too". One click carries the new name to those
+            places.
+          </li>
+          <li><strong>Deleting an experiment or a project</strong> asks first, because their results are deleted with them and that cannot be undone.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="repeat">
+        <h2 id="repeat">Repeating a run</h2>
+        <p>Every random choice of a run comes from its seed, so a run can be repeated exactly.</p>
+        <ul>
+          <li>The same project, solver, settings, budget and seed give the same run again. A colleague who opens your project file gets the same run too.</li>
+          <li>Each result stores the definition that produced it, with the solver, its settings, the budget, the seed and the versions. Later edits never change what a stored result refers to.</li>
+          <li>"Run again with a new seed" writes the next seed into the experiment, so the form and the result always agree.</li>
+          <li>In a comparison every run has its own seed, derived from the seed of the experiment, and the summary lists them all under "What ran: the setups and the seeds".</li>
+        </ul>
+        <p>
+          The exported Python script repeats the run outside the app, with the same solver, settings, budget and seed. It needs the
+          <code>ypea</code> package (<code>pip install ypea</code>) and Python 3.12 or newer. This version of the app was tested with ypea
+          %YPEA_TESTED%, and the first lines of every script name that release and the command that installs exactly it. The Python run
+          follows the app closely: number for number with most solvers, and within the last digits with Covariance Matrix Adaptation
+          Evolution Strategy or with functions such as <code>exp</code> and <code>log</code>.
+        </p>
+      </section>
+
+      <section aria-labelledby="limits">
+        <h2 id="limits">Limits</h2>
+        <ul>
+          <li><strong>A good answer, not a proof.</strong> Metaheuristics search well and often find very good solutions, but they do not prove that a solution is the best one possible. One run is one sample. Use "Compare experiments" before you rely on a number.</li>
+          <li><strong>Everything runs on your computer.</strong> The speed of a run depends on your machine, a run stops when you leave the project or close the page, and very large problems belong in Python.</li>
+          <li><strong>Data size.</strong> A project holds at most 200,000 data values.</li>
+          <li><strong>A small part of Python.</strong> Expressions and functions use a limited syntax, and anything else is refused. A check or a candidate test that takes more than 5 seconds is stopped.</li>
+          <li><strong>Budgets are counted in evaluations,</strong> not in seconds. There is no time limit for a run, only "Cancel".</li>
+          <li><strong>One objective.</strong> A project has one objective. Units are labels and are not converted.</li>
+          <li><strong>Browsers.</strong> The app is checked in Google Chrome on a desktop computer. It has not been checked in other browsers yet, and a run there may differ in its last digits. The layout adapts to a narrow window, but there is no separate design for phones.</li>
+          <li><strong>Storage.</strong> Projects live in the storage of one browser. Download the ones you care about.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="cite">
+        <h2 id="cite">How to cite</h2>
+        <p>
+          Name the app, its maker, the version and the address, and add the day you used it. The version is printed under every result and
+          in every report. This guide belongs to version %APP_VERSION%.
+        </p>
+        <p class="code solution-text">Yarpiz. YPEA Studio, version %APP_VERSION%. https://smkalami.github.io/ypea-studio/ (accessed on the day of use).</p>
+        <p>
+          If your numbers come from the exported Python script, also name the release of the <code>ypea</code> package that ran it. For a
+          result that others should be able to repeat, share the project file with results, which carries the seeds and the versions.
+        </p>
+      </section>
+
+      <section aria-labelledby="roadmap">
+        <h2 id="roadmap">Roadmap</h2>
+        <p>This is a list of directions, without dates and without promises.</p>
+
+        <h3>In this version</h3>
+        <ul>
+          <li>The workspace: data, variables, the objective, constraints, functions, a drawing, the candidate test, and experiments with their results.</li>
+          <li>Six worked examples: Calibration line fit, 0/1 knapsack, Traveling salesman, Vehicle routing, Assignment and Benchmark functions.</li>
+          <li>Eleven kinds of variables and nine solvers. The Genetic Algorithm and Simulated Annealing can also work on orderings and groups directly.</li>
+          <li>Constraints with tolerances, constraints that can be turned off, and breaches in the unit of the constraint.</li>
+          <li>Comparisons over repeated runs, described and not judged.</li>
+          <li>Project files with or without results, the HTML report, the Python script, results as CSV and JSON, and charts as SVG and PNG.</li>
+          <li>Undo and redo, light and dark themes, and use by keyboard.</li>
+        </ul>
+
+        <h3>Planned</h3>
+        <ul>
+          <li>More solvers: Grey Wolf Optimizer, Teaching-Learning-Based Optimization, Harmony Search, Artificial Bee Colony, Ant Colony Optimization for continuous domains, Firefly Algorithm, Biogeography-Based Optimization, Bees Algorithm, Cultural Algorithm and Invasive Weed Optimization.</li>
+          <li>Solvers made for orderings: a discrete Ant Colony Optimization and Tabu Search.</li>
+          <li>A local improvement step for routes (2-opt).</li>
+          <li>Vehicles or machines that differ from each other.</li>
+          <li>Operators of your own for the solvers that work on the values themselves.</li>
+          <li>More worked examples, with scheduling among them.</li>
+          <li>A view of the moving population for problems with two decimal variables.</li>
+          <li>Checks in more browsers, with Firefox and Safari first.</li>
+        </ul>
+
+        <h3>Being considered</h3>
+        <ul>
+          <li>A wider part of Python for expressions and functions.</li>
+          <li>A worked example of feature selection.</li>
+          <li>Links that share a small project without a file.</li>
+          <li>Statistical tests in a comparison.</li>
+        </ul>
+
+        <h3>Not planned</h3>
+        <p>Servers, accounts, live collaboration, and export to languages other than Python.</p>
+      </section>
+    </main>
+    <script type="module" src="/src/guide.tsx"></script>
+  </body>
+</html>

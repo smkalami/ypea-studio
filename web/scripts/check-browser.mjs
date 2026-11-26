@@ -14,7 +14,7 @@ import { summarize } from "../../engine/compare.ts";
 import { METHODS } from "../../engine/methods/index.ts";
 import { parseProject } from "../../engine/project.ts";
 import { deriveSeed } from "../../engine/rng.ts";
-import { runProject, testCandidate, YPEA_TESTED } from "../../engine/run.ts";
+import { APP_VERSION, runProject, testCandidate, YPEA_TESTED } from "../../engine/run.ts";
 import { parseResultFile } from "../../export/data.ts";
 import { breach, ruleWords } from "../../export/report.ts";
 import { suggest } from "../src/suggest.ts";
@@ -133,7 +133,12 @@ async function check(browser, prefix) {
   const html = await (await fetch(site.url)).text();
   assert.match(html, /is a free browser app in which a researcher or practitioner/);
   assert.match(html, /<a href="https:\/\/pypi\.org\/project\/ypea\/">Use YPEA in Python<\/a>/);
-  say("static HTML holds the description and the Use YPEA in Python link");
+  assert.match(html, /<a href="\.\/guide\.html">Guide<\/a>/);
+  // the guide is static HTML too, and the build wrote the versions of the engine into it
+  const guide = (await (await fetch(`${site.url}guide.html`)).text()).replace(/\s+/g, " ");
+  assert.ok(guide.includes(`tested with ypea ${YPEA_TESTED},`) && guide.includes(`YPEA Studio, version ${APP_VERSION}.`), "the guide names the versions of the engine");
+  assert.doesNotMatch(guide, /%[A-Z_]+%/, "no placeholder is left in the guide");
+  say(`static HTML holds the description, the Guide link and the Use YPEA in Python link, and the guide names ypea ${YPEA_TESTED} and version ${APP_VERSION}`);
 
   // 2. A new visitor sees the examples and no project list.
   await page.goto(site.url);
@@ -142,8 +147,8 @@ async function check(browser, prefix) {
   await button("New blank project").waitFor();
   await shot("01-welcome");
   say("new visitor: Try an example is shown, with no project list, and a blank project can be started");
-  // keyboard focus is visible: Tab reaches the skip link, the Python link, the choice of theme, then the first example
-  for (const expected of ["Skip to the content", "Use YPEA in Python", "", "Calibration line fit"]) {
+  // keyboard focus is visible: Tab reaches the skip link, the two links of the header, the choice of theme, then the first example
+  for (const expected of ["Skip to the content", "Guide", "Use YPEA in Python", "", "Calibration line fit"]) {
     await page.keyboard.press("Tab");
     const focused = await page.evaluate(() => {
       // a card is one button whose halo is drawn around the whole card
@@ -166,6 +171,26 @@ async function check(browser, prefix) {
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), "dark");
   say("theme: the arrow keys move through system, light and dark, and the page follows");
+
+  // The guide: a second page beside the app. The link of the header opens it with the keyboard, its links are relative,
+  // so it is found under a subpath too, it keeps the chosen theme, and its own link leads back to the app.
+  await page.getByRole("link", { name: "Guide", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("heading", { name: "YPEA Studio guide", level: 1 }).waitFor();
+  assert.equal(new URL(page.url()).pathname, `${prefix}guide.html`);
+  assert.equal(await page.getByRole("heading", { level: 1 }).count(), 1);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
+  await page.locator(".segmented").waitFor();
+  // every entry of the contents leads to a heading of the page
+  const lost = await page.evaluate(() => [...document.querySelectorAll("nav a")].map((a) => a.getAttribute("href")).filter((href) => !document.querySelector(`:is(h2, h3)${href}`)));
+  assert.deepEqual(lost, []);
+  assert.equal(await page.getByRole("navigation", { name: "Contents" }).getByRole("link").count(), 19);
+  await shot("01-guide");
+  await page.getByRole("link", { name: "Open the app", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await heading("Try an example").waitFor();
+  assert.equal(new URL(page.url()).pathname, prefix);
+  say("guide: the Guide link of the header opens it with the keyboard, every entry of its contents has its heading, and Open the app leads back");
 
   // 3. Create the benchmark project and run it to the end, with one click on Run.
   await button("Benchmark functions").click();

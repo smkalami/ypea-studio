@@ -160,7 +160,9 @@ async function walk(browser, size, theme) {
   const audit = async (name) => {
     screens++;
     const id = `${String(++number).padStart(2, "0")}-${name}`;
-    await page.waitForTimeout(250); // transitions end
+    await page.waitForTimeout(250);
+    // A color in the middle of a transition is not a color of the design. On a busy computer a transition can start late, so wait for the ones that run.
+    await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.finished.catch(() => {}))));
     for (const problem of [...await page.evaluate(measure), ...await page.evaluate(measureFigures)]) findings.push(`${label}, ${id}: ${problem}`);
     await page.addScriptTag({ content: axeSource });
     const scan = await page.evaluate(() => window.axe.run(document, { resultTypes: ["violations"] }));
@@ -624,6 +626,18 @@ async function walk(browser, size, theme) {
   await page.getByRole("heading", { name: "Constraints", exact: true }).waitFor();
   await button("Show the result").waitFor();
   await audit("back-on-the-part");
+
+  // the guide: a page of static text on the header and the styles of the app
+  await page.goto(`${url}guide.html`);
+  await page.locator(".segmented").waitFor();
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), theme);
+  await audit("guide");
+  // a link of the text, reached with the keyboard: after the skip link, the two links of the header and the choice of theme
+  for (let n = 0; n < 8 && (await page.evaluate(() => document.activeElement.textContent.trim())) !== "What YPEA Studio is"; n++) await page.keyboard.press("Tab");
+  await page.waitForTimeout(250);
+  const link = await page.evaluate(() => [document.activeElement.textContent.trim(), getComputedStyle(document.activeElement).boxShadow]);
+  if (link[0] !== "What YPEA Studio is" || link[1] === "none") findings.push(`${label}: no focus halo on a link of the guide: the focus is on "${link[0]}" with ${link[1]}`);
+  measured[`${theme}: halo of a link of the guide`] = link[1];
   await context.close();
   console.log(`  ${label}: ${number} screens`);
 }
@@ -644,14 +658,14 @@ async function forcedColors(browser) {
   await page.goto(url);
   await page.getByRole("button", { name: "Calibration line fit", exact: true }).waitFor();
   const seen = [];
-  // the skip link, the Python link, the theme choice, the first card, then a button and a field of the workspace
+  // the skip link, the two links of the header, the theme choice, the first card, then a button and a field of the workspace
   const outlined = () => page.evaluate(() => {
     const element = document.activeElement;
     // the input of the theme choice is clipped away, so only an outline on its label counts
     const drawn = [element.closest(".segmented label") ?? element].find((e) => getComputedStyle(e).outlineStyle !== "none");
     return `${element.tagName}${element.type ? ` ${element.type}` : ""}: ${drawn ? `${getComputedStyle(drawn).outlineStyle} ${getComputedStyle(drawn).outlineWidth} on ${drawn.tagName}` : "NO OUTLINE"}`;
   });
-  for (let n = 0; n < 4; n++) {
+  for (let n = 0; n < 5; n++) {
     await page.keyboard.press("Tab");
     seen.push(await outlined());
   }
