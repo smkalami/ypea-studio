@@ -9,7 +9,10 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright-core";
+import { chromium, firefox } from "playwright-core";
+
+// BROWSER=edge or BROWSER=firefox uses that browser instead (Firefox is the build that `npx playwright-core install firefox` downloads).
+const open = () => (process.env.BROWSER === "firefox" ? firefox.launch() : chromium.launch({ channel: process.env.BROWSER === "edge" ? "msedge" : "chrome" }));
 import { summarize } from "../../engine/compare.ts";
 import { METHODS } from "../../engine/methods/index.ts";
 import { parseProject } from "../../engine/project.ts";
@@ -1556,8 +1559,12 @@ async function check(browser, prefix) {
 
   // 11. A hard reload (no cache): the projects come first, and every result is still there.
   await toList();
-  const cdp = await context.newCDPSession(page);
-  await Promise.all([page.waitForEvent("load"), cdp.send("Page.reload", { ignoreCache: true })]);
+  if (process.env.BROWSER === "firefox") {
+    await page.reload(); // only Chromium can be told to skip its cache, so this is a plain reload
+  } else {
+    const cdp = await context.newCDPSession(page);
+    await Promise.all([page.waitForEvent("load"), cdp.send("Page.reload", { ignoreCache: true })]);
+  }
   await heading("Your projects").waitFor();
   assert.equal(await page.locator("main h2").first().innerText(), "Your projects");
   // the theme chosen at the start is still applied after the reload
@@ -1676,7 +1683,7 @@ async function check(browser, prefix) {
 let browser;
 for (let attempt = 1; !browser; attempt++) {
   try {
-    browser = await chromium.launch({ channel: "chrome" });
+    browser = await open();
   } catch (error) {
     if (attempt === 2) {
       console.error(`Chrome could not be started:\n${error.message}`);

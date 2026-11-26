@@ -2,14 +2,17 @@
 // It opens the address in the installed Chrome, runs the line fit example, reads the result and opens the guide.
 
 import assert from "node:assert/strict";
-import { chromium } from "playwright-core";
+import { chromium, firefox } from "playwright-core";
+
+// BROWSER=edge or BROWSER=firefox uses that browser instead (Firefox is the build that `npx playwright-core install firefox` downloads).
+const open = () => (process.env.BROWSER === "firefox" ? firefox.launch() : chromium.launch({ channel: process.env.BROWSER === "edge" ? "msedge" : "chrome" }));
 
 const address = process.argv[2];
 if (!address) {
   console.error("Usage: node scripts/check-live.mjs <address>");
   process.exit(2);
 }
-const browser = await chromium.launch({ channel: "chrome" });
+const browser = await open();
 try {
   const page = await browser.newPage();
   const problems = [];
