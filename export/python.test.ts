@@ -317,7 +317,7 @@ test("every kind of setting is written, with the budget and the seed", () => {
 
   const de = small({}, { method: "de", settings: { base_vector: "best", crossover_prob: 0.35 }, budget: 321, seed: 4294967295 });
   const script = exportPython(de, runProject(de, { runIndex: 2 }));
-  assert.ok(script.includes(`    solver = ypea.DE(\n        pop_size=100,\n        base_vector="best",\n        diff_vectors_count=1,\n        crossover_method="bin",\n        crossover_prob=0.35,\n        beta_min=0.2,\n        beta_max=0.9,\n        max_nfe=321,  # the budget, in evaluations\n    )\n`), script);
+  assert.ok(script.includes(`    solver = ypea.DE(\n        pop_size=100,\n        base_vector="best",\n        diff_vectors_count=1,\n        crossover_method="bin",\n        crossover_prob=0.35,\n        beta_min=0.5,\n        beta_max=0.5,\n        max_nfe=321,  # the budget, in evaluations\n    )\n`), script);
   assert.match(script, /^    base_seed = 4294967295 {2}#/m);
   assert.match(script, /^    run_index = 2 {2}#/m);
   assert.ok(script.includes("ypea.StudioRng(ypea.derive_seed(base_seed, run_index))"));
@@ -339,6 +339,15 @@ test("the solver, settings, budget and seed come from the result, not from the p
   const result = runProject(small({}, { method: "pso", settings: { w: 0.7 }, budget: 150, seed: 99 }));
   const script = exportPython(project, result);
   assert.ok(script.includes("ypea.PSO(") && script.includes("w=0.7,") && script.includes("max_nfe=150,") && script.includes("base_seed = 99 "));
+});
+
+test("a result stored before a setting existed is exported without it, for the ypea release it names", () => {
+  const project = small({}, { method: "pso" }), result = runProject(project);
+  const { w_final, max_velocity, ...settings } = result.settings;
+  assert.deepEqual([w_final, max_velocity], [null, null]);
+  const script = exportPython(project, { ...result, settings, versions: { ...result.versions, ypeaTested: "0.5.0" } });
+  assert.ok(script.includes("pip install ypea==0.5.0") && script.includes("        c2=2,\n        max_nfe="), script);
+  assert.ok(!script.includes("w_final") && !script.includes("max_velocity"));
 });
 
 // Names that a project may use and that this file's own code must not trip over.

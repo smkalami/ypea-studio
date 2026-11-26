@@ -185,17 +185,24 @@ test("NativeOperators handles each variable on its own slice, and code operators
     seen.push([parts.length, r, width]);
     return parts.map((part) => part.map(() => 0.25));
   };
+  // a mutation changes each variable of a row with probability 1 / 3, and at least one per row
+  let marked = 0;
   for (const [method, parents] of [["crossover", [x1, x2]], ["mutate", [x1]]] as const) {
     const out = native.apply(method, parents, rows, rng, mark);
     assert.equal(out.length, parents.length);
-    for (const y of out) {
+    out.forEach((y, o) => {
       for (let r = 0; r < rows; r++) {
-        const row = Array.from(y.subarray(r * dim, (r + 1) * dim));
-        assert.deepEqual(row.slice(2, 7), [0.25, 0.25, 0.25, 0.25, 0.25], "the fixed sum slice comes from the code operator");
-        assert.deepEqual([...row.slice(7)].sort(), [0.1, 0.3, 0.5, 0.7, 0.9], "the ordering slice holds the codes of an ordering");
+        const row = Array.from(y.subarray(r * dim, (r + 1) * dim)), parent = Array.from(parents[o].subarray(r * dim, (r + 1) * dim));
+        const kept = [[0, 2], [2, 7], [7, 12]].map(([a, b]) => row.slice(a, b).every((c, i) => c === parent[a + i]));
+        assert.ok(method === "mutate" ? kept.includes(false) : !kept.includes(true), "a crossover changes every variable, a mutation at least one");
+        if (!kept[1]) assert.deepEqual(row.slice(2, 7), [0.25, 0.25, 0.25, 0.25, 0.25], "the fixed sum slice comes from the code operator");
+        if (!kept[2]) assert.deepEqual([...row.slice(7)].sort(), [0.1, 0.3, 0.5, 0.7, 0.9], "the ordering slice holds the codes of an ordering");
         assert.ok(row.slice(0, 2).every((c) => c >= 0 && c <= 1));
+        if (method === "mutate" && !kept[1]) marked++;
       }
-    }
+    });
   }
-  assert.deepEqual(seen, [[2, rows, 5], [1, rows, 5]]);
+  // the code operator gets only the rows whose fixed sum the mutation picked
+  assert.ok(marked > 0 && marked < rows, "the seed gives a mix of picked and kept rows");
+  assert.deepEqual(seen, [[2, rows, 5], [1, marked, 5]]);
 });

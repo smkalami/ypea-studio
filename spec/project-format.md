@@ -136,7 +136,7 @@ The app also writes and reads a second kind of file, which wraps project files:
 { "format": "ypea-studio-projects", "version": 1,
   "projects": [ { "format": "ypea-studio-project", "...": "..." } ],
   "results": [ { "project": 0, "experiment": "", "curve": [14.2, 26.1], "file": { "format": "ypea-studio-result", "...": "..." } } ],
-  "comparisons": [ { "project": 0, "finished": "2026-11-26T10:30:28.000Z", "versions": { "app": "0.1.0", "ypeaTested": "0.5.0" },
+  "comparisons": [ { "project": 0, "finished": "2026-11-26T10:30:28.000Z", "versions": { "app": "0.1.0", "ypeaTested": "0.6.0" },
                      "definition": { "format": "ypea-studio-project", "...": "..." }, "experiments": [ "..." ] } ] }
 ```
 

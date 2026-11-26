@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.5.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.5.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.6.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.6.0
 #
 # Traveling salesman
 # Find a short round trip through 30 cities. The data are synthetic.

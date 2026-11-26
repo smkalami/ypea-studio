@@ -423,28 +423,42 @@ export class NativeOperators {
   /**
    * Applies "crossover" (two parent batches in, two out) or "mutate" (one in, one out) to
    * batches of `rows` rows of codes, variable by variable, and returns batches of codes.
+   * A crossover works on every variable. With several variables, a mutation changes each
+   * variable of a row with probability 1 / k (k variables) and at least one per row, and the
+   * other variables of the row keep their codes.
    */
   apply(method: "crossover" | "mutate", parents: Float64Array[], rows: number, rng: Rng, fallback: CodeOperator): Float64Array[] {
-    const { dim } = this, out = parents.map((p) => new Float64Array(p.length));
+    const { dim } = this, k = this.variables.length, out = parents.map((p) => p.slice());
+    let picked: Uint8Array | null = null;
+    if (method === "mutate" && k > 1) {
+      // draw order: a number for every variable of every row, then a variable for each row that got none
+      picked = new Uint8Array(rows * k);
+      for (let i = 0; i < rows * k; i++) picked[i] = rng.random() < 1 / k ? 1 : 0;
+      for (let r = 0; r < rows; r++) if (!picked.subarray(r * k, (r + 1) * k).includes(1)) picked[r * k + rng.integers(0, k)] = 1;
+    }
     let start = 0;
     this.variables.forEach((v, index) => {
-      const ops = this.defaults[index], width = v.codeSize;
+      const ops = this.defaults[index], width = v.codeSize, from = start;
+      start += width;
+      // the rows this variable works on
+      const at: number[] = [];
+      for (let r = 0; r < rows; r++) if (!picked || picked[r * k + index]) at.push(r);
+      if (!at.length) return;
       if (!ops) {
         const parts = parents.map((p) => {
-          const part = new Float64Array(rows * width);
-          for (let r = 0; r < rows; r++) part.set(p.subarray(r * dim + start, r * dim + start + width), r * width);
+          const part = new Float64Array(at.length * width);
+          at.forEach((r, i) => part.set(p.subarray(r * dim + from, r * dim + from + width), i * width));
           return part;
         });
-        fallback(parts, rows, width).forEach((y, o) => {
-          for (let r = 0; r < rows; r++) out[o].set(y.subarray(r * width, (r + 1) * width), r * dim + start);
+        fallback(parts, at.length, width).forEach((y, o) => {
+          at.forEach((r, i) => out[o].set(y.subarray(i * width, (i + 1) * width), r * dim + from));
         });
       } else {
         // decode gives a buffer that the variable reuses, so every value is copied
-        const values = parents.map((p) => Array.from({ length: rows }, (_, r) => own(v.decode(p, r * dim + start))));
+        const values = parents.map((p) => at.map((r) => own(v.decode(p, r * dim + from))));
         const results = method === "crossover" ? ops.crossover(values[0], values[1], rng) : [ops.mutate(values[0], rng)];
-        results.forEach((y, o) => y.forEach((value, r) => v.encode!(value, out[o], r * dim + start)));
+        results.forEach((y, o) => y.forEach((value, i) => v.encode!(value, out[o], at[i] * dim + from)));
       }
-      start += width;
     });
     return out;
   }

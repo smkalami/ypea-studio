@@ -16,8 +16,8 @@ export const de: Method = {
     diff_vectors_count: { kind: "number", default: 1, min: 1, max: 1e6, integer: true, help: "Number of difference vectors." },
     crossover_method: { kind: "choice", default: "bin", options: ["bin", "exp"], help: "Binomial or exponential crossover." },
     crossover_prob: { kind: "number", default: 0.2, min: 0, max: 1, help: "Crossover rate CR." },
-    beta_min: { kind: "number", default: 0.2, min: 0, max: 10, help: "Lower limit of the scale factor, drawn anew for every component." },
-    beta_max: { kind: "number", default: 0.9, min: 0, max: 10, help: "Upper limit of the scale factor." },
+    beta_min: { kind: "number", default: 0.5, min: 0, max: 10, help: "Lower limit of the scale factor, drawn anew for every component. With both limits equal the factor is fixed." },
+    beta_max: { kind: "number", default: 0.5, min: 0, max: 10, help: "Upper limit of the scale factor." },
   },
   start(ctx) {
     const { rng, evaluator: ev, dim: d } = ctx;

@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.5.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.5.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.6.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.6.0
 #
 # Vehicle routing
 # Plan the routes of 4 vehicles that leave one depot, serve 15 customers and return, so that the

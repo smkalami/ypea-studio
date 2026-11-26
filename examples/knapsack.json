@@ -95,6 +95,7 @@
     "name": "Quick run",
     "method": "ga",
     "settings": {
+      "crossover_inflation": 0.1,
       "mutation_step_size": 0.3,
       "mutation_step_size_damp": 1
     },

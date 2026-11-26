@@ -185,7 +185,10 @@ export function exportPython(project: Project, result: ExportedRun): string {
   buildProblem(project);
 
   const method = Object.hasOwn(METHODS, result.method) ? METHODS[result.method] : fail("the result names an unknown solver");
-  const settings = resolveSettings(method, result.settings);
+  // Checked like a run, then only the settings the result holds are written. A result stored by
+  // an earlier version lacks the settings that were added since, and the ypea release it names
+  // does not know them.
+  const settings = Object.fromEntries(Object.entries(resolveSettings(method, result.settings)).filter(([key]) => Object.hasOwn(result.settings, key)));
   const all = project.constraints ?? [];
   const scales = result.scales;
   // a constraint that was off has null in the place of its scale

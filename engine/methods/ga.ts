@@ -12,9 +12,9 @@ export const ga: Method = {
   params: {
     pop_size: popSize,
     crossover_prob: { kind: "number", default: 0.7, min: 0, max: 10, help: "Fraction of the population size produced by crossover." },
-    crossover_inflation: { kind: "number", default: 0.1, min: 0, max: 10, help: "Gamma of blend crossover: the mixing weight is drawn from [-gamma, 1 + gamma]." },
+    crossover_inflation: { kind: "number", default: 0.5, min: 0, max: 10, help: "Gamma of blend crossover: the mixing weight is drawn from [-gamma, 1 + gamma]." },
     mutation_prob: { kind: "number", default: 0.3, min: 0, max: 10, help: "Fraction of the population size produced by mutation." },
-    mutation_rate: { kind: "number", default: 0.1, min: 0, max: 1, help: "Fraction of components changed in a mutant." },
+    mutation_rate: { kind: "number", default: 0.1, min: 0, max: 1, help: "Fraction of components changed in a mutant. 0 turns mutation off." },
     mutation_step_size: { kind: "number", default: 0.1, min: 0, max: 10, help: "Standard deviation of the Gaussian mutation, in code units." },
     mutation_step_size_damp: { kind: "number", default: 0.99, min: 1e-9, max: 10, help: "The step size is multiplied by this after every iteration." },
     selection: { kind: "choice", default: "roulettewheel", options: ["roulettewheel", "tournament", "random"], help: "How parents are chosen for crossover." },

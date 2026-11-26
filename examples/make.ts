@@ -73,7 +73,9 @@ mkdirSync(here("data/"), { recursive: true });
     objective: { sense: "max", unit: "$", source: "sum(value * take)" },
     constraints: [{ name: "Total weight", left: "sum(weight * take)", op: "<=", right: "50", unit: "kg" }],
     view: { kind: "selection", variable: "take", size: "weight" },
-    run: { name: "Quick run", method: "ga", settings: { mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 20000, seed: 1 },
+    // crossover_inflation 0.1 is the value this setup was chosen with. The default is now 0.5,
+    // which gives 587 $ in this run and the same spread over 20 runs.
+    run: { name: "Quick run", method: "ga", settings: { crossover_inflation: 0.1, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 20000, seed: 1 },
   }, "items", ["weight", "value"], weight.map((w, i) => [w, value[i]]));
 }
 

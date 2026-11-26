@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.5.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.5.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.6.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.6.0
 #
 # Benchmark functions
 #
@@ -141,6 +141,8 @@ def main():
         wdamp=0.99,
         c1=2,
         c2=2,
+        w_final=None,
+        max_velocity=None,
         max_nfe=20000,  # the budget, in evaluations
     )
     base_seed = 1  # the seed of the experiment in the app
