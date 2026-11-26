@@ -7,7 +7,7 @@ import type { Constraint, DataTable, Project, View } from "../../engine/project.
 import type { VariableSpec } from "../../engine/variables.ts";
 import { tableFromCsv } from "./csv.ts";
 import { EXPERIMENT, FIRST, partOf, show } from "./draft.ts";
-import { CAPACITY_PRESET, capacityConstraint, columnsOf, OBJECTIVE_PRESETS, optionsFor, type Preset } from "./presets.ts";
+import { columnsOf, CONSTRAINT_PRESETS, helpersNote, OBJECTIVE_PRESETS, optionsFor, type Preset, presetConstraint, withHelpers } from "./presets.ts";
 import type { Issue } from "./protocol.ts";
 import { Alert, Disclosure, Select } from "./ui/controls.tsx";
 import { Field, FileButton, issuesAt, Num, parseNumber, Pick, Problems } from "./ui/fields.tsx";
@@ -224,11 +224,17 @@ export const TYPE_LABELS: Record<VariableType, string> = {
   permutation: "An ordering of n items",
   selection: "k items picked out of n, in order",
   binary_selection: "Exactly k of n switched on (0 or 1)",
-  partition: "n items split into k groups",
-  binary_partition: "n items split into k groups, as a table of 0 and 1",
+  partition: "Ordered groups (n items in k groups)",
+  binary_partition: "Groups without order (n items in k groups), as a table of 0 and 1",
   fixed_sum: "Shares of a fixed total",
   fixed_row_sum: "A table in which every row adds up to a fixed total",
   fixed_column_sum: "A table in which every column adds up to a fixed total",
+};
+/** One sentence more for the two types of groups, which are easy to take for each other. */
+const TYPE_HELP: Partial<Record<VariableType, string>> = {
+  partition:
+    "For the routes of several vehicles or the jobs on several machines. An ordering of all items is cut into groups by separators, and the order inside a group counts.",
+  binary_partition: "Only the group of each item counts, not the order inside a group. Row j of the table marks the items of group j with 1.",
 };
 /** How many dimensions the value of each type may have: 0 is one number, 1 a list, 2 a table. */
 const DIMS: Partial<Record<VariableType, number[]>> = {
@@ -277,7 +283,7 @@ export function VariablesPanel({ project, set, issues }: PanelProps) {
             <Problems issues={issues.filter((issue) => issue.where === `variable.${i}`)} />
             <div className="row">
               <Text label="Name" code value={v.name} issues={at("name")} onChange={(name) => change(i, { ...v, name })} />
-              <Field label="What it holds" issues={at("type")} className="grow">
+              <Field label="What it holds" issues={at("type")} hint={TYPE_HELP[v.type]} className="grow">
                 {(tie) => (
                   <Select
                     {...tie} value={v.type} onChange={(type) => change(i, asType(v, type as VariableType))}
@@ -345,27 +351,37 @@ export function VariablesPanel({ project, set, issues }: PanelProps) {
 // Presets
 
 /** A small form that asks for the names a preset needs, and hands them over. */
-function PresetForm({ heading, presets, project, action, onUse }: { heading: string; presets: Preset[]; project: Project; action: string; onUse: (preset: Preset, names: Record<string, string>) => void }) {
+function PresetForm({ heading, presets, project, action, onUse }: { heading: string; presets: Preset[]; project: Project; action: string; onUse: (preset: Preset, names: Record<string, string>, functions: string | undefined) => void }) {
   const [id, setId] = useState(presets[0].id);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState("");
+  const [done, setDone] = useState("");
   const preset = presets.find((p) => p.id === id) ?? presets[0];
+  const typed = (need: Preset["needs"][number]) => need.from === "number" || need.from === "text";
   // every need starts on a name of its own: the second column for the second need that asks for a column
   const names = Object.fromEntries(preset.needs.map((need, n) => {
     const options = optionsFor(project, need.from), nth = preset.needs.slice(0, n).filter((other) => other.from === need.from).length;
     const kept = chosen[`${id}.${need.key}`];
-    return [need.key, kept !== undefined && (need.from === "number" || options.includes(kept)) ? kept : options[nth] ?? options[0] ?? ""];
+    return [need.key, kept !== undefined && (typed(need) || options.includes(kept)) ? kept : options[nth] ?? options[0] ?? need.initial ?? ""];
   }));
   const use = () => {
-    const missing = preset.needs.find((need) => names[need.key].trim() === "");
-    setFailure(missing ? `This preset needs: ${missing.label.toLowerCase()}. ${missing.from === "number" ? "Type a value." : "The project has none yet."}` : "");
-    if (!missing) onUse(preset, names);
+    const missing = preset.needs.find((need) => !need.optional && names[need.key].trim() === "");
+    const problem = missing
+      ? `This preset needs: ${missing.label.toLowerCase()}. ${typed(missing) ? "Type a value." : "The project has none yet."}`
+      : preset.refuse?.(names, project) ?? "";
+    setFailure(problem);
+    setDone("");
+    if (problem) return;
+    // helper functions are only added: a function of the same name that is already there stays as it is
+    const helped = withHelpers(project.functions, preset.helpers?.(names) ?? []);
+    onUse(preset, names, helped.functions);
+    setDone(helpersNote(helped.added, helped.kept));
   };
   return (
     <Disclosure summary={heading}>
       {presets.length > 1 && (
         <Field label="Preset">
-          {(tie) => <Select {...tie} value={id} options={presets.map((p) => ({ value: p.id, label: p.label }))} onChange={(next) => (setId(next), setFailure(""))} />}
+          {(tie) => <Select {...tie} value={id} options={presets.map((p) => ({ value: p.id, label: p.label }))} onChange={(next) => (setId(next), setFailure(""), setDone(""))} />}
         </Field>
       )}
       <p className="hint">{preset.help}</p>
@@ -373,11 +389,15 @@ function PresetForm({ heading, presets, project, action, onUse }: { heading: str
         {preset.needs.map((need) => {
           const pick = (value: string) => setChosen({ ...chosen, [`${id}.${need.key}`]: value });
           return need.from === "number"
-            ? <Field key={need.key} label={need.label} className="narrow">{(tie) => <Num {...tie} value={parseNumber(names[need.key])} onChange={(value) => pick(value === undefined ? "" : String(value))} />}</Field>
-            : <Pick key={need.key} label={need.label} value={names[need.key]} options={optionsFor(project, need.from)} onChange={pick} />;
+            ? <Field key={need.key} label={need.label} hint={need.hint} className="narrow">{(tie) => <Num {...tie} value={parseNumber(names[need.key])} onChange={(value) => pick(value === undefined ? "" : String(value))} />}</Field>
+            : need.from === "text"
+              ? <Text key={need.key} label={need.label} hint={need.hint} value={names[need.key]} className="narrow" onChange={pick} />
+              : <Pick key={need.key} label={need.label} value={names[need.key]} options={optionsFor(project, need.from)} onChange={pick} />;
         })}
       </div>
       {failure && <Alert kind="danger" role="alert">{failure}</Alert>}
+      {/* what the preset did to the functions, which are another part of the project and not on this screen */}
+      {done && <Alert kind="info">{done}</Alert>}
       <p><button type="button" className="btn btn-secondary" onClick={use}>{action}</button></p>
     </Disclosure>
   );
@@ -405,7 +425,8 @@ export function ObjectivePanel({ project, set, issues }: PanelProps) {
       <p className="ok">{issues.length === 0 && <><Icon name="circle-check" />Checked: this gives one number.</>}</p>
       <PresetForm
         heading="Write the expression from a preset" presets={OBJECTIVE_PRESETS} project={project} action="Write the expression"
-        onUse={(preset, names) => change({ source: preset.write(names) })}
+        // one change for the expression and the functions: two would each start from the same project, and the first would be lost
+        onUse={(preset, names, functions) => set({ ...project, functions, objective: { ...objective, source: preset.write(names) } })}
       />
     </section>
   );
@@ -458,8 +479,8 @@ export function ConstraintsPanel({ project, set, issues }: PanelProps) {
       })}
       <p><button type="button" className="btn btn-secondary" onClick={() => add({ name: `Constraint ${constraints.length}`, left: "", op: "<=", right: "" })}><Icon name="plus" />Add a constraint</button></p>
       <PresetForm
-        heading="Add a capacity limit from a preset" presets={[CAPACITY_PRESET]} project={project} action="Add the capacity limit"
-        onUse={(_, names) => add(capacityConstraint(names, project))}
+        heading="Add a constraint from a preset" presets={CONSTRAINT_PRESETS} project={project} action="Add the constraint"
+        onUse={(preset, names, functions) => set({ ...project, functions, constraints: [...constraints, presetConstraint(preset, names, project)] })}
       />
     </section>
   );
@@ -486,6 +507,7 @@ export function FunctionsPanel({ project, set, issues }: PanelProps) {
 
 const DRAWINGS = [
   { value: "", label: "No drawing" }, { value: "route", label: "A route through points" },
+  { value: "routes", label: "Several routes from one depot" },
   { value: "line", label: "A fitted line over data points" }, { value: "selection", label: "Which items are chosen" },
 ];
 
@@ -494,8 +516,10 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
   const columns = columnsOf(project).map((c) => c.name);
   const orderings = project.variables.filter((v) => v.type === "permutation").map((v) => v.name);
   const choices = optionsFor(project, "yes-no-variable");
+  const groups = optionsFor(project, "groups-variable");
   const start = (kind: string): View | undefined =>
     kind === "route" ? { kind, variable: orderings[0] ?? "", x: columns[0] ?? "", y: columns[1] ?? columns[0] ?? "" }
+    : kind === "routes" ? { kind, variable: groups[0] ?? "", x: columns[0] ?? "", y: columns[1] ?? columns[0] ?? "", depot: 0 }
     : kind === "line" ? { kind, x: columns[0] ?? "", y: columns[1] ?? columns[0] ?? "", expression: "" }
     : kind === "selection" ? { kind, variable: choices[0] ?? "" }
     : undefined;
@@ -514,6 +538,19 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
           <Pick label="Column with the x position" value={view.x} options={columns} onChange={(x) => change({ x })} />
           <Pick label="Column with the y position" value={view.y} options={columns} onChange={(y) => change({ y })} />
         </div>
+      )}
+      {view?.kind === "routes" && (
+        <>
+          <p className="hint">Every group is drawn as one route from the depot and back. The two columns hold the depot in one row and the items in the other rows, in their order.</p>
+          <div className="row">
+            <Pick label="Ordered groups variable" value={view.variable} options={groups} onChange={(variable) => change({ variable })} />
+            <Pick label="Column with the x position" value={view.x} options={columns} onChange={(x) => change({ x })} />
+            <Pick label="Column with the y position" value={view.y} options={columns} onChange={(y) => change({ y })} />
+            <Field label="Row of the depot" className="narrow" hint="Rows start at 0.">
+              {(tie) => <Num {...tie} value={view.depot} onChange={(depot) => change({ depot })} />}
+            </Field>
+          </div>
+        </>
       )}
       {view?.kind === "line" && (
         <>

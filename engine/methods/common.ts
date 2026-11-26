@@ -34,7 +34,7 @@ export interface Method {
   name: string;
   /** The ypea class this method must match. */
   ypea: string;
-  /** Kinds of variables the method suits. Others get a warning in the app. */
+  /** Kinds of variables the method suits. For others the app shows a note. */
   suits: VariableKind[];
   params: Record<string, ParamSpec>;
   /** ypea's initialize(): evaluates the first population. Returns ypea's iterate(). */

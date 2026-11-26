@@ -60,7 +60,7 @@ test("every variable type decodes as ypea decodes it", () => {
   }
 });
 
-test("all five worked examples run and report in the user's terms", () => {
+test("the first five worked examples run and report in the user's terms", () => {
   const run = (name: string) => runProject(parseProject(read(`../examples/${name}.json`)));
 
   // the line fit lands close to the least-squares line and far below the current settings
@@ -90,6 +90,37 @@ test("all five worked examples run and report in the user's terms", () => {
   assert.equal(new Set(assignment.best.solution.task as number[]).size, 8);
 
   assert.ok(run("benchmark").best.objective < 1e-6);
+});
+
+test("the vehicle routing example gives feasible routes that are shorter than the plan in use today", () => {
+  const json = read("../examples/vrp.json"), project = parseProject(structuredClone(json));
+  const demand: number[] = json.data[1].columns[0].values, distance: number[][] = json.data[2].values;
+  // the data: a depot and 15 customers, and a limit that matters (the vehicles are about four fifths full)
+  assert.deepEqual([json.data[0].columns[0].values.length, demand.length, distance.length, distance[0].length], [16, 15, 16, 16]);
+  const share = demand.reduce((a, b) => a + b, 0) / (4 * 60);
+  assert.ok(share > 0.7 && share < 0.9, `the demand is ${share} of the capacity`);
+
+  // the plan in use today is a real plan: every customer once, within the limit, and the engine agrees with a count by hand
+  const plan: number[][] = project.baseline!.solution.routes as number[][];
+  assert.deepEqual(plan.flat().sort((a, b) => a - b), demand.map((_, i) => i));
+  const byHand = plan.reduce((total, g) => total + [0, ...g.map((c) => c + 1)].reduce((sum, node, i, path) => sum + distance[node][path[i + 1] ?? 0], 0), 0);
+  const loads = plan.map((g) => g.reduce((sum, c) => sum + demand[c], 0));
+  const today = testCandidate(project, project.baseline!.solution);
+  assert.ok(Math.abs(today.objective - byHand) < 1e-9);
+  assert.deepEqual(today.constraints, [{ name: "Heaviest load", op: "<=", unit: "kg", tolerance: 0, left: Math.max(...loads), right: 60, satisfied: true }]);
+  assert.equal(today.feasible, true);
+
+  // the run of the example: feasible, in kg against the limit, every customer in exactly one route, and shorter than today's plan
+  const result = runProject(project);
+  const [load] = result.best.constraints;
+  assert.equal(result.status, "Best feasible solution found");
+  assert.deepEqual({ name: load.name, op: load.op, right: load.right, unit: load.unit, satisfied: load.satisfied }, { name: "Heaviest load", op: "<=", right: 60, unit: "kg", satisfied: true });
+  const routes = result.best.solution.routes as number[][];
+  assert.equal(routes.length, 4);
+  assert.deepEqual(routes.flat().sort((a, b) => a - b), demand.map((_, i) => i));
+  assert.equal(load.left, Math.max(...routes.map((g) => g.reduce((sum, c) => sum + demand[c], 0))));
+  assert.equal(result.baseline!.feasible, true);
+  assert.ok(result.baseline!.difference < -100, `the difference is ${result.baseline!.difference} km`);
 });
 
 test("a candidate is tested in original units before any run", () => {
@@ -263,6 +294,23 @@ test("a view names real columns and variables, and a fitted line gives its curve
   const knapsack = read("../examples/knapsack.json");
   delete knapsack.view.size;
   assert.equal(parseProject(knapsack).view!.kind, "selection");
+
+  // several routes from one depot: a partition variable, coordinates for the depot and every item, and the row of the depot
+  assert.deepEqual(parseProject(read("../examples/vrp.json")).view, { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0 });
+  assert.equal(buildCurve(parseProject(read("../examples/vrp.json"))), undefined);
+  bad("vrp", (p) => (p.view.variable = "x"), /"view.variable" must be the name of a partition variable/);
+  bad("vrp", (p) => (p.view.y = "demand"), /"view.x" and "view.y" must have the same length, with a row for the depot and one for every item of "routes"/);
+  bad("vrp", (p) => (p.view.x = p.view.y = "demand"), /a row for the depot and one for every item of "routes"/);
+  bad("vrp", (p) => (p.view.x = "distance"), /"view.x" must be the name of a data column/);
+  for (const depot of [-1, 16, 1.5, "0", undefined]) bad("vrp", (p) => (p.view.depot = depot), /"view.depot" must be the row of the depot, a whole number from 0 to 15/);
+  // the depot may be any row, the last one included
+  const last = read("../examples/vrp.json");
+  last.view.depot = 15;
+  assert.equal(parseProject(last).view!.kind, "routes");
+  // the drawing of one route does not take a partition, and the drawing of several does not take a permutation
+  bad("vrp", (p) => (p.view.kind = "route"), /"view.variable" must be the name of a permutation variable/);
+  bad("tsp", (p) => (p.view = { ...p.view, kind: "routes", depot: 0 }), /"view.variable" must be the name of a partition variable/);
+  bad("vrp", (p) => (p.view.kind = "tours"), /"view.kind" must be "route", "routes", "line" or "selection"/);
 });
 
 test("a project carries more experiments, each checked as the run is", () => {

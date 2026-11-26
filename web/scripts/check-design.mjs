@@ -245,10 +245,10 @@ async function walk(browser, size, theme) {
   await page.getByRole("alert").waitFor();
   await audit("project-list-file-refused");
 
-  // the knapsack: a constraint, check boxes, a solver that does not suit, settings, two experiments
+  // the knapsack: a constraint, check boxes, a solver that was designed for other values, settings, two experiments
   await button("0/1 knapsack").click();
   await button("Run").waitFor();
-  // a solver that is not made for yes or no values, to see the note
+  // a solver that was designed for other values than yes or no, to see the note
   await choose(field("Solver"), "pso");
   await page.getByRole("note").waitFor();
   await page.getByText("Settings of").click();
@@ -267,6 +267,28 @@ async function walk(browser, size, theme) {
   await page.getByRole("dialog").waitFor();
   await audit("dialog-delete-experiment");
   await page.keyboard.press("Escape");
+
+  // vehicle routing: ordered groups, the drawing of several routes with its form, and the two presets that write helper functions
+  await toList();
+  await button("Vehicle routing").click();
+  await button("Run").waitFor();
+  await button("Run").click();
+  await page.locator(".result").waitFor();
+  await audit("routes-result");
+  await go("Variables");
+  await audit("routes-ordered-groups");
+  await go("Drawing");
+  await audit("routes-drawing-form");
+  await go("Objective");
+  await page.getByText("Write the expression from a preset").click();
+  await choose(field("Preset"), "routes-length");
+  await button("Write the expression").click();
+  await page.getByText(/^Functions already has route_length, total_length/).waitFor();
+  await audit("routes-objective-preset");
+  await go("Constraints");
+  await page.getByText("Add a constraint from a preset").click();
+  await choose(field("Preset"), "largest-load");
+  await audit("routes-constraint-preset");
 
   // a run that lasts: the live preview, then cancelled
   await toList();

@@ -28,6 +28,11 @@ export interface Constraint {
 export type View =
   /** A closed tour through points whose coordinates are two data columns. */
   | { kind: "route"; variable: string; x: string; y: string }
+  /**
+   * One closed tour per group, each from the depot through its stops and back. The two columns
+   * hold every node: the depot at row `depot`, and the items in the other rows, in their order.
+   */
+  | { kind: "routes"; variable: string; x: string; y: string; depot: number }
   /** The data points, and the curve that the expression gives over the x column. */
   | { kind: "line"; x: string; y: string; expression: string }
   /** Which items are chosen. `size` is a data column that sets the size of each item. */
@@ -232,6 +237,10 @@ export function parseProject(json: unknown): Project {
     if (w.kind === "route") {
       const n = variable(["permutation"], "a permutation variable").shape[0];
       if (column("x") !== column("y") || column("x") < n) fail(`"view.x" and "view.y" must have the same length, with a row for every position of "${w.variable}"`);
+    } else if (w.kind === "routes") {
+      const n = (variable(["partition"], "a partition variable").spec as { n: number }).n;
+      if (column("x") !== column("y") || column("x") < n + 1) fail(`"view.x" and "view.y" must have the same length, with a row for the depot and one for every item of "${w.variable}"`);
+      if (!isCount(w.depot, 0) || w.depot > n) fail(`"view.depot" must be the row of the depot, a whole number from 0 to ${n}`);
     } else if (w.kind === "line") {
       if (column("x") !== column("y")) fail(`"view.x" and "view.y" must have the same length`);
       if (!isText(w.expression)) fail(`"view.expression" must be text`);
@@ -239,7 +248,7 @@ export function parseProject(json: unknown): Project {
       const n = variable(["binary", "binary_selection"], "a list of 0 or 1 values").shape[0];
       if (w.size !== undefined && column("size") !== n) fail(`"view.size" must have one value for every item of "${w.variable}"`);
     } else {
-      fail(`"view.kind" must be "route", "line" or "selection"`);
+      fail(`"view.kind" must be "route", "routes", "line" or "selection"`);
     }
   }
 

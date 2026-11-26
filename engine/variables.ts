@@ -1,5 +1,6 @@
 // The 11 variable types: how each is written in a project file, checked, and decoded from
-// codes in [0, 1]. Decoding follows ypea's variables.py, so both sides give the same values.
+// codes in [0, 1]. Decoding and encoding follow ypea's variables.py, so both sides give the
+// same values.
 
 import { npSum } from "./numpy.ts";
 
@@ -21,6 +22,8 @@ export interface Variable {
   shape: number[];
   /** Decodes into a buffer the variable owns. The result is valid until the next call. */
   decode(codes: Float64Array, offset: number): Value;
+  /** Writes codes that decode to `value`. Only the types that have native operators (operators.ts) offer it. */
+  encode?(value: Value, codes: Float64Array, offset: number): void;
 }
 
 /** Largest number of codes one variable may use. A shared project file is untrusted input. */
@@ -82,6 +85,17 @@ export function makeVariable(raw: any): Variable {
           }
           return out;
         },
+        encode(value, codes, offset) {
+          const v = value as ArrayLike<number>;
+          for (let i = 0; i < size; i++) {
+            const low = at(lb, i), high = at(ub, i);
+            if (integer) codes[offset + i] = (v[i] - low + 0.5) / (high - low + 1);
+            else {
+              const c = (v[i] - low) / (high > low ? high - low : 1);
+              codes[offset + i] = c < 0 ? 0 : c > 1 ? 1 : c;
+            }
+          }
+        },
       });
     }
 
@@ -90,7 +104,7 @@ export function makeVariable(raw: any): Variable {
     case "binary_selection": {
       const n = count("n", 1), k = raw.type === "permutation" ? n : count("k", 1);
       if (k > n) fail(`"k" must be at most "n"`);
-      const order = new Int32Array(n), mask = new Int32Array(n);
+      const order = new Int32Array(n), mask = new Int32Array(n), listed = new Uint8Array(n);
       return sized({
         spec: raw, codeSize: n, shape: [raw.type === "selection" ? k : n],
         decode(codes, offset) {
@@ -99,6 +113,21 @@ export function makeVariable(raw: any): Variable {
           mask.fill(0);
           for (let i = 0; i < k; i++) mask[order[i]] = 1;
           return mask;
+        },
+        encode(value, codes, offset) {
+          // the listed items get the smallest codes, in their order, and the others follow in index order
+          let items = value as Int32Array;
+          if (raw.type === "binary_selection") {
+            // the ones in index order, then the zeros, as a stable sort of the mask gives them
+            items = Int32Array.from({ length: n }, (_, i) => i).sort((i, j) => (value as Int32Array)[j] - (value as Int32Array)[i] || i - j).subarray(0, k);
+          }
+          listed.fill(0);
+          items.forEach((item, t) => {
+            codes[offset + item] = (t + 0.5) / n;
+            listed[item] = 1;
+          });
+          let next = items.length;
+          for (let i = 0; i < n; i++) if (!listed[i]) codes[offset + i] = (next++ + 0.5) / n;
         },
       });
     }

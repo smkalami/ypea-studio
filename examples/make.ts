@@ -6,16 +6,22 @@
 // solvers over 20 runs each. A change here needs the same comparison again.
 
 import { mkdirSync, writeFileSync } from "node:fs";
+import { parseProject } from "../engine/project.ts";
 import { Rng } from "../engine/rng.ts";
+import { testCandidate } from "../engine/run.ts";
 
 const here = (path: string) => new URL(path, import.meta.url);
 const round = (x: number, digits: number) => Number(x.toFixed(digits));
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 const header = { format: "ypea-studio-project", version: 1 };
 
+/** A CSV file of the data folder. Without column names it has no header row, as a matrix is imported. */
+const saveCsv = (csvName: string, columns: string[], rows: number[][]) =>
+  writeFileSync(here(`data/${csvName}.csv`), [...(columns.length ? [columns.join(",")] : []), ...rows.map((r) => r.join(","))].join("\n") + "\n");
+
 function save(name: string, project: object, csvName: string, columns: string[], rows: number[][]) {
   writeFileSync(here(`${name}.json`), JSON.stringify(project, null, 2) + "\n");
-  writeFileSync(here(`data/${csvName}.csv`), [columns.join(","), ...rows.map((r) => r.join(","))].join("\n") + "\n");
+  saveCsv(csvName, columns, rows);
   console.log("wrote", name);
 }
 
@@ -95,7 +101,7 @@ mkdirSync(here("data/"), { recursive: true });
     objective: { sense: "min", unit: "km", source: "sum(distance[route, ops.roll(route, -1)])" },
     baseline: { label: "Nearest-neighbor tour", solution: { route } },
     view: { kind: "route", variable: "route", x: "x", y: "y" },
-    run: { name: "Quick run", method: "sa", settings: { initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
+    run: { name: "Quick run", method: "sa", settings: { space: "native", initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
   }, "cities", ["x", "y"], x.map((v, i) => [v, y[i]]));
 }
 
@@ -114,6 +120,76 @@ mkdirSync(here("data/"), { recursive: true });
     variables: [{ name: "task", type: "permutation", n }],
     objective: { sense: "min", unit: "$", source: "sum(cost[range(8), task])" },
     baseline: { label: "Row-by-row greedy assignment", solution: { task } },
-    run: { name: "Quick run", method: "sa", settings: { initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 20000, seed: 1 },
+    run: { name: "Quick run", method: "sa", settings: { space: "native", initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 20000, seed: 1 },
   }, "cost", range(n).map((t) => `task_${t}`), cost);
+}
+
+// 5. Vehicle routing with a capacity limit
+{
+  // node 0 is the depot, and customer i is node i + 1
+  const rng = new Rng(55), n = 15, vehicles = 4, capacity = 60;
+  const x = range(n + 1).map(() => rng.integers(0, 101)), y = range(n + 1).map(() => rng.integers(0, 101));
+  const demand = range(n).map(() => rng.integers(5, 21));
+  const distance = range(n + 1).map((i) => range(n + 1).map((j) => round(Math.hypot(x[i] - x[j], y[i] - y[j]), 2)));
+  // one vehicle after another: each goes on to the nearest customer that is not served yet and
+  // still fits, and returns to the depot when none fits
+  const routes: number[][] = range(vehicles).map(() => []);
+  const served = new Set<number>();
+  for (const stops of routes) {
+    let at = 0, room = capacity;
+    for (;;) {
+      const open = range(n).filter((c) => !served.has(c) && demand[c] <= room);
+      if (open.length === 0) break;
+      const next = open.reduce((best, c) => (distance[at][c + 1] < distance[at][best + 1] ? c : best));
+      stops.push(next);
+      served.add(next);
+      room -= demand[next];
+      at = next + 1;
+    }
+  }
+  if (served.size !== n) throw new Error("vehicle routing: the greedy plan leaves customers without a vehicle");
+  const project = {
+    ...header,
+    name: "Vehicle routing",
+    description:
+      "Plan the routes of 4 vehicles that leave one depot, serve 15 customers and return, so that the total distance is as small as possible " +
+      "and no vehicle carries more than 60 kg. The data are synthetic.",
+    data: [
+      { name: "nodes", kind: "columns", columns: [{ name: "x", unit: "km", values: x }, { name: "y", unit: "km", values: y }] },
+      { name: "customers", kind: "columns", columns: [{ name: "demand", unit: "kg", values: demand }] },
+      { name: "distance", kind: "matrix", unit: "km", values: distance },
+    ],
+    variables: [{ name: "routes", type: "partition", n, k: vehicles }],
+    functions: [
+      "def route_length(g):",
+      "    if len(g) == 0:",
+      "        return 0",
+      "    return distance[0, g[0] + 1] + sum(distance[g[:-1] + 1, g[1:] + 1]) + distance[g[-1] + 1, 0]",
+      "",
+      "def total_length(groups):",
+      "    total = 0",
+      "    for g in groups:",
+      "        total += route_length(g)",
+      "    return total",
+      "",
+      "def heaviest_load(groups):",
+      "    worst = 0",
+      "    for g in groups:",
+      "        load = sum(demand[g])",
+      "        if load > worst:",
+      "            worst = load",
+      "    return worst",
+      "",
+    ].join("\n"),
+    objective: { sense: "min", unit: "km", source: "total_length(routes)" },
+    constraints: [{ name: "Heaviest load", left: "heaviest_load(routes)", op: "<=", right: String(capacity), unit: "kg" }],
+    baseline: { label: "Nearest customer that still fits, one vehicle after another", solution: { routes } },
+    view: { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0 },
+    run: { name: "Quick run", method: "sa", settings: { initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
+  };
+  // the plan in use today must keep the limit, or the comparison with it means nothing
+  if (!testCandidate(parseProject(structuredClone(project)), { routes }).feasible) throw new Error("vehicle routing: the greedy plan breaks the capacity limit");
+  save("vrp", project, "nodes", ["x", "y"], x.map((v, i) => [v, y[i]]));
+  saveCsv("customers", ["demand"], demand.map((d) => [d]));
+  saveCsv("distance", [], distance);
 }

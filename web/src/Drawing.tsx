@@ -10,6 +10,9 @@ const W = 440, H = 300, PAD = { left: 64, right: 16, top: 16, bottom: 44 };
 const numbers = (value: unknown): number[] | undefined => (Array.isArray(value) && value.every((v) => typeof v === "number") ? value : undefined);
 const short = (value: number) => show(Number(value.toPrecision(3)));
 const unitOf = (unit?: string) => (unit ? ` (${unit})` : "");
+// One kind of line per route, so that routes differ by more than color: solid, long dashes, dots, dash and dot, and two more.
+// shortcut: six kinds of line. From the seventh route on they repeat, and only the legend and the stops tell two such routes apart. Add kinds, or a mark per route, when plans with more routes are common.
+const DASHES = [undefined, "9 5", "2 5", "12 4 2 4", "5 3", "16 4 2 4 2 4"];
 
 /** A linear scale from [low, high] to [from, to]. A flat range lands in the middle. */
 const scale = (low: number, high: number, from: number, to: number) => (v: number) => (high === low ? (from + to) / 2 : from + ((v - low) / (high - low)) * (to - from));
@@ -60,6 +63,55 @@ export function Drawing({ project, solution, curve }: { project: Project; soluti
         <figcaption>
           Round trip through {order.length} points, placed by <code>{view.x}</code> and <code>{view.y}</code>. The square is where the trip starts,
           at point {order[0]}.
+        </figcaption>
+      </figure>
+    );
+  }
+
+  if (view.kind === "routes") {
+    const cx = column(view.x), cy = column(view.y), xs = numbers(cx?.values), ys = numbers(cy?.values);
+    const value = solution[view.variable], depot = view.depot;
+    const groups = Array.isArray(value) && value.every((g) => numbers(g)) ? (value as number[][]) : undefined;
+    // the items skip the row of the depot: item i is row i before it, and row i + 1 from it on
+    const row = (item: number) => item + (item >= depot ? 1 : 0);
+    if (!xs || !ys || !groups || xs[depot] === undefined || ys[depot] === undefined || groups.flat().some((i) => xs[row(i)] === undefined || ys[row(i)] === undefined)) return null;
+    const rows = [depot, ...groups.flat().map(row)], allX = rows.map((r) => xs[r]), allY = rows.map((r) => ys[r]);
+    const spanX = Math.max(...allX) - Math.min(...allX) || 1, spanY = Math.max(...allY) - Math.min(...allY) || 1;
+    const k = Math.min((W - 48) / spanX, (H - 48) / spanY);
+    const px = (r: number) => 24 + (W - 48 - spanX * k) / 2 + (xs[r] - Math.min(...allX)) * k;
+    const py = (r: number) => H - 24 - (H - 48 - spanY * k) / 2 - (ys[r] - Math.min(...allY)) * k;
+    // Lengths are straight lines between the points. The objective may measure another way (a
+    // table of road distances), so the legend says what its number is. A unit only when both columns share it.
+    const unit = cx?.unit && cx.unit === cy?.unit ? ` ${cx.unit}` : "";
+    const used = groups.flatMap((stops, g) => {
+      if (stops.length === 0) return [];
+      const path = [depot, ...stops.map(row), depot];
+      const length = path.slice(1).reduce((sum, r, n) => sum + Math.hypot(xs[r] - xs[path[n]], ys[r] - ys[path[n]]), 0);
+      return [{ g, stops, path, text: `Route ${g}: ${stops.length} ${stops.length === 1 ? "stop" : "stops"}, ${short(length)}${unit} in straight lines` }];
+    });
+    const empty = groups.length - used.length;
+    const words = `${used.length} ${used.length === 1 ? "route" : "routes"} from the depot and back. ${used.map((r) => `${r.text}, in this order: ${r.stops.join(", ")}.`).join(" ")}`;
+    const LINE = 18, bottom = H + used.length * LINE + 8;
+    return (
+      <figure className="drawing">
+        <div className="drawing-box" tabIndex={0} role="group" aria-label="Drawing"><svg viewBox={`0 0 ${W} ${bottom}`} role="img" aria-label={words}>
+          {used.map((r, n) => (
+            <g key={r.g}>
+              <path className="mark-line" strokeDasharray={DASHES[n % DASHES.length]} d={`${r.path.map((node, at) => `${at ? "L" : "M"}${px(node)},${py(node)}`).join(" ")}`} />
+              {/* the legend: the line of the route, and what it is, under the picture */}
+              <path className="mark-line" strokeDasharray={DASHES[n % DASHES.length]} d={`M24,${H + n * LINE + 8} h56`} />
+              <text x={90} y={H + n * LINE + 12}>{r.text}</text>
+            </g>
+          ))}
+          {used.flatMap((r) => r.stops).map((i) => <circle key={i} className="mark-point" cx={px(row(i))} cy={py(row(i))} r={3} />)}
+          <rect className="mark-start" x={px(depot) - 5} y={py(depot) - 5} width={10} height={10} />
+          {rows.length <= 41 && used.flatMap((r) => r.stops).map((i) => <text key={i} className="mark-label" x={px(row(i)) + 6} y={py(row(i)) - 6}>{i}</text>)}
+        </svg></div>
+        <figcaption>
+          Each kind of line is one route: from the depot (the square) through its stops and back. The stops carry the numbers of the items
+          of <code>{view.variable}</code>, placed by <code>{view.x}</code> and <code>{view.y}</code>. The lengths here are straight lines between
+          the points, so they can differ from the objective.
+          {empty > 0 && ` ${empty} of ${groups.length} groups ${empty === 1 ? "is" : "are"} empty and ${empty === 1 ? "is" : "are"} not drawn.`}
         </figcaption>
       </figure>
     );

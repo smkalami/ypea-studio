@@ -11,14 +11,17 @@ to its folder. Cases made that way are marked "(working copy)" and must not be c
 - rng.json: the reference generator alone.
 - numpy.json: how NumPy adds numbers, for engine/numpy.ts.
 - variables.json: ypea's own decoders.
+- encode.json: ypea's own encoders, for the types that have native operators.
+- operators.json: ypea's native operators (ypea.operators), called one at a time.
 - traces/*.json: seeded runs of the real ypea methods with ypea.StudioRng. The runs are
   listed in methods/*.json, one file per method, so a method's cases live with the method.
   Each run is a whole project. Its objective and constraints run as real Python, the way an
   exported script would run them. A run with constraints lists its scales, which the app
   would otherwise take from a random sample.
 
-With arguments, only the traces of the named method files are written, for example
-"make_cases.py de" for methods/de.json.
+With arguments, only the named files are written: the traces of a method file, for example
+"make_cases.py de" for methods/de.json, or one of the files above, for example
+"make_cases.py encode".
 """
 
 import json
@@ -144,6 +147,115 @@ def to_ypea_variable(ypea, v):
     return ypea.FixedSum(name, tuple(v["shape"]), v["target"], axis=axis)
 
 
+def encode_cases():
+    """Values of the types that have native operators, encoded by ypea's own encoders."""
+    ypea = load_ypea()
+    specs = [
+        {"type": "real", "shape": [], "lb": -1, "ub": 3},
+        {"type": "real", "shape": [3], "lb": [0, -5, 2], "ub": [1, 5, 2]},
+        {"type": "real", "shape": [2, 3], "lb": -10, "ub": 10},
+        {"type": "integer", "shape": [4], "lb": -2, "ub": 5},
+        {"type": "integer", "shape": [4], "lb": [0, 0, -4, 3], "ub": [0, 1, 40, 9]},
+        {"type": "integer", "shape": [], "lb": 7, "ub": 7},
+        {"type": "binary", "shape": [6]},
+        {"type": "binary", "shape": []},
+        {"type": "permutation", "n": 7},
+        {"type": "permutation", "n": 1},
+        {"type": "selection", "n": 7, "k": 3},
+        {"type": "selection", "n": 5, "k": 1},
+        {"type": "selection", "n": 4, "k": 4},
+        {"type": "binary_selection", "n": 7, "k": 3},
+        {"type": "binary_selection", "n": 5, "k": 1},
+        {"type": "binary_selection", "n": 4, "k": 4},
+    ]
+    rng = StudioRng(2027)
+    cases = []
+    for spec in specs:
+        var = to_ypea_variable(ypea, {"name": "v", **spec})
+        d = var.code_size
+        # the values of random codes, of coarse codes (ties), and of both ends of every range
+        values = var.decode(np.vstack([rng.random((5, d)), np.round(rng.random((3, d)), 1), np.zeros((1, d)), np.ones((1, d))]))
+        cases.append({"variable": {"name": "v", **spec}, "values": values.tolist(), "encoded": var.encode(values).tolist()})
+    write("encode.json", {"cases": cases})
+
+
+def operator_cases():
+    """ypea's native operators, each called alone on a fresh generator. "next" is the draw
+    that follows the call, so the number of draws an operator uses is tested too."""
+    ypea = load_ypea()
+    from ypea import operators as ops
+
+    src = StudioRng(31)
+    seed = 1000
+
+    # the crossovers of two orderings, at every pair of cut points
+    orderings = []
+    for m in (1, 2, 5, 7):
+        for _ in range(2):
+            p1, p2 = src.permutation(m), src.permutation(m)
+            for name in ("order_crossover", "pmx", "cycle_crossover"):
+                orderings.append({"name": name, "p1": p1.tolist(), "p2": p2.tolist(), "children": [
+                    [i, j, getattr(ops, name)(p1, p2, i, j).tolist()] for i in range(m + 1) for j in range(i, m + 1)]})
+
+    # the moves of one ordering, at every pair of distinct positions
+    moves = []
+    x = src.permutation(6)
+    for name in ("swap", "inversion", "insertion", "scramble"):
+        for i in range(6):
+            for j in range(6):
+                if i != j:
+                    seed += 1
+                    rng = StudioRng(seed)
+                    moves.append({"name": name, "x": x.tolist(), "i": i, "j": j, "seed": seed,
+                                  "result": getattr(ops, name)(x, i, j, rng).tolist(), "next": rng.random()})
+
+    arrays = []
+    for name in ("uniform_crossover", "one_point_crossover"):
+        for shape in ((5, 6), (4, 2), (3, 1)):
+            x1, x2 = src.integers(100, size=shape), src.integers(100, size=shape)
+            seed += 1
+            rng = StudioRng(seed)
+            y1, y2 = getattr(ops, name)(x1, x2, rng)
+            arrays.append({"name": name, "x1": x1.tolist(), "x2": x2.tolist(), "seed": seed,
+                           "result": [y1.tolist(), y2.tolist()], "next": rng.random()})
+
+    # the default operators of every type, with the edges of each: one element, equal bounds,
+    # k = 1, k = n, and a step size that lands on a half (0.1 * 25)
+    specs = [
+        ({"type": "real", "shape": [], "lb": -1, "ub": 3}, {}),
+        ({"type": "real", "shape": [3], "lb": [0, -5, 2], "ub": [1, 5, 2]}, {"alpha": 0.3, "rate": 0.5, "sigma": 0.4}),
+        ({"type": "real", "shape": [2, 3], "lb": -10, "ub": 10}, {"rate": 0, "sigma": 0.2}),
+        ({"type": "integer", "shape": [2, 2], "lb": -2, "ub": 5}, {}),
+        ({"type": "integer", "shape": [5], "lb": -3, "ub": 22}, {"rate": 0.6, "sigma": 0.1}),
+        ({"type": "integer", "shape": [4], "lb": [0, 0, -4, 3], "ub": [0, 1, 40, 9]}, {"rate": 1, "sigma": 0.3}),
+        ({"type": "integer", "shape": [], "lb": 7, "ub": 7}, {}),
+        ({"type": "binary", "shape": [6]}, {}),
+        ({"type": "binary", "shape": []}, {"rate": 1}),
+        ({"type": "permutation", "n": 7}, {}),
+        ({"type": "permutation", "n": 2}, {}),
+        ({"type": "permutation", "n": 1}, {}),
+        ({"type": "selection", "n": 7, "k": 3}, {}),
+        ({"type": "selection", "n": 5, "k": 1}, {}),
+        ({"type": "selection", "n": 4, "k": 4}, {}),
+        ({"type": "selection", "n": 1, "k": 1}, {}),
+        ({"type": "binary_selection", "n": 7, "k": 3}, {}),
+        ({"type": "binary_selection", "n": 5, "k": 1}, {}),
+        ({"type": "binary_selection", "n": 4, "k": 4}, {}),
+    ]
+    defaults = []
+    for spec, params in specs:
+        var = to_ypea_variable(ypea, {"name": "v", **spec})
+        op = ops.default_operators(var, **params)
+        x1, x2 = var.decode(src.random((8, var.code_size))), var.decode(src.random((8, var.code_size)))
+        for method in ("crossover", "mutate"):
+            seed += 1
+            rng = StudioRng(seed)
+            result = op.crossover(x1, x2, rng) if method == "crossover" else (op.mutate(x1, rng),)
+            defaults.append({"variable": {"name": "v", **spec}, "params": params, "method": method, "seed": seed,
+                             "x1": x1.tolist(), "x2": x2.tolist(), "result": [y.tolist() for y in result], "next": rng.random()})
+    write("operators.json", {"orderings": orderings, "moves": moves, "arrays": arrays, "defaults": defaults})
+
+
 def python_objective(project, scales):
     """The project's objective as an exported script would define it for ypea: the user's text
     runs unchanged in real Python, with the data as NumPy arrays and `ops` from spec/language.
@@ -211,8 +323,10 @@ def method_cases(only):
 
 
 (HERE / "traces").mkdir(exist_ok=True)
-if not sys.argv[1:]:
-    rng_cases()
-    numpy_cases()
-    variable_cases()
-method_cases(sys.argv[1:])
+FILES = {"rng": rng_cases, "numpy": numpy_cases, "variables": variable_cases, "encode": encode_cases, "operators": operator_cases}
+for name, make in FILES.items():
+    if not sys.argv[1:] or name in sys.argv[1:]:
+        make()
+methods = [name for name in sys.argv[1:] if name not in FILES]
+if methods or not sys.argv[1:]:
+    method_cases(methods)

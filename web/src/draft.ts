@@ -126,7 +126,7 @@ export const KIND_WORDS: Record<VariableKind, string> = {
   real: "decimal numbers", integer: "whole numbers", binary: "yes or no values", ordering: "orderings and groups",
 };
 
-/** The kinds of variables in the project that the solver is not made for. */
+/** The kinds of variables in the project that the solver was not designed for. It may still do well on them. */
 export function unsuited(project: Project, methodId: string): VariableKind[] {
   const method = Object.hasOwn(METHODS, methodId) ? METHODS[methodId] : undefined;
   if (!method) return [];

@@ -123,6 +123,7 @@
     "name": "Quick run",
     "method": "sa",
     "settings": {
+      "space": "native",
       "initial_temp": 10,
       "final_temp": 0.01,
       "mutation_step_size": 0.3,

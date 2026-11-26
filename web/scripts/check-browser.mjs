@@ -9,7 +9,7 @@ import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { parseProject } from "../../engine/project.ts";
-import { testCandidate } from "../../engine/run.ts";
+import { runProject, testCandidate } from "../../engine/run.ts";
 
 const dist = new URL("../dist/", import.meta.url);
 const example = async (name) => JSON.parse(await readFile(new URL(`../../examples/${name}.json`, import.meta.url), "utf8"));
@@ -17,6 +17,7 @@ const csv = (name) => fileURLToPath(new URL(`../../examples/data/${name}.csv`, i
 const benchmark = await example("benchmark");
 const linefit = await example("linefit");
 const tsp = await example("tsp");
+const vrp = await example("vrp");
 // The bundled benchmark finishes in a few milliseconds, so the cancel check needs a run that lasts.
 // The engine reports progress only when the best improves. With 100 values the best keeps
 // improving for millions of evaluations (with 10 it stops after 36,000, with 1000 it starts late).
@@ -280,6 +281,44 @@ async function check(browser, prefix) {
   say("route: the result draws the round trip, and the drawing changes while a run improves it");
   await toList();
 
+  // The vehicle routing example: several routes from one depot, with a capacity limit in kg.
+  await button("Vehicle routing").click();
+  await heading("Vehicle routing").waitFor();
+  await button("Run").click();
+  await finished();
+  const routed = await result.innerText();
+  const expected = runProject(parseProject(vrp));
+  assert.match(routed, /Best feasible solution found\./);
+  assert.ok(routed.includes(`Objective (minimized)\n${shown(expected.best.objective)} km`));
+  assert.ok(routed.includes(`In use today: Nearest customer that still fits, one vehicle after another\n${shown(expected.baseline.objective)} km`));
+  assert.match(routed, /Difference from what is in use today\s+-[\d.]+ km \([\d.]+% lower\), which is better/);
+  const load = routed.match(/Heaviest load\s+(\d+) kg\s+at most 60 kg\s+Yes/)[1];
+  assert.equal(Number(load), expected.best.constraints[0].left);
+  // every route that is used has its own kind of line, and the legend says its stops and its length
+  const drawnRoutes = /^(\d) routes from the depot and back\.( Route \d: \d+ stops?, [\d.]+ km in straight lines, in this order: [\d, ]+\.)+$/;
+  const picture = result.getByRole("img", { name: drawnRoutes });
+  await picture.waitFor();
+  const used = Number((await picture.getAttribute("aria-label")).match(drawnRoutes)[1]);
+  const lines = await picture.locator("path.mark-line").evaluateAll((paths) => paths.map((path) => path.getAttribute("stroke-dasharray") ?? "solid"));
+  // each route is drawn twice with the same kind of line: once in the picture, and once in the legend
+  assert.equal(lines.length, 2 * used);
+  assert.equal(new Set(lines).size, used);
+  assert.equal(await picture.locator("text").filter({ hasText: /^Route \d: \d+ stops?, [\d.]+ km in straight lines$/ }).count(), used);
+  assert.match(await result.locator("figcaption").first().innerText(), /^Each kind of line is one route: from the depot \(the square\) through its stops and back\./);
+  await shot("09-vehicle-routing-result");
+  await toList();
+  await projectFile.setInputFiles({ name: "routes.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...vrp, name: "Long routes", run: { ...vrp.run, budget: 2_000_000_000 } })) });
+  await heading("Long routes").waitFor();
+  await button("Run").click();
+  const liveRoutes = page.locator(".live").getByRole("img", { name: /routes? from the depot and back\./ });
+  await liveRoutes.waitFor();
+  const plan = await liveRoutes.getAttribute("aria-label");
+  await page.waitForFunction((label) => document.querySelector(".live svg")?.getAttribute("aria-label") !== label, plan);
+  await button("Cancel").click();
+  await status.filter({ hasText: "Run cancelled." }).waitFor();
+  say(`vehicle routing: ${shown(expected.best.objective)} km against ${shown(expected.baseline.objective)} km in use today, the heaviest load is ${load} kg of at most 60 kg, ${used} routes are drawn with ${used} kinds of line, and the drawing changes while a run improves it`);
+  await toList();
+
   // 8. The line fit, built from a blank project with its own CSV.
   await button("New blank project").click();
   await heading("Untitled project").waitFor();
@@ -423,10 +462,11 @@ async function check(browser, prefix) {
   await button("Write the expression").click();
   assert.equal(await field("Expression").inputValue(), "sum(value * take)");
   await side("Constraints").click();
-  await page.getByText("Add a capacity limit from a preset").click();
+  await page.getByText("Add a constraint from a preset").click();
+  assert.deepEqual(await choices(field("Preset")), ["Capacity limit", "Largest load of a group at most a limit"]);
   await choose(field("Size of each item (data column)"), "weight");
   await field("Limit").fill("50");
-  await button("Add the capacity limit").click();
+  await button("Add the constraint").click();
   assert.deepEqual(
     [await field("Name", card(0)).inputValue(), await field("Left side").inputValue(), await chosen(field("Comparison")), await field("Right side").inputValue(), await field("Unit", card(0)).inputValue()],
     ["Total weight", "sum(weight * take)", "<=", "50", "kg"],
@@ -445,10 +485,15 @@ async function check(browser, prefix) {
   await tested.filter({ hasText: /Objective \(to maximize\)\s*86 \$.*Total weight\s*2 kg\s*at most 50 kg\s*Yes/ }).waitFor();
   say('knapsack: the presets wrote "sum(value * take)" and the constraint "Total weight": sum(weight * take) <= 50 kg');
 
-  // the first experiment uses the default solver, which is not made for yes or no values: a note, not a block
+  // the first experiment uses the default solver, which was designed for other values: a calm note, not a warning and not a block
   await side("Quick run").click();
   const note = page.getByRole("note");
-  assert.match(await note.innerText(), /^Note: Particle Swarm Optimization is not made for yes or no values, which this project has\. It will run, but it may give a weak result\. Solvers that suit every variable of this project: Random Search, Genetic Algorithm, Simulated Annealing\.$/);
+  assert.equal(
+    (await note.innerText()).replace(/\s+/g, " "),
+    "Note: Particle Swarm Optimization was designed for decimal numbers. This project has yes or no values, and the solver may still work well on them. " +
+    "Solvers designed for every kind of value in this project: Random Search, Genetic Algorithm, Simulated Annealing.",
+  );
+  assert.equal(await note.getAttribute("class"), "alert alert-neutral ");
   await field("Name of the experiment").fill("PSO quick run");
   // a second experiment, as a copy with another solver and one of its settings changed
   await button("New experiment").click();
@@ -496,7 +541,7 @@ async function check(browser, prefix) {
   await side("PSO quick run").click();
   assert.equal(await result.innerText(), pso);
   await shot("06-knapsack-experiments");
-  say(`knapsack ran twice. GA run: ${value} with total weight ${weight} of at most 50 kg. PSO quick run keeps its own result, with the note that the solver does not suit yes or no values`);
+  say(`knapsack ran twice. GA run: ${value} with total weight ${weight} of at most 50 kg. PSO quick run keeps its own result, with the note that the solver was designed for other values and may still work well`);
 
   // Run again with a new seed belongs to the experiment: it moves the seed and replaces that result only
   await side("GA run").click();
@@ -515,6 +560,102 @@ async function check(browser, prefix) {
   await saved();
   await shot("07-ga-result");
   say("run again with a new seed: the GA run now has seed 2. An edit after a run is noted next to the result");
+
+  // Vehicle routing, built from a blank project: ordered groups, and the two presets that write helper functions.
+  await toList();
+  await blank("My routes");
+  await side("Data").click();
+  await page.locator("#csv-table").setInputFiles(csv("nodes"));
+  await field("Unit of column 0", card(0)).fill("km");
+  await field("Unit of column 1", card(0)).fill("km");
+  await page.locator("#csv-table").setInputFiles(csv("customers"));
+  await field("Unit of column 0", card(1)).fill("kg");
+  await page.locator("#csv-matrix").setInputFiles(csv("distance"));
+  await page.getByText("A matrix of 16 rows and 16 columns.").waitFor();
+  await side("Variables").click();
+  await button("Add a variable").click();
+  await field("Name", card(0)).fill("routes");
+  const kinds = await choices(field("What it holds", card(0)));
+  assert.ok(kinds.includes("Ordered groups (n items in k groups)") && kinds.includes("Groups without order (n items in k groups), as a table of 0 and 1"));
+  await choose(field("What it holds", card(0)), "partition");
+  await card(0).getByText("For the routes of several vehicles or the jobs on several machines. An ordering of all items is cut into groups by separators, and the order inside a group counts.").waitFor();
+  await field("Number of items (n)", card(0)).fill("15");
+  await field("Number of groups (k)", card(0)).fill("4");
+  await shot("10-ordered-groups-variable");
+  await side("Objective").click();
+  await field("Unit").fill("km");
+  await page.getByText("Write the expression from a preset").click();
+  await choose(field("Preset"), "routes-length");
+  assert.deepEqual([await chosen(field("Ordered groups variable")), await chosen(field("Distance table (matrix)")), await field("Row of the depot").inputValue()], ["routes", "distance", "0"]);
+  // a row that the table does not have is refused, and nothing is written
+  await field("Row of the depot").fill("16");
+  await button("Write the expression").click();
+  await alert.filter({ hasText: "The row of the depot must be a whole number from 0 to 15." }).waitFor();
+  assert.equal(await field("Expression").inputValue(), "");
+  await field("Row of the depot").fill("0");
+  await button("Write the expression").click();
+  assert.equal(await field("Expression").inputValue(), "total_length(routes)");
+  await page.getByText("Added to Functions: route_length, total_length.", { exact: true }).waitFor();
+  await page.locator(".ok").filter({ hasText: "Checked: this gives one number." }).waitFor();
+  await shot("11-routes-preset");
+  // the functions are ordinary text. One is changed by hand, and the preset then leaves it alone
+  await side("Functions").click();
+  const helpers = vrp.functions.slice(0, vrp.functions.indexOf("def heaviest_load")).trimEnd() + "\n";
+  assert.equal(await field("Function definitions").inputValue(), helpers);
+  const own = helpers.replace("total += route_length(g)", "total += 2 * route_length(g)");
+  await field("Function definitions").fill(own);
+  await side("Objective").click();
+  await page.getByText("Write the expression from a preset").click();
+  await choose(field("Preset"), "routes-length");
+  await button("Write the expression").click();
+  await page.getByText("Functions already has route_length, total_length, which were kept as they are. Check that they do what this preset expects.", { exact: true }).waitFor();
+  await side("Functions").click();
+  assert.equal(await field("Function definitions").inputValue(), own);
+  await field("Function definitions").fill(helpers);
+  await side("Constraints").click();
+  await page.getByText("Add a constraint from a preset").click();
+  await choose(field("Preset"), "largest-load");
+  assert.deepEqual([await chosen(field("Ordered groups variable")), await chosen(field("Load of each item (data column)"))], ["routes", "x"]);
+  await choose(field("Load of each item (data column)"), "demand");
+  await field("Limit").fill("60");
+  await button("Add the constraint").click();
+  await page.getByText("Added to Functions: heaviest_load.", { exact: true }).waitFor();
+  assert.deepEqual(
+    [await field("Name", card(0)).inputValue(), await field("Left side").inputValue(), await chosen(field("Comparison")), await field("Right side").inputValue(), await field("Unit", card(0)).inputValue()],
+    ["Largest load", "heaviest_load(routes)", "<=", "60", "kg"],
+  );
+  await side("Functions").click();
+  // the text the presets wrote is the text of the worked example
+  assert.equal(await field("Function definitions").inputValue(), vrp.functions);
+  await side("Drawing").click();
+  assert.ok((await choices(field("What to draw"))).includes("Several routes from one depot"));
+  await choose(field("What to draw"), "routes");
+  assert.deepEqual(
+    [await chosen(field("Ordered groups variable")), await chosen(field("Column with the x position")), await chosen(field("Column with the y position")), await field("Row of the depot").inputValue()],
+    ["routes", "x", "y", "0"],
+  );
+  // a row that the columns do not have shows the engine's message
+  await field("Row of the depot").fill("16");
+  await page.locator(".problems").filter({ hasText: '"view.depot" must be the row of the depot, a whole number from 0 to 15' }).waitFor();
+  await field("Row of the depot").fill("0");
+  await page.locator(".problems").waitFor({ state: "detached" });
+  await shot("12-routes-drawing-form");
+  // the plan of the example, typed by hand, gives the value the engine gives
+  await side("Test a candidate").click();
+  await page.getByLabel(/^routes/).fill(vrp.baseline.solution.routes.map((group) => group.join(", ")).join("\n"));
+  await button("Test this candidate").click();
+  await tested.filter({ hasText: new RegExp(`Objective \\(to minimize\\)\\s*${shown(expected.baseline.objective).replace(".", "\\.")} km`) }).waitFor();
+  await tested.getByRole("img", { name: drawnRoutes }).waitFor();
+  // the default solver of a blank project, with the same definition as the example, gives the same routes as the engine
+  await button("Run").click();
+  await finished();
+  const mineRouted = await result.innerText();
+  const byEngine = runProject(parseProject({ ...vrp, run: { method: "pso", settings: {}, budget: 20000, seed: 1 } }));
+  assert.ok(mineRouted.includes(`Objective (minimized)\n${shown(byEngine.best.objective)} km`));
+  assert.match(mineRouted, /Largest load\s+\d+ kg\s+at most 60 kg\s+Yes/);
+  await result.getByRole("img", { name: drawnRoutes }).waitFor();
+  await saved();
+  say(`ordered groups from a blank project: the presets wrote "total_length(routes)", the constraint "Largest load": heaviest_load(routes) <= 60 kg, and the three helper functions of the example. A function changed by hand was kept. The run gives ${shown(byEngine.best.objective)} km, as the engine does`);
 
   // 10. Code that takes too long is stopped, by ending its worker.
   await toList();
@@ -542,7 +683,7 @@ async function check(browser, prefix) {
   assert.equal(await page.locator("main h2").first().innerText(), "Your projects");
   // the theme chosen at the start is still applied after the reload
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
-  assert.equal(await page.locator("table.projects tbody tr").count(), 7);
+  assert.equal(await page.locator("table.projects tbody tr").count(), 10);
   await button("New blank project").waitFor();
   await fromList("Benchmark functions");
   await result.waitFor();
@@ -577,9 +718,9 @@ async function check(browser, prefix) {
   assert.deepEqual(file.experiments, [{ id: "e2", name: "GA run", method: "ga", settings: { pop_size: 50 }, budget: 20000, seed: 2 }]);
   assert.equal(parseProject(file).name, "My knapsack");
   await shot("08-after-reload");
-  say("after a hard reload: 7 projects listed first, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, and each experiment of the knapsack keeps its own result");
+  say("after a hard reload: 10 projects listed first, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, and each experiment of the knapsack keeps its own result");
 
-  assert.equal(runWorkers, 9, "one worker per run");
+  assert.equal(runWorkers, 12, "one worker per run");
   assert.deepEqual(problems, []);
   say(`${runWorkers} run workers and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
   await context.close();

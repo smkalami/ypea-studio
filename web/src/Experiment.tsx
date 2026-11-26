@@ -14,6 +14,8 @@ import { Icon } from "./ui/Icon.tsx";
 
 const methodOf = (id: string) => (Object.hasOwn(METHODS, id) ? METHODS[id] : undefined);
 export const solverName = (id: string) => methodOf(id)?.name ?? id;
+/** "a", "a and b", "a, b and c". */
+const listed = (words: string[]) => (words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`);
 
 interface FormProps {
   project: Project;
@@ -75,9 +77,13 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
         </Field>
       </div>
       {method && poor.length > 0 && (
-        <Alert kind="warning" role="note">
-          <strong>Note:</strong> {method.name} is not made for {poor.map((kind) => KIND_WORDS[kind]).join(" or ")}, which this project has. It will
-          run, but it may give a weak result. {suited.length > 0 && <>Solvers that suit every variable of this project: {suited.join(", ")}.</>}
+        // a calm note, not a warning: solvers designed for decimal numbers have done well on other kinds of values
+        <Alert kind="neutral" role="note">
+          <strong>Note:</strong> {method.name} was designed for {listed(method.suits.map((kind) => KIND_WORDS[kind]))}. This project
+          has {listed(poor.map((kind) => KIND_WORDS[kind]))}, and the solver may still work well on them.{" "}
+          {suited.length > 0
+            ? <>Solvers designed for every kind of value in this project: {suited.join(", ")}.</>
+            : <>No solver was designed for every kind of value in this project.</>}
         </Alert>
       )}
       {method && (
