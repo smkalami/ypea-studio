@@ -8,6 +8,7 @@
 // policy that forbids scripts and every request, as a second lock behind the escaping.
 
 import type { Comparison } from "../engine/compare.ts";
+import { gap, measure, type Op } from "../engine/constraints.ts";
 import { METHODS } from "../engine/methods/index.ts";
 import type { DataTable, PlainSolution, Project } from "../engine/project.ts";
 import type { RunResult } from "../engine/run.ts";
@@ -33,8 +34,8 @@ const DATA_ROWS = 5, DATA_COLUMNS = 8, LIST_VALUES = 60, LIST_LINES = 30;
 
 // The few values the report needs from the design tokens of the app, copied here because the
 // report must be one file that depends on nothing. Light and dark on a screen, light on paper.
-// The block holds no text from a project. The app reads the rules of the drawings from it for a
-// chart that is saved as a file of its own, so each of those rules stays on one line.
+// The block holds no text from a project. A drawing carries its own colors, the light ones, so
+// the block has no rule for the inside of a drawing, and the ground under one is always light.
 export const STYLE = html`
 :root { color-scheme: light; --ink: #0f172a; --ink-2: #334155; --ink-3: #475569; --line: #e2e8f0; --control-border: #64748b; --surface: #ffffff; --surface-2: #f8fafc; --accent: #2563eb; --accent-ink: #1d4ed8; --success-ink: #15803d; --danger-ink: #b91c1c; --warning-soft: #fffbeb; --warning-line: #fde68a; }
 @media screen and (prefers-color-scheme: dark) {
@@ -72,23 +73,9 @@ pre { margin: 0 0 14px; padding: 14px; background: var(--surface-2); border: 1px
 .lines { margin: 0; padding: 0; list-style: none; }
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 27.5rem), 1fr)); gap: 22px; margin-block: 14px; }
 figure { min-inline-size: 0; max-inline-size: 34rem; margin: 0; }
-.figure-box { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.figure-box { overflow-x: auto; background: #ffffff; border: 1px solid var(--line); border-radius: 10px; }
 svg { display: block; inline-size: 100%; min-inline-size: 27.5rem; block-size: auto; }
 figcaption { margin-block-start: 4px; }
-svg text { font-family: inherit; font-size: 12px; fill: var(--ink-3); }
-.axes line { stroke: var(--control-border); stroke-width: 1; }
-.axes line.grid { stroke: var(--line); stroke-dasharray: 3 3; }
-.axes text.title { fill: var(--ink); }
-.mark-line { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linejoin: round; }
-.mark-line.thin { stroke-width: 1; }
-.mark-line.not-result { stroke: var(--ink-3); stroke-dasharray: 6 4; }
-.band { fill: var(--accent); fill-opacity: 0.16; stroke: none; }
-.mark-point { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
-.mark-point.hollow { fill: var(--surface); stroke: var(--ink); }
-.mark-start { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
-.mark-item { fill: var(--surface); stroke: var(--control-border); stroke-width: 1; }
-.mark-item.chosen { fill: var(--accent-ink); stroke: var(--accent-ink); }
-.mark-check { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 footer { margin-block-start: 34px; padding-block-start: 14px; border-block-start: 1px solid var(--line); }
 @media screen and (max-width: 650px) {
   main { padding-inline: 16px; }
@@ -155,6 +142,53 @@ export function difference(value: unknown, other: { objective: unknown; differen
   // "better" and "worse" are said only of two feasible solutions: a value that breaks a constraint is not a result
   const verdict = !feasible || other.feasible === false ? "" : `, which is ${(d < 0) === (sense === "min") ? "better" : "worse"}`;
   return `${withUnit(d, unit)}${percent === undefined ? "" : ` (${show(Number(Math.abs(percent).toPrecision(3)))}% ${d < 0 ? "lower" : "higher"})`}${verdict}`;
+}
+
+/** What `breach` and `ruleWords` read of a constraint. An entry of a result fits, also one stored before the tolerances and the switch existed. */
+export interface ConstraintSeen {
+  op: string;
+  unit?: string;
+  tolerance?: unknown;
+  relativeTolerance?: unknown;
+  /** False when the constraint was off. */
+  applied?: unknown;
+  left?: unknown;
+  right?: unknown;
+  satisfied?: unknown;
+}
+
+const amount = (v: unknown) => (typeof v === "number" && v > 0 ? v : 0);
+
+/**
+ * The rule that judges a constraint, in words: "Exact", or what the two sides of an "equal to"
+ * constraint may differ by, with both tolerance values as they are stored. The app shows the same words.
+ */
+export function ruleWords(c: ConstraintSeen): string {
+  const fixed = amount(c.tolerance), relative = amount(c.relativeTolerance);
+  if (c.op !== "==" || (fixed === 0 && relative === 0)) return "Exact";
+  const parts = [fixed > 0 && withUnit(fixed, c.unit), relative > 0 && `${show(Number((relative * 100).toPrecision(12)))}% of the size of the right side`].filter(Boolean);
+  const idle = relative > 0 && c.right === 0 ? ". The right side is 0 here, so the relative tolerance adds nothing" : "";
+  return `The two sides may differ by ${parts.join(" plus ")} (tolerance ${fixed}, relative tolerance ${relative})${idle}`;
+}
+
+/**
+ * How a constraint is broken, for display: the difference between its two sides in its own
+ * unit, and that difference as a percentage of the limit (the right side), which is left out
+ * when the limit is 0. "Over by 3 kg (6% of the limit)" for "at most", "Short by" for "at
+ * least", "Apart by" for "equal to". "None" when the constraint holds. A constraint that was
+ * off was not checked, and the words say that. The app shows the same words.
+ */
+export function breach(c: ConstraintSeen): string {
+  if (c.applied === false) return "Not checked: the constraint was off";
+  const { left, right } = c, numbers = typeof left === "number" && typeof right === "number";
+  const op = c.op as Op, fixed = amount(c.tolerance), relative = amount(c.relativeTolerance);
+  // the verdict of the result when it is there, so that the words never disagree with it
+  const holds = typeof c.satisfied === "boolean" ? c.satisfied : numbers && gap(op, left, right, fixed, relative) <= 0;
+  if (holds) return "None";
+  if (!numbers || !Number.isFinite(left - right)) return "Not available: a side is not a number";
+  const { difference, differencePercent } = measure(op, left, right, fixed, relative);
+  const word = op === "<=" ? "Over" : op === ">=" ? "Short" : "Apart";
+  return `${word} by ${withUnit(Math.abs(difference), c.unit)}${differencePercent === undefined ? "" : ` (${show(Number(differencePercent.toPrecision(3)))}% of the limit)`}`;
 }
 
 /** A value of a variable or of a setting: a number, a list cut after its first values, or rows and groups on lines of their own. */
@@ -230,6 +264,9 @@ export function reportHtml(input: ReportInput): string {
   const experiment = input.experiment ?? project.run.name;
   const finished = dateText(input.finished);
   const constraints = project.constraints ?? [];
+  // every constraint of the run, on or off. A result stored before that list existed has only the applied ones.
+  const checks: (ConstraintSeen & { name?: string })[] = Array.isArray(best.checks) ? best.checks : (best.constraints ?? []);
+  const off = checks.filter((k) => k.applied === false);
   let drawing: Markup | undefined;
   try {
     drawing = problemDrawing(project, best.solution, "drawing-title", input.curve);
@@ -258,6 +295,7 @@ ${project.description && html`<p class="lead">${project.description}</p>`}
 <h2>Result</h2>
 <p class="outcome">${feasible ? "Best feasible solution found." : "No feasible solution found."}</p>
 ${!feasible && html`<p class="note warning"><strong>Not feasible:</strong> the solution below is the candidate that breaks the constraints least. It is not a solution of the problem.</p>`}
+${off.length > 0 && html`<p class="note warning"><strong>Not checked:</strong> ${off.length === 1 ? "one constraint was" : `${off.length} constraints were`} turned off in this run (${off.map((k) => `"${k.name}"`).join(", ")}). The result does not say whether ${off.length === 1 ? "it holds" : "they hold"}.</p>`}
 <dl class="facts">
 <dt>Objective (${sense === "min" ? "minimized" : "maximized"})</dt><dd class="value">${withUnit(best.objective, unit)}${!feasible && " (not feasible)"}</dd>
 ${baseline && html`<dt>In use today (baseline): ${baseline.label}</dt><dd>${withUnit(baseline.objective, unit)}${baseline.feasible === false && " (it breaks a constraint)"}</dd>
@@ -269,11 +307,14 @@ ${reference && html`<dt>Known answer (reference): ${reference.label ?? "referenc
 </dl>
 <p class="note">This is one run of a randomized solver (${solverName(result.method)}) with a recorded seed (base seed ${seed.base}, run ${seed.runIndex}). A run with another seed can give a different answer.</p>
 
-${best.constraints.length > 0 && html`<h3>Constraints</h3>
+${checks.length > 0 && html`<h3>Constraints</h3>
 <table>
-<thead><tr><th scope="col">Constraint</th><th scope="col">Value</th><th scope="col">Limit</th><th scope="col">Holds</th></tr></thead>
-<tbody>${best.constraints.map((k) => html`<tr><th scope="row">${k.name}</th><td>${withUnit(k.left, k.unit)}</td><td>${OP_WORDS[k.op] ?? k.op} ${withUnit(k.right, k.unit)}${k.op === "==" && k.tolerance > 0 && `, within ${withUnit(k.tolerance, k.unit)}`}</td><td class="${k.satisfied === true ? "holds" : "broken"}">${k.satisfied === true ? "Yes" : "No, broken"}</td></tr>`)}</tbody>
-</table>`}
+<thead><tr><th scope="col">Constraint</th><th scope="col">Value</th><th scope="col">Limit</th><th scope="col">Rule</th><th scope="col">Holds</th><th scope="col">Breach</th></tr></thead>
+<tbody>${checks.map((k) => html`<tr><th scope="row">${k.name}</th><td>${withUnit(k.left, k.unit)}</td><td>${OP_WORDS[k.op] ?? k.op} ${withUnit(k.right, k.unit)}</td><td>${ruleWords(k)}</td>${k.applied === false
+    ? html`<td class="off">Off, not checked</td><td></td>`
+    : html`<td class="${k.satisfied === true ? "holds" : "broken"}">${k.satisfied === true ? "Yes" : "No, broken"}</td><td>${breach(k)}</td>`}</tr>`)}</tbody>
+</table>
+<p class="meta">A breach is the difference between the two sides in the constraint's own unit, and as a percentage of the limit unless the limit is 0.</p>`}
 
 <h3>Solution</h3>
 <table>
@@ -309,9 +350,10 @@ ${(project.data ?? []).length === 0 ? html`<p>The project has no data tables.</p
 
 <h3>Constraints</h3>
 ${constraints.length === 0 ? html`<p>The project has no constraints.</p>` : html`<table>
-<thead><tr><th scope="col">Constraint</th><th scope="col">As written</th><th scope="col">Unit</th><th scope="col">Scale in this run</th></tr></thead>
-<tbody>${constraints.map((k, i) => html`<tr><th scope="row">${k.name}</th><td><code>${k.left} ${k.op} ${k.right}</code>${k.op === "==" && (k.tolerance ?? 0) > 0 && `, within ${show(k.tolerance)}`}</td><td>${k.unit}</td><td>${show(result.scales?.[i])}</td></tr>`)}</tbody>
+<thead><tr><th scope="col">Constraint</th><th scope="col">As written</th><th scope="col">Unit</th><th scope="col">Rule</th><th scope="col">In this run</th><th scope="col">Scale in this run</th></tr></thead>
+<tbody>${constraints.map((k, i) => html`<tr><th scope="row">${k.name}</th><td><code>${k.left} ${k.op} ${k.right}</code></td><td>${k.unit}</td><td>${ruleWords({ op: k.op, unit: k.unit, tolerance: k.tolerance, relativeTolerance: k.relative_tolerance })}</td><td>${k.enabled === false ? "Off, not checked" : "On"}</td><td>${k.enabled === false ? "Not used" : show(result.scales?.[i])}</td></tr>`)}</tbody>
 </table>
+<p class="meta">The rule of an "equal to" constraint: it holds when the two sides differ by no more than its tolerance plus its relative tolerance times the size of the right side. Both are 0 unless the table says otherwise, and then the two sides must be equal exactly. On a right side of 0 the relative tolerance adds nothing. "At most" and "at least" constraints have no tolerance.</p>
 <p class="meta">A scale only balances constraints against each other during the search. Whether a constraint holds is always judged in its own unit.</p>`}
 
 <h3>Functions</h3>

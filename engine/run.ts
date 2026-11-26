@@ -1,7 +1,7 @@
 // One seeded run of a project, and the test of a single candidate. This file is the
 // engine's interface for the command line runner and for the web app's worker.
 
-import { gap, scaleOf, type Op } from "./constraints.ts";
+import { measure, scaleOf, type Op } from "./constraints.ts";
 import { Evaluator } from "./evaluator.ts";
 import { METHODS, resolveSettings } from "./methods/index.ts";
 import { buildProblem, type PlainSolution, type Problem, type Project, type Solution } from "./project.ts";
@@ -15,12 +15,48 @@ const CHECKPOINTS = 100;
 /** Number of random candidates that the constraint scales are taken from. */
 const SCALE_SAMPLE = 100;
 
+/**
+ * One constraint of the project as it stood for one candidate. The rule is in constraints.ts.
+ * In a result that was stored as JSON, a number that was not finite is null.
+ */
+export interface ConstraintCheck {
+  name: string;
+  op: Op;
+  unit?: string;
+  /** For "==": the fixed amount the two sides may differ by. 0 otherwise. */
+  tolerance: number;
+  /** For "==": the fraction of the size of the right side they may differ by on top of that. 0 otherwise. */
+  relativeTolerance: number;
+  /** False when the constraint was off: it was not checked and took no part in the result. */
+  applied: boolean;
+  /** Both sides in the constraint's own unit. A constraint that was off has them too, to show what it would have been. */
+  left: number;
+  right: number;
+  // The four below are there only when the constraint was applied, so that a constraint that
+  // was off never carries anything that reads as a verdict.
+  /** Whether the constraint holds. */
+  satisfied?: boolean;
+  /**
+   * The amount beyond what is allowed: positive when the constraint is broken, zero or negative
+   * when it holds. For "==" it is counted after the tolerances, so it is smaller than the
+   * difference between the sides.
+   */
+  excess?: number;
+  /** The plain difference between the two sides, left minus right, with no tolerance taken off. */
+  difference?: number;
+  /** The size of `difference` as a percentage of the size of the limit (the right side). Absent when the limit is 0 or the value is not finite. */
+  differencePercent?: number;
+}
+
 /** A candidate as the user reads it: the objective and both sides of every constraint, in their own units. */
 export interface Inspection {
   objective: number;
-  /** True when every constraint holds. */
+  /** True when every constraint that is on holds. */
   feasible: boolean;
+  /** The constraints that were applied, in the shape that older readers know. `checks` says more. */
   constraints: { name: string; op: Op; left: number; right: number; unit?: string; tolerance: number; satisfied: boolean }[];
+  /** Every constraint of the project, in the project's order, on or off. A result stored before this list existed has only `constraints`. */
+  checks: ConstraintCheck[];
 }
 
 /** The state of a run after an iteration, for the live preview. */
@@ -34,25 +70,34 @@ export interface RunOptions {
   runIndex?: number;
   /** Called after the first population and after every iteration. The caller limits how often it redraws. */
   onProgress?: (progress: Progress) => void;
-  /** The constraint scales of an earlier run, to repeat it exactly. Without them, they are taken from a random sample. */
-  scales?: number[];
+  /**
+   * The constraint scales of an earlier run, to repeat it exactly: one for every constraint of the
+   * project, in its order. The entry of a constraint that is off is not read. Without them, they
+   * are taken from a random sample.
+   */
+  scales?: (number | null)[];
 }
 
 function inspect(problem: Problem, solution: Solution): Inspection {
   const objective = problem.objective(solution);
-  const sides = problem.sides(solution, new Float64Array(2 * problem.constraints.length));
-  const constraints = problem.constraints.map((c, i) => {
-    const left = sides[2 * i], right = sides[2 * i + 1];
-    return { ...c, left, right, satisfied: gap(c.op, left, right, c.tolerance) <= 0 };
+  const sides = problem.sides(solution, new Float64Array(2 * problem.constraints.length), true);
+  const checks = problem.constraints.map(({ name, op, unit, tolerance, relativeTolerance, enabled }, i): ConstraintCheck => {
+    const left = sides[2 * i], right = sides[2 * i + 1], said = { name, op, unit, tolerance, relativeTolerance, applied: enabled, left, right };
+    if (!enabled) return said;
+    const measured = measure(op, left, right, tolerance, relativeTolerance);
+    return { ...said, satisfied: measured.excess <= 0, ...measured };
   });
-  return { objective, feasible: constraints.every((c) => c.satisfied), constraints };
+  const constraints = checks.filter((c) => c.applied)
+    .map(({ name, op, unit, tolerance, left, right, satisfied }) => ({ name, op, unit, tolerance, left, right, satisfied: satisfied! }));
+  return { objective, feasible: constraints.every((c) => c.satisfied), constraints, checks };
 }
 
 /**
  * The scale of every constraint, from both sides on a sample of random candidates. The sample
- * has its own generator stream, so it changes neither the run nor the evaluation count.
+ * has its own generator stream, so it changes neither the run nor the evaluation count. A
+ * constraint that is off takes no part in the sample and gets null.
  */
-function sampleScales(problem: Problem, baseSeed: number, runIndex: number): number[] {
+function sampleScales(problem: Problem, baseSeed: number, runIndex: number): (number | null)[] {
   const count = problem.constraints.length;
   if (count === 0) return [];
   const rng = new Rng(philox(runIndex >>> 0, 0xfffffffe, baseSeed >>> 0)[0]);
@@ -66,7 +111,7 @@ function sampleScales(problem: Problem, baseSeed: number, runIndex: number): num
       rights[c][k] = sides[2 * c + 1];
     }
   }
-  return problem.constraints.map((c, i) => scaleOf(c.op, lefts[i], rights[i], c.tolerance));
+  return problem.constraints.map((c, i) => (c.enabled ? scaleOf(c.op, lefts[i], rights[i], c.tolerance, c.relativeTolerance) : null));
 }
 
 export function runProject(project: Project, options: RunOptions = {}) {
@@ -78,8 +123,9 @@ export function runProject(project: Project, options: RunOptions = {}) {
   const { budget } = project.run;
   const seed = deriveSeed(project.run.seed, runIndex);
   const started = performance.now();
-  const scales = options.scales ?? sampleScales(problem, project.run.seed, runIndex);
-  const evaluator = new Evaluator(problem, budget, scales);
+  const evaluator = new Evaluator(problem, budget, options.scales ?? sampleScales(problem, project.run.seed, runIndex));
+  // one for every constraint of the project, in its order, and null for a constraint that was off
+  const { scales } = evaluator;
 
   const report = () => {
     if (!onProgress) return;
@@ -112,13 +158,14 @@ export function runProject(project: Project, options: RunOptions = {}) {
     return { label: other.label, objective, feasible: seen?.feasible, difference: evaluator.bestF - objective };
   };
   return {
-    // feasible means every constraint holds in its own unit, which is what the user is shown
+    // feasible means every constraint that is on holds in its own unit, which is what the user is shown
     status: best.feasible ? "Best feasible solution found" : "No feasible solution found",
     best: {
       objective: evaluator.bestF,
       violation: evaluator.bestV,
       feasible: best.feasible,
       constraints: best.constraints,
+      checks: best.checks,
       solution: problem.named(bestSolution),
       codes: Array.from(evaluator.bestX!),
     },

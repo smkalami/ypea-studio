@@ -28,7 +28,11 @@
 .field.wide, .row > .field.wide { flex: 1 1 100%; max-inline-size: var(--measure); }
 .row > .field.grow { max-inline-size: none; }
 .field.setting { max-inline-size: var(--field); }
-.lead { max-inline-size: var(--measure); }
+.lead, .suggested { max-inline-size: var(--measure); }
+/* A quiet button in a hint (an offer): its words start where the words of the hint start, also when it wraps onto a line of its own. */
+.hint > .btn, .hint > span > .btn { margin-inline-start: calc((var(--space-xs) + 1px) * -1); }
+/* A button after the fields of a row stands beside their controls, below the line of the labels. */
+.row > .beside-field { margin-block-start: calc(var(--line-sm) + var(--space-2xs) + (var(--control-h) - var(--control-h-compact)) / 2); }
 .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); }
 
 .problems { display: grid; gap: var(--space-2xs); color: var(--danger-ink); font-size: var(--text-sm); line-height: var(--line-sm); }
@@ -115,6 +119,8 @@
 .dialog::backdrop, .drawer::backdrop { background: var(--scrim); }
 .dialog h2 { font-size: var(--text-xl); line-height: var(--line-xl); margin-block-end: var(--space-sm); }
 .dialog .field { max-inline-size: none; }
+/* the places that use a name, in the dialog that asks before a removal */
+.uses { display: grid; gap: var(--space-2xs); margin-block-start: var(--space-xs); padding-inline-start: var(--space-md); list-style: disc; overflow-wrap: anywhere; }
 .dialog-actions { display: flex; justify-content: space-between; gap: var(--space-xs); margin-block-start: var(--space-md); }
 .drawer {
   inset-inline: 0 auto; margin: 0; inline-size: min(var(--drawer-width), calc(100vw - var(--space-xl)));
@@ -234,32 +240,16 @@ progress::-moz-progress-bar { background: var(--accent-ink); }
    A drawing keeps its natural width, so its text keeps its size, and scrolls in its own box when the window is narrower. */
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--figure)), 1fr)); gap: var(--space-md); align-items: start; }
 .drawing { margin: 0; max-inline-size: var(--figure-max); min-inline-size: 0; }
-.drawing-box, .figure-box { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.drawing-box { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .drawing svg { display: block; inline-size: 100%; min-inline-size: var(--figure); block-size: auto; max-inline-size: none; }
 .drawing figcaption { margin-block-start: var(--space-2xs); color: var(--ink-3); font-size: var(--text-sm); line-height: var(--line-sm); }
-.drawing text { font-family: inherit; font-size: var(--text-xs); fill: var(--ink-3); }
-.drawing .axes line { stroke: var(--control-border); stroke-width: 1; }
-.drawing .axes line.grid { stroke: var(--line); stroke-dasharray: 3 3; }
-.drawing .axes text.title { fill: var(--ink); }
-.drawing .mark-line { fill: none; stroke: var(--accent-ink); stroke-width: 2; stroke-linejoin: round; }
-/* the part of a history that belongs to candidates that break a constraint: not a result, so not the line of results */
-.drawing .mark-line.not-result { stroke: var(--ink-3); stroke-dasharray: 6 4; }
-/* the charts of a comparison: the quartiles as thin lines, and the band between them */
-.drawing .mark-line.thin { stroke-width: 1; }
-.drawing .band { fill: var(--accent); fill-opacity: 0.16; stroke: none; }
-.drawing.charts { max-inline-size: none; }
-.charts figure { margin: 0; max-inline-size: var(--figure-max); min-inline-size: 0; }
-.drawing .mark-point { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
-.drawing .mark-point.hollow { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
-.drawing .mark-start { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
-.drawing .mark-item { fill: var(--surface); stroke: var(--control-border); stroke-width: 1; }
-.drawing .mark-item.chosen { fill: var(--accent-ink); stroke: var(--accent-ink); }
-.drawing .mark-check { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.drawing .hover-band { fill: transparent; }
-.drawing .hover-band:hover { fill: var(--accent); fill-opacity: 0.14; }
+/* the chart of a run with the line under it that gives the value at a checkpoint */
+.chart-read { min-inline-size: 0; max-inline-size: var(--figure-max); }
+.chart-read .hint { margin-block-start: var(--space-2xs); }
 
 @media (max-width: 650px) {
   .row > .field, .row > .field.narrow, .field, .field.narrow, .file { flex-basis: 100%; max-inline-size: none; }
+  .row > .beside-field { margin-block-start: 0; }
   .facts { grid-template-columns: minmax(0, 1fr); }
   .facts dd { margin-block-end: var(--space-xs); }
 }

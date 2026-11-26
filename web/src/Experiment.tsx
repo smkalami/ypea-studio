@@ -28,9 +28,11 @@ interface FormProps {
   onDelete: () => void;
   /** Why the experiment cannot be deleted now, when it cannot: it is the only one, or a run is going on. */
   locked?: string;
+  /** While the experiment still is the solver that the app suggested: the sentence that says why. */
+  suggested?: string;
 }
 
-export function ExperimentForm({ project, experiment, issues, onChange, onDuplicate, onDelete, locked }: FormProps) {
+export function ExperimentForm({ project, experiment, issues, onChange, onDuplicate, onDelete, locked, suggested }: FormProps) {
   const method = methodOf(experiment.method);
   const poor = unsuited(project, experiment.method);
   const suited = Object.values(METHODS).filter((m) => unsuited(project, m.id).length === 0).map((m) => m.name);
@@ -78,6 +80,8 @@ export function ExperimentForm({ project, experiment, issues, onChange, onDuplic
           {(tie) => <Num {...tie} value={experiment.seed} onChange={(seed) => onChange({ ...experiment, seed: seed as number })} />}
         </Field>
       </div>
+      {/* plain words, not a callout: a suggestion is neither a warning nor a result */}
+      {suggested && <p className="hint suggested">{suggested}</p>}
       {method && poor.length > 0 && (
         // a calm note, not a warning: solvers designed for decimal numbers have done well on other kinds of values
         <Alert kind="neutral" role="note">

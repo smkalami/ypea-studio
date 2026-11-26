@@ -5,18 +5,24 @@
 import { useState, type ReactNode } from "react";
 import type { Constraint, DataTable, Project, View } from "../../engine/project.ts";
 import type { VariableSpec } from "../../engine/variables.ts";
+import type { Texts } from "./Candidate.tsx";
 import { tableFromCsv } from "./csv.ts";
 import { EXPERIMENT, FIRST, partOf, show } from "./draft.ts";
 import { columnsOf, CONSTRAINT_PRESETS, helpersNote, OBJECTIVE_PRESETS, optionsFor, type Preset, presetConstraint, withHelpers } from "./presets.ts";
+import { defNames, isName, type NameKind, renamedTexts, renameUses, usesOf } from "./names.ts";
 import type { Issue } from "./protocol.ts";
 import { Alert, Disclosure, Select } from "./ui/controls.tsx";
+import { ConfirmDialog } from "./ui/Dialog.tsx";
 import { Field, FileButton, issuesAt, Num, parseNumber, Pick, Problems } from "./ui/fields.tsx";
 import { Icon } from "./ui/Icon.tsx";
 
 export interface PanelProps {
   project: Project;
-  /** Stores a changed project. */
-  set: (project: Project) => void;
+  /** Stores a changed project. `note` says what was removed or replaced, and is then shown with Undo. */
+  set: (project: Project, note?: string) => void;
+  /** The candidate that is being typed, by the name of each variable. It counts as a use of a variable. */
+  texts: Texts;
+  setTexts: (texts: Texts) => void;
   /** Every problem of the project. */
   issues: Issue[];
   /** Shows another entry of the sidebar. */
@@ -29,14 +35,98 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 /** An optional text of the project: an empty field removes it. */
 const optional = (text: string) => (text === "" ? undefined : text);
 
-function Text(props: { label: string; value: string | undefined; onChange: (value: string) => void; issues?: Issue[]; hint?: string; code?: boolean; className?: string }) {
+function Text(props: { label: string; value: string | undefined; onChange: (value: string) => void; issues?: Issue[]; hint?: ReactNode; code?: boolean; className?: string; onFocus?: () => void }) {
   return (
     <Field label={props.label} issues={props.issues} hint={props.hint} className={props.className}>
       {(tie) => (
-        <input {...tie} type="text" autoComplete="off" spellCheck={!props.code} className={props.code ? "input code" : "input"} value={props.value ?? ""} onChange={(event) => props.onChange(event.target.value)} />
+        <input {...tie} type="text" autoComplete="off" spellCheck={!props.code} className={props.code ? "input code" : "input"} value={props.value ?? ""} onChange={(event) => props.onChange(event.target.value)} onFocus={props.onFocus} />
       )}
     </Field>
   );
+}
+
+/** After a removal the button that had the focus is gone. The Remove button that took its place gets the focus, so the place in the list is kept. */
+const refocus = (index: number) => setTimeout(() => {
+  const buttons = document.querySelectorAll<HTMLElement>(".panel .item-head .btn");
+  (buttons[Math.min(index, buttons.length - 1)] ?? document.getElementById("panel-heading"))?.focus();
+});
+
+/**
+ * Removing something that has a name. When nothing uses the name it goes at once. When
+ * something does, a dialog names each place first, and nothing in those places is changed:
+ * after the removal they show their problem, which is the honest state.
+ */
+function useRemoval(project: Project, texts: Texts) {
+  const [asking, setAsking] = useState<{ what: string; found: { name: string; place: string }[]; apply: () => void }>();
+  const remove = (what: string, names: [string, NameKind][], apply: () => void) => {
+    const found = names.flatMap(([name, kind]) => usesOf(project, name, kind, texts).map((use) => ({ name, place: use.place })));
+    if (found.length === 0) apply();
+    else setAsking({ what, found, apply });
+  };
+  const dialog = asking && (
+    <ConfirmDialog
+      heading={`Remove ${asking.what}?`} action="Remove anyway"
+      body="Other parts of the project use it. Nothing in them is changed, so each will show a problem until you change it. Undo brings it back."
+      onDone={(confirmed) => {
+        setAsking(undefined);
+        if (confirmed) asking.apply();
+      }}
+    >
+      <ul className="uses">
+        {asking.found.map((use, n) => <li key={n}>{use.place} uses <code>{use.name}</code>.</li>)}
+      </ul>
+    </ConfirmDialog>
+  );
+  return [remove, dialog] as const;
+}
+
+/**
+ * A new name for something that expressions use. The old name is the one the field had when
+ * it took the focus, not the one before the last key. While other parts still use the old
+ * name, a line under the field offers to carry the new name there.
+ */
+function useRenames({ project, set, texts, setTexts }: PanelProps, claimed: string[]) {
+  const [was, setWas] = useState<Record<string, string>>({});
+  const pending = (key: string, now: string, kind: NameKind) =>
+    was[key] !== undefined && was[key] !== now && !claimed.includes(was[key]) ? usesOf(project, was[key], kind, texts).length : 0;
+  return {
+    was,
+    /** Every field starts again from the name it has now. */
+    reset: (fields: [key: string, now: string][]) => setWas(Object.fromEntries(fields)),
+    /** Fields take the focus: the name of each is its old name from here on, unless its offer is still open. */
+    focus(fields: [key: string, now: string][], kind: NameKind) {
+      const next = { ...was };
+      for (const [key, now] of fields) if (pending(key, now, kind) === 0) next[key] = now;
+      setWas(next);
+    },
+    /** Names moved to other places, after a removal: nothing is on offer any more. */
+    forget: () => setWas({}),
+    /** The line under the field, when there is something to offer. */
+    offer(key: string, now: string, kind: NameKind): ReactNode {
+      const places = pending(key, now, kind), old = was[key];
+      // a name that cannot be used, or that something else has, is not carried anywhere
+      if (places === 0 || !isName(now) || claimed.filter((name) => name === now).length !== 1) return undefined;
+      return (
+        <>
+          {places === 1 ? "1 place still uses" : `${places} places still use`} the old name <code>{old}</code>.{" "}
+          <button
+            type="button" className="btn btn-quiet btn-compact"
+            onClick={(event) => {
+              const field = event.currentTarget.closest(".field")?.querySelector<HTMLElement>("input, textarea");
+              // stored while the button has the focus, so that the carried name is a step of its own and not part of the typing
+              set(renameUses(project, old, now, kind));
+              if (kind === "variable") setTexts(renamedTexts(texts, old, now));
+              setWas({ ...was, [key]: now });
+              // the button goes away with the offer, so the field gets the focus
+              field?.focus();
+            }}
+          >
+            Rename there too
+          </button>
+        </>
+      );
+    },
+  };
 }
 
 /** One table, variable or constraint: a bordered group with its name and its Remove button on the first line. */
@@ -96,9 +186,12 @@ export function OverviewPanel({ project, set, issues, go }: PanelProps) {
 
 const PREVIEW_ROWS = 5, PREVIEW_COLUMNS = 8;
 
-export function DataPanel({ project, set, issues }: PanelProps) {
+export function DataPanel(props: PanelProps) {
+  const { project, set, issues, texts } = props;
   const [failure, setFailure] = useState("");
   const tables = project.data ?? [];
+  const [remove, removal] = useRemoval(project, texts);
+  const renames = useRenames(props, tables.flatMap((t) => [t.name, ...(t.kind === "columns" ? t.columns.map((c) => c.name) : [])]));
   const add = async (file: File, header: boolean) => {
     setFailure("");
     try {
@@ -107,7 +200,7 @@ export function DataPanel({ project, set, issues }: PanelProps) {
       setFailure(`${file.name} was not imported. ${messageOf(error)}`);
     }
   };
-  const change = (index: number, table: DataTable) => set({ ...project, data: replaceAt(tables, index, table) });
+  const change = (index: number, table: DataTable, note?: string) => set({ ...project, data: replaceAt(tables, index, table) }, note);
 
   return (
     <section aria-labelledby="panel-heading">
@@ -117,14 +210,25 @@ export function DataPanel({ project, set, issues }: PanelProps) {
         Units are labels only. Nothing is converted.
       </p>
       <Problems issues={issues.filter((i) => i.where === "data")} />
+      {removal}
       {tables.length === 0 && <p className="empty">No data yet. Import a CSV file below. A problem that needs no data, such as a formula of its variables, works without.</p>}
 
       {tables.map((table, t) => {
         const own = issues.filter((i) => i.where === `data.${t}`);
         return (
-          <Item key={t} heading={`Table ${t}`} removeLabel={`Remove table ${table.name}`} onRemove={() => set({ ...project, data: removeAt(tables, t) })}>
+          <Item
+            key={t} heading={`Table ${t}`} removeLabel={`Remove table ${table.name}`}
+            onRemove={() => remove(`the table ${table.name}`, [table.name, ...(table.kind === "columns" ? table.columns.map((c) => c.name) : [])].map((name) => [name, "data"]), () => {
+              set({ ...project, data: removeAt(tables, t) }, `The table ${table.name} was removed.`);
+              renames.forget();
+              refocus(t);
+            })}
+          >
             <div className="row">
-              <Text label="Table name" code value={table.name} issues={own} onChange={(name) => change(t, { ...table, name })} />
+              <Text
+                label="Table name" code value={table.name} issues={own} hint={renames.offer(`data.${t}`, table.name, "data")}
+                onFocus={() => renames.focus([[`data.${t}`, table.name]], "data")} onChange={(name) => change(t, { ...table, name })}
+              />
               {table.kind === "matrix" && <Text label="Unit" value={table.unit} className="narrow" onChange={(unit) => change(t, { ...table, unit: optional(unit) })} />}
             </div>
             {table.kind === "matrix" ? <MatrixPreview table={table} /> : (
@@ -133,12 +237,26 @@ export function DataPanel({ project, set, issues }: PanelProps) {
                   <div className="row" key={c}>
                     <Text
                       label={`Name of column ${c}`} code value={column.name} issues={issuesAt(issues, `data.${t}.column.${c}`)}
+                      hint={renames.offer(`data.${t}.column.${c}`, column.name, "data")} onFocus={() => renames.focus([[`data.${t}.column.${c}`, column.name]], "data")}
                       onChange={(name) => change(t, { ...table, columns: replaceAt(table.columns, c, { ...column, name }) })}
                     />
                     <Text
                       label={`Unit of column ${c}`} value={column.unit} className="narrow"
                       onChange={(unit) => change(t, { ...table, columns: replaceAt(table.columns, c, { ...column, unit: optional(unit) }) })}
                     />
+                    {/* shown also when it cannot be used, with the reason: a table needs at least one column */}
+                    <button
+                      type="button" className="btn btn-quiet btn-compact beside-field" aria-label={`Remove column ${column.name}`}
+                      aria-disabled={table.columns.length === 1 ? true : undefined}
+                      data-tip={table.columns.length === 1 ? "A table needs at least one column. Remove the table instead." : undefined}
+                      onClick={() => table.columns.length > 1 && remove(`the column ${column.name}`, [[column.name, "data"]], () => {
+                        change(t, { ...table, columns: removeAt(table.columns, c) }, `The column ${column.name} was removed.`);
+                        renames.forget();
+                        refocus(t);
+                      })}
+                    >
+                      <Icon name="trash" />Remove column
+                    </button>
                   </div>
                 ))}
                 <ColumnsPreview table={table} />
@@ -257,8 +375,11 @@ function asType(old: Record<string, any>, type: VariableType): VariableSpec {
   return { name: old.name, type: type as "fixed_sum", shape, target: old.target ?? 1, ...unit };
 }
 
-export function VariablesPanel({ project, set, issues }: PanelProps) {
+export function VariablesPanel(props: PanelProps) {
+  const { project, set, issues, texts } = props;
   const variables = project.variables as (VariableSpec & Record<string, any>)[];
+  const [remove, removal] = useRemoval(project, texts);
+  const renames = useRenames(props, variables.map((v) => v.name));
   const change = (index: number, variable: object) => set({ ...project, variables: replaceAt(variables, index, variable as VariableSpec) });
   const add = () => {
     const names = new Set(variables.map((v) => v.name));
@@ -272,6 +393,7 @@ export function VariablesPanel({ project, set, issues }: PanelProps) {
       <h3 id="panel-heading" tabIndex={-1}>Variables</h3>
       <p className="lead">Variables are what the solver may change. An expression uses a variable by its name. Positions in a list start at 0.</p>
       <Problems issues={issues.filter((i) => i.where === "variables")} />
+      {removal}
       {variables.length === 0 && <p className="empty">No variables yet. Add the first one below. A project needs at least one to run.</p>}
       {variables.map((v, i) => {
         const at = (key: string) => issues.filter((issue) => issue.where === `variable.${i}.${key}`);
@@ -279,10 +401,20 @@ export function VariablesPanel({ project, set, issues }: PanelProps) {
         const shape: unknown[] = Array.isArray(v.shape) ? v.shape : [];
         const list = "One number for all, or one per value, separated by commas.";
         return (
-          <Item key={i} heading={`Variable ${i}`} removeLabel={`Remove variable ${v.name}`} onRemove={() => set({ ...project, variables: removeAt(variables, i) })}>
+          <Item
+            key={i} heading={`Variable ${i}`} removeLabel={`Remove variable ${v.name}`}
+            onRemove={() => remove(`the variable ${v.name}`, [[v.name, "variable"]], () => {
+              set({ ...project, variables: removeAt(variables, i) }, `The variable ${v.name} was removed.`);
+              renames.forget();
+              refocus(i);
+            })}
+          >
             <Problems issues={issues.filter((issue) => issue.where === `variable.${i}`)} />
             <div className="row">
-              <Text label="Name" code value={v.name} issues={at("name")} onChange={(name) => change(i, { ...v, name })} />
+              <Text
+                label="Name" code value={v.name} issues={at("name")} hint={renames.offer(`variable.${i}`, v.name, "variable")}
+                onFocus={() => renames.focus([[`variable.${i}`, v.name]], "variable")} onChange={(name) => change(i, { ...v, name })}
+              />
               <Field label="What it holds" issues={at("type")} hint={TYPE_HELP[v.type]} className="grow">
                 {(tie) => (
                   <Select
@@ -426,7 +558,10 @@ export function ObjectivePanel({ project, set, issues }: PanelProps) {
       <PresetForm
         heading="Write the expression from a preset" presets={OBJECTIVE_PRESETS} project={project} action="Write the expression"
         // one change for the expression and the functions: two would each start from the same project, and the first would be lost
-        onUse={(preset, names, functions) => set({ ...project, functions, objective: { ...objective, source: preset.write(names) } })}
+        onUse={(preset, names, functions) => set(
+          { ...project, functions, objective: { ...objective, source: preset.write(names) } },
+          objective.source.trim() === "" ? undefined : "The expression of the objective was replaced by the preset.",
+        )}
       />
     </section>
   );
@@ -447,7 +582,10 @@ export function ConstraintsPanel({ project, set, issues }: PanelProps) {
       {constraints.map((c, i) => {
         const at = (side: string) => issues.filter((issue) => issue.where === `constraint.${i}.${side}`);
         return (
-          <Item key={i} heading={`Constraint ${i}`} removeLabel={`Remove constraint ${c.name}`} onRemove={() => set({ ...project, constraints: removeAt(constraints, i) })}>
+          <Item
+            key={i} heading={`Constraint ${i}`} removeLabel={`Remove constraint ${c.name}`}
+            onRemove={() => (set({ ...project, constraints: removeAt(constraints, i) }, `The constraint "${c.name}" was removed.`), refocus(i))}
+          >
             <Problems issues={issues.filter((issue) => issue.where === `constraint.${i}`)} />
             <div className="row">
               <Text label="Name" value={c.name} onChange={(name) => change(i, { ...c, name })} />
@@ -486,7 +624,16 @@ export function ConstraintsPanel({ project, set, issues }: PanelProps) {
   );
 }
 
-export function FunctionsPanel({ project, set, issues }: PanelProps) {
+export function FunctionsPanel(props: PanelProps) {
+  const { project, set, issues } = props;
+  const names = defNames(project.functions);
+  const renames = useRenames(props, names);
+  // A function is renamed in the text itself, so each function has its own old name, by its place in the text.
+  // That holds only while the text has as many functions as when it took the focus: after one was added or
+  // deleted the places no longer say which function is which, and nothing is offered.
+  const fields: [string, string][] = [...names.map((name, n): [string, string] => [`function.${n}`, name]), ["function.count", String(names.length)]];
+  const same = renames.was["function.count"] === String(names.length);
+  const offers = same ? names.map((name, n) => renames.offer(`function.${n}`, name, "function")).filter(Boolean) : [];
   return (
     <section aria-labelledby="panel-heading">
       <h3 id="panel-heading" tabIndex={-1}>Functions</h3>
@@ -494,9 +641,13 @@ export function FunctionsPanel({ project, set, issues }: PanelProps) {
         Helper functions for logic that one expression cannot hold. They are written in a small part of Python: <code>def</code>, assignment,{" "}
         <code>if</code>, <code>for</code> and <code>return</code>. A function gets the variables it needs as arguments, and positions start at 0.
       </p>
-      <Field label="Function definitions" issues={issues.filter((i) => i.where === "functions")} className="wide">
+      <Field label="Function definitions" issues={issues.filter((i) => i.where === "functions")} className="wide" hint={offers.length ? offers.map((offer, n) => <span key={n}>{offer} </span>) : undefined}>
         {(tie) => (
-          <textarea {...tie} className="textarea code" rows={14} spellCheck={false} value={project.functions ?? ""} onChange={(event) => set({ ...project, functions: optional(event.target.value) })} />
+          <textarea
+            {...tie} className="textarea code" rows={14} spellCheck={false} value={project.functions ?? ""}
+            onFocus={() => (same ? renames.focus(fields, "function") : renames.reset(fields))}
+            onChange={(event) => set({ ...project, functions: optional(event.target.value) })}
+          />
         )}
       </Field>
     </section>
@@ -517,6 +668,14 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
   const orderings = project.variables.filter((v) => v.type === "permutation").map((v) => v.name);
   const choices = optionsFor(project, "yes-no-variable");
   const groups = optionsFor(project, "groups-variable");
+  // The table of distances is optional. With one, the drawing gives the length that the table gives.
+  const distance = (rows: string) => (
+    <Pick
+      label="Table of distances" value={view?.distance} options={optionsFor(project, "matrix")} none="None, show no length"
+      hint={`A square table with a row and a column for every ${rows}. The drawing then gives the length of each route from it.`}
+      onChange={(table) => change({ distance: optional(table) })}
+    />
+  );
   const start = (kind: string): View | undefined =>
     kind === "route" ? { kind, variable: orderings[0] ?? "", x: columns[0] ?? "", y: columns[1] ?? columns[0] ?? "" }
     : kind === "routes" ? { kind, variable: groups[0] ?? "", x: columns[0] ?? "", y: columns[1] ?? columns[0] ?? "", depot: 0 }
@@ -529,7 +688,7 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
       <h3 id="panel-heading" tabIndex={-1}>Drawing</h3>
       <p className="lead">A drawing shows a solution as a picture, while a run improves it and in its result. Without one, a solution is shown as a table.</p>
       <Field label="What to draw">
-        {(tie) => <Select {...tie} value={view?.kind ?? ""} options={DRAWINGS} onChange={(kind) => set({ ...project, view: start(kind) })} />}
+        {(tie) => <Select {...tie} value={view?.kind ?? ""} options={DRAWINGS} onChange={(kind) => set({ ...project, view: start(kind) }, kind === "" ? "The drawing was removed." : undefined)} />}
       </Field>
       <Problems issues={issues.filter((i) => i.where === "view" && !i.line)} />
       {view?.kind === "route" && (
@@ -537,6 +696,7 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
           <Pick label="Ordering variable" value={view.variable} options={orderings} onChange={(variable) => change({ variable })} />
           <Pick label="Column with the x position" value={view.x} options={columns} onChange={(x) => change({ x })} />
           <Pick label="Column with the y position" value={view.y} options={columns} onChange={(y) => change({ y })} />
+          {distance("row of the two columns")}
         </div>
       )}
       {view?.kind === "routes" && (
@@ -549,6 +709,7 @@ export function ViewPanel({ project, set, issues }: PanelProps) {
             <Field label="Row of the depot" className="narrow" hint="Rows start at 0.">
               {(tie) => <Num {...tie} value={view.depot} onChange={(depot) => change({ depot })} />}
             </Field>
+            {distance("row of the two columns, the depot included")}
           </div>
         </>
       )}

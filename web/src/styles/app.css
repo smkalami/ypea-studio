@@ -72,6 +72,8 @@ body.in-project .site-bar { max-inline-size: none; }
 .run-status[data-state="error"] { color: var(--danger-ink); font-weight: var(--weight-medium); }
 .run-status .icon { inline-size: var(--icon-sm); block-size: var(--icon-sm); }
 .run-status p[role="status"]:not(.visually-hidden) { flex: 0 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
+/* Undo sits in the line of the status. Its box is taller than the line, so it reaches into the room above and below, and the bar keeps its height. */
+.run-status .btn { margin-block: calc((var(--line-base) - var(--control-h-compact)) / 2); }
 .comparing { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-sm); }
 .progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 

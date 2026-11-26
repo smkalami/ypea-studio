@@ -4,10 +4,11 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
+import { figureCss, PAINTS } from "../../export/figures/figure.ts";
 
 const here = new URL("./", import.meta.url);
 const read = (name: string) => readFileSync(new URL(name, here), "utf8");
-const SHEETS = ["styles/base.css", "styles/components.css", "styles/app.css"];
+const SHEETS = ["styles/base.css", "styles/components.css", "styles/app.css", "styles/figures.css"];
 const sources = (readdirSync(here, { recursive: true }) as string[])
   .map((name) => name.replaceAll("\\", "/"))
   .filter((name) => /\.tsx?$/.test(name) && !name.endsWith(".spec.ts"));
@@ -57,10 +58,18 @@ test("every class that the component styles name is used in the app", () => {
   const css = withoutComments(read("styles/components.css") + read("styles/app.css") + read("styles/base.css"));
   const named = new Set([...css.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((match) => match[1]));
   // `alert-…` and `btn-…` names are put together in code, and `in-project` is set on the body
-  // The charts of a comparison are the markup of the report's drawings, shown as it is, so its classes count too.
-  const shown = code + readFileSync(new URL("../../export/report-drawings.ts", here), "utf8");
-  const unused = [...named].filter((name) => !new RegExp(`\\b${name}\\b`).test(shown) && !/^alert-/.test(name));
+  const unused = [...named].filter((name) => !new RegExp(`\\b${name}\\b`).test(code) && !/^alert-/.test(name));
   assert.deepEqual(unused, []);
+});
+
+test("the colors of a figure: the stylesheet holds the rules that the figures write, and the tokens hold the colors that a saved picture writes out", () => {
+  // one source: the classes and their tokens come from the code that draws the figures
+  assert.equal(withoutComments(read("styles/figures.css")).trim(), figureCss().trim());
+  const css = read("styles/tokens.css");
+  const light = css.slice(css.indexOf(":root {"), css.indexOf("@media"));
+  for (const [token, value] of Object.values(PAINTS)) assert.match(light, new RegExp(`${token}: ${value};`, "i"), `${token} is ${value} in the light theme`);
+  // every series has its color in the light block and in both dark blocks
+  for (let n = 1; n <= 7; n++) assert.equal(css.match(new RegExp(`--series-${n}: #[0-9a-f]{6};`, "g"))?.length, 3);
 });
 
 test("every icon file is used through the icon wrapper, and its license is kept", () => {

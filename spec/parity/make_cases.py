@@ -17,7 +17,8 @@ to its folder. Cases made that way are marked "(working copy)" and must not be c
   listed in methods/*.json, one file per method, so a method's cases live with the method.
   Each run is a whole project. Its objective and constraints run as real Python, the way an
   exported script would run them. A run with constraints lists its scales, which the app
-  would otherwise take from a random sample.
+  would otherwise take from a random sample: one for every constraint, in the order of the
+  project, and null for a constraint that is off.
 
 With arguments, only the named files are written: the traces of a method file, for example
 "make_cases.py de" for methods/de.json, or one of the files above, for example
@@ -279,7 +280,8 @@ def operator_cases():
 def python_objective(project, scales):
     """The project's objective as an exported script would define it for ypea: the user's text
     runs unchanged in real Python, with the data as NumPy arrays and `ops` from spec/language.
-    With constraints it returns (f, g), each g divided by its scale and satisfied when g <= 0."""
+    With constraints that are on it returns (f, g), each g divided by its scale and satisfied
+    when g <= 0."""
     import builtins
 
     sys.path.insert(0, str(HERE.parent / "language"))
@@ -295,19 +297,27 @@ def python_objective(project, scales):
     exec(project.get("functions", ""), scope)  # noqa: S102
     names = [v["name"] for v in project["variables"]]
     objective = compile(project["objective"]["source"], "objective", "eval")
-    constraints = [(c["op"], compile(c["left"], "left", "eval"), compile(c["right"], "right", "eval"), c.get("tolerance", 0))
-                   for c in project.get("constraints", [])]
+    # one scale for every constraint of the project. A constraint that is off ("enabled": false)
+    # has null there and is left out, so a project with none that is on returns f alone.
+    constraints = [(c["op"], compile(c["left"], "left", "eval"), compile(c["right"], "right", "eval"),
+                    c.get("tolerance", 0), c.get("relative_tolerance", 0), scale)
+                   for c, scale in zip(project.get("constraints", []), scales, strict=True) if c.get("enabled", True)]
 
-    def gap(op, left, right, tolerance):
-        return left - right if op == "<=" else right - left if op == ">=" else abs(left - right) - tolerance
+    def gap(op, left, right, tolerance, relative_tolerance):
+        if op == "<=":
+            return left - right
+        if op == ">=":
+            return right - left
+        # the rule of engine/constraints.ts, in the same order of arithmetic
+        return abs(left - right) - (tolerance + relative_tolerance * abs(right))
 
     def evaluate(sol):
         values = {name: getattr(sol, name) for name in names}
         f = eval(objective, scope, values)  # noqa: S307
         if not constraints:
             return f
-        g = [gap(op, eval(left, scope, values), eval(right, scope, values), tol) / scale  # noqa: S307
-             for (op, left, right, tol), scale in zip(constraints, scales, strict=True)]
+        g = [gap(op, eval(left, scope, values), eval(right, scope, values), tol, rel) / scale  # noqa: S307
+             for op, left, right, tol, rel, scale in constraints]
         return f, g
 
     return evaluate

@@ -30,6 +30,7 @@ if (UPDATE) {
 // loaded here, after the copy above may have been written again
 const { exportPython, pythonLiteral, comment } = await import("./python.ts");
 const { OPS_PY } = await import("./ops_py.ts");
+const { breach } = await import("./report.ts");
 
 const HOW = `Write the stored files again with: UPDATE_EXPECTED=1 node --test "export/*.test.ts"`;
 
@@ -122,7 +123,7 @@ const hostileProject = (): Project =>
     ],
     variables: [{ name: "take", type: "binary", shape: [5], unit: HOSTILE[4] }, { name: "y", type: "real", shape: [], lb: 0, ub: 1, unit: HOSTILE[5] }],
     objective: { sense: "max", unit: HOSTILE[0], source: "sum(value * take) + y * table[1, 1]" },
-    constraints: HOSTILE.map((text, i) => ({ name: text, left: "sum(weight * take)", op: "<=", right: String(12 + i), unit: HOSTILE[(i + 1) % HOSTILE.length] })),
+    constraints: HOSTILE.map((text, i) => ({ name: text, left: "sum(weight * take)", op: "<=", right: String(12 + i), unit: HOSTILE[(i + 1) % HOSTILE.length], ...(i % 3 === 2 && { enabled: false }) })),
     baseline: { label: HOSTILE[1], solution: { take: [1, 0, 0, 0, 0], y: 0.5 } },
     reference: { label: HOSTILE[3], objective: 100 },
     run: { method: "ga", settings: { pop_size: 20 }, budget: 400, seed: 3 },
@@ -209,6 +210,59 @@ test("what is not a valid project or result is refused", () => {
     r.scales = [scale];
     assert.throws(() => exportPython(constrained, r), /scale/);
   }
+  // the scales must agree with the constraints that were on: a number for each of those, and null for one that was off
+  const off = small({ constraints: [{ name: "c", left: "x[0]", op: "<=", right: "1", enabled: false }, { name: "d", left: "x[1]", op: "<=", right: "1" }] });
+  const stored = structuredClone(runProject(off)) as any;
+  assert.deepEqual([stored.scales[0], typeof stored.scales[1]], [null, "number"]);
+  exportPython(off, stored);
+  for (const scales of [[1, stored.scales[1]], [null, null], [stored.scales[1], null], [null]]) {
+    assert.throws(() => exportPython(off, { ...stored, scales }), /scale/);
+  }
+});
+
+test("a script states the rule once, with both tolerances of every constraint", () => {
+  const project = small({ constraints: [
+    { name: "exact", left: "x[0]", op: "==", right: "1" },
+    { name: "fixed", left: "x[0]", op: "==", right: "1", tolerance: 0.5, unit: "m" },
+    { name: "relative", left: "x[1]", op: "==", right: "x[2]", relative_tolerance: 0.01 },
+    { name: "both", left: "x[1]", op: "==", right: "2", tolerance: 0.25, relative_tolerance: 0.001 },
+    { name: "limit", left: "x[2]", op: "<=", right: "4" },
+  ] });
+  const result = runProject(project), script = exportPython(project, result);
+  assert.equal(script.match(/abs\(left - right\) - \(tolerance \+ relative_tolerance \* abs\(right\)\)/g)?.length, 1, "the rule is written in one place");
+  assert.ok(script.includes("def gap(op, left, right, tolerance, relative_tolerance):\n"));
+  for (const [k, line] of [`("exact", "", "==", 0, 0, `, `("fixed", "m", "==", 0.5, 0, `, `("relative", "", "==", 0, 0.01, `, `("both", "", "==", 0.25, 0.001, `, `("limit", "", "<=", 0, 0, `].entries()) {
+    assert.ok(script.includes(`    ${line}${result.scales[k]}),\n`), `missing: ${line}`);
+  }
+  for (const line of [
+    "# exact: left == right",
+    "# fixed: left == right, within 0.5, in m",
+    "# relative: left == right, within 0.01 times the size of the right side",
+    "# both: left == right, within 0.25 plus 0.001 times the size of the right side",
+    "# limit: left <= right",
+  ]) assert.ok(script.includes(`        ${line}\n`), `missing: ${line}`);
+});
+
+test("a constraint that was off is left out of what ypea evaluates and shown as a comment", () => {
+  const constraints = [
+    { name: "kept", left: "x[0]", op: "<=", right: "1", unit: "m" },
+    { name: "switched off", left: "(x[1] +\n x[2])  # two of them", op: "==", right: "100", unit: "kg", tolerance: 0.5, enabled: false },
+  ];
+  const project = small({ constraints });
+  const result = runProject(project), script = exportPython(project, result);
+  assert.ok(script.includes("\n# Turned off in the app, so this run does not check them. The result says nothing about them.\n#   switched off: (x[1] + x[2]) # two of them == 100, in kg\n"), script);
+  // its text is nowhere else, and ypea gets one constraint
+  assert.equal(script.match(/x\[1\]/g)?.length, 1);
+  assert.equal(script.match(/^    \("/gm)?.length, 1);
+  assert.ok(script.includes(`    ("kept", "m", "<=", 0, 0, ${result.scales[0]}),\n`) && result.scales[1] === null);
+  assert.ok(script.includes(`    print("Off in the app, so not checked:")\n    print("  switched off")\n`));
+
+  // with every constraint off, ypea gets the objective alone, as for a project without constraints
+  const none = small({ constraints: [constraints[1]] });
+  const bare = exportPython(none, runProject(none));
+  assert.ok(bare.includes("        objective,\n        sense=\"min\",\n") && !bare.includes("CONSTRAINTS") && !bare.includes("def evaluate"));
+  assert.ok(bare.includes("#   switched off: (x[1] + x[2]) # two of them == 100, in kg\n"));
+  assert.ok(bare.includes(`    print("Best feasible solution found")\n`) && bare.includes(`    print("  switched off")\n`));
 });
 
 const ALL_TYPES = (): Project =>
@@ -291,7 +345,7 @@ test("the solver, settings, budget and seed come from the result, not from the p
 const COLLIDING = (): Project =>
   small({
     data: [{
-      name: "json", kind: "columns", columns: ["os", "sys", "zip", "list", "str", "id", "type", "result", "seed", "best", "main", "gap", "CONSTRAINTS", "tuple", "locals", "types", "getattr", "f", "g", "sides", "left", "right", "name", "unit", "op", "tolerance", "scale", "problem", "solver", "feasible", "lines", "line", "holds", "i", "make_ops_"]
+      name: "json", kind: "columns", columns: ["os", "sys", "zip", "list", "str", "id", "type", "result", "seed", "best", "main", "gap", "breach", "d", "text", "percent", "relative_tolerance", "mark", "CONSTRAINTS", "tuple", "locals", "types", "getattr", "f", "g", "sides", "left", "right", "name", "unit", "op", "tolerance", "scale", "problem", "solver", "feasible", "lines", "line", "holds", "i", "make_ops_"]
         .map((name, k) => ({ name, values: [k, k + 1, k + 2] })),
     }],
     variables: [{ name: "x", type: "real", shape: [3], lb: -5, ub: 5 }, { name: "constraint_sides", type: "real", shape: [], lb: 0, ub: 1 }],
@@ -300,14 +354,15 @@ const COLLIDING = (): Project =>
     constraints: [
       { name: "first", left: "x[0] + left[0]", op: "<=", right: "right[1] + scale[0] - 30" },
       { name: "second", left: "sum(gap) + x[1]", op: ">=", right: "tolerance[0]", unit: "kg" },
-      { name: "third", left: "x[2]", op: "==", right: "constraint_sides", tolerance: 0.5 },
+      { name: "third", left: "x[2]", op: "==", right: "constraint_sides", tolerance: 0.5, relative_tolerance: 0.125 },
+      { name: "fourth", left: "sum(breach) + percent[0]", op: "<=", right: "relative_tolerance[1] - 500", unit: "kg", enabled: false },
     ],
   });
 
 test("the script's own names move out of the way of the project's names", () => {
   const project = COLLIDING();
   const script = exportPython(project, runProject(project));
-  for (const line of ["import json as json_", "import os as os_", "import sys as sys_", "def make_ops__():", "ops = make_ops__()", "def objective_(sol):", "def constraint_sides_(sol):", "def gap_(op, left, right, tolerance):", "def evaluate_(sol):", "CONSTRAINTS_ = [", "def main_():", "    main_()"]) {
+  for (const line of ["import json as json_", "import os as os_", "import sys as sys_", "def make_ops__():", "ops = make_ops__()", "def objective_(sol):", "def constraint_sides_(sol):", "def gap_(op, left, right, tolerance, relative_tolerance):", "def breach_(op, left, right, unit):", "def evaluate_(sol):", "CONSTRAINTS_ = [", "def main_():", "    main_()"]) {
     assert.ok(script.includes(`\n${line}\n`), `missing: ${line}`);
   }
 });
@@ -387,20 +442,47 @@ function assertSameRun(run: PythonRun, result: RunResult) {
   assert.deepEqual(Object.keys(run.best.solution), Object.keys(result.best.solution));
 }
 
+/** A number that was printed with `digits` significant digits is `value`, rounded there. */
+function assertRounded(text: string, value: number, digits: number, where: string) {
+  const printed = Number(text);
+  assert.ok(Math.abs(printed - value) <= 0.5 * 10 ** (1 - digits) * Math.abs(value) * (1 + 1e-12), `${text} is not ${value} with ${digits} digits: ${where}`);
+  assert.ok(text.replace(/e[+-]?\d+$/, "").replace(/[-.]/g, "").replace(/^0+/, "").length <= digits, `${text} has more than ${digits} digits: ${where}`);
+}
+
 /** What the script prints for people agrees with the app's result. */
 function assertSameReport(report: string[], project: Project, result: RunResult) {
-  const constraints = project.constraints ?? [];
+  const checks = result.best.checks, applied = checks.filter((c) => c.applied), off = checks.filter((c) => !c.applied);
+  assert.equal(checks.length, (project.constraints ?? []).length);
   assert.equal(report[0], result.status);
   assert.ok(report.includes(`Evaluations: ${result.evaluations.used} of ${result.evaluations.budget}`), report.join("\n"));
   const start = report.indexOf("Constraints:");
-  assert.equal(start >= 0, constraints.length > 0);
-  // both sides of every constraint, computed again in Python, are the app's numbers
-  result.best.constraints.forEach((c, i) => {
-    const line = report[start + 1 + i], tail = ` ${c.satisfied ? "(holds)" : "(does not hold)"}`;
-    assert.ok(line.endsWith(tail), line);
-    const [left, right] = line.slice(0, -tail.length).split(` ${c.op} `).slice(-2).map((side, k) => float(k ? side.split(" ")[0] : side.split(" ").pop()));
+  assert.equal(start >= 0, applied.length > 0);
+  // both sides of every constraint that was on, computed again in Python, are the app's numbers
+  applied.forEach((c, i) => {
+    const line = report[start + 1 + i], at = line.lastIndexOf(c.satisfied ? " (holds)" : " (does not hold): ");
+    assert.ok(at > 0, line);
+    const [left, right] = line.slice(0, at).split(` ${c.op} `).slice(-2).map((side, k) => float(k ? side.split(" ")[0] : side.split(" ").pop()));
     assert.deepEqual([left, right], [c.left, c.right], `constraint ${i}: ${line}`);
+    const tail = line.slice(at);
+    if (c.satisfied) return assert.equal(tail, " (holds)", line);
+    // the breach in the words of the report: the difference in the unit, and as a percentage of the limit unless that is 0
+    const words = breach(c);
+    const said = /^ \(does not hold\): (over|short|apart) by (\S+)( .+?)??(?: \((\S+)% of the limit\))?$/.exec(tail);
+    if (!Number.isFinite(c.difference)) return assert.equal(tail, " (does not hold): a side is not a number", line);
+    assert.ok(said, line);
+    assert.equal(said[1], { "<=": "over", ">=": "short", "==": "apart" }[c.op], line);
+    assert.ok(words.toLowerCase().startsWith(`${said[1]} by `), `${words} against: ${line}`);
+    assertRounded(said[2], Math.abs(c.difference!), 6, line);
+    assert.equal(said[3] ?? "", c.unit ? ` ${c.unit}` : "", line);
+    assert.equal(said[4] !== undefined, c.differencePercent !== undefined, line);
+    assert.equal(said[4] !== undefined, words.endsWith("% of the limit)"), `${words} against: ${line}`);
+    if (said[4] !== undefined) assertRounded(said[4], c.differencePercent!, 3, line);
   });
+  // the constraints that were off are named, and nothing is said about whether they hold
+  const offAt = report.indexOf("Off in the app, so not checked:");
+  assert.equal(offAt >= 0, off.length > 0);
+  if (off.length) assert.deepEqual(report.slice(offAt + 1, offAt + 1 + off.length), off.map((c) => `  ${c.name}`));
+  if (off.length) assert.equal(report.filter((line) => /\((holds|does not hold)/.test(line)).length, applied.length);
 }
 
 // CMA-ES: the best value so far as a relative difference, with the bounds of engine/methods/cmaes.test.ts.
@@ -524,7 +606,26 @@ describe("in Python, with the pinned ypea", { concurrency: 8 }, () => {
     const { run, report } = await runScript(exportPython(project, result));
     assertSameRun(run, result);
     assertSameReport(report, project, result);
-    assert.match(report[report.indexOf("Constraints:") + 1], /^ {2}out of reach: .* >= 10\.0 m \(does not hold\)$/);
+    assert.match(report[report.indexOf("Constraints:") + 1], /^ {2}out of reach: .* >= 10\.0 m \(does not hold\): short by \S+ m \(\S+% of the limit\)$/);
+  });
+
+  test("a broken constraint with a limit of zero, and one without a unit: the breach is printed without a percentage", { skip: SKIP }, async () => {
+    const project = small({ constraints: [
+      { name: "zero", left: "x[0] * x[0] + 3", op: "<=", right: "0", unit: "kg" },
+      { name: "apart", left: "x[1]", op: "==", right: "7.5", tolerance: 0.25, relative_tolerance: 0.01 },
+      { name: "none", left: "x[2]", op: ">=", right: "x[0] - x[0]" },
+      { name: "off", left: "x[2]", op: ">=", right: "100", unit: "m", enabled: false },
+    ] });
+    const result = runProject(project);
+    assert.deepEqual(result.best.checks.map((c) => c.satisfied), [false, false, true, undefined]);
+    const { run, report } = await runScript(exportPython(project, result));
+    assertSameRun(run, result);
+    assertSameReport(report, project, result);
+    const at = report.indexOf("Constraints:");
+    assert.match(report[at + 1], /^ {2}zero: \S+ <= 0\.0 kg \(does not hold\): over by \S+ kg$/);
+    // print leaves a space on each side of the empty unit
+    assert.match(report[at + 2], /^ {2}apart: \S+ == 7\.5 {2}\(does not hold\): apart by \S+ \(\S+% of the limit\)$/);
+    assert.match(report[at + 3], /^ {2}none: \S+ >= 0\.0 {2}\(holds\)$/);
   });
 
   test("a unit that the output cannot show, and an output that is not a console, do not stop the script", { skip: SKIP }, async () => {

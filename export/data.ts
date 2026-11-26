@@ -9,8 +9,17 @@
 //   project     the project definition as it was when the run started, with the experiment as
 //               its `run` (the project format of spec/project-format.md)
 //   result      what the engine returned for the run: status, best (objective, violation, feasible,
-//               constraints with both sides, solution, codes), baseline, reference, evaluations,
-//               history, trace, method, settings, seed (base, runIndex, run), scales, versions, timeMs
+//               constraints, checks, solution, codes), baseline, reference, evaluations, history,
+//               trace, method, settings, seed (base, runIndex, run), scales, versions, timeMs
+// Constraints in a result. `best.checks` lists every constraint of the project, in its order: the
+// name, the operator, the unit, `tolerance` and `relativeTolerance`, `applied` (false when the
+// constraint was off in this run), and both sides in the constraint's own unit. A constraint that
+// was applied also has `satisfied`, `excess` (how far past what is allowed, counted after the
+// tolerances), `difference` (left minus right) and `differencePercent` (the size of the difference
+// as a percentage of the size of the right side, absent when that is 0). `best.constraints` is the
+// older list: only the constraints that were applied, without the newer fields. `scales` has one
+// entry for every constraint, null for one that was off. A file written before these fields
+// existed has `best.constraints` and `scales` only, and every constraint in it was applied.
 //   comparison  the descriptive summary of several experiments (absent when there is none)
 // JSON has no way to write a number that is not finite. Such a number (an objective that could
 // not be computed, for example) is written as null, and a reader must take null as "no number".

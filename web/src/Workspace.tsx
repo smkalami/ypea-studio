@@ -15,15 +15,17 @@ import { CandidatePanel, candidateTexts, type Outcome, type Texts } from "./Cand
 import { comparableRun, COMPARISON_VERSION, jobsOf, type Plan, poolSize, type StoredComparison } from "./compare.ts";
 import { COMPARE_FORM, ComparePanel } from "./Compare.tsx";
 import {
-  count, DEFAULT_SETUP, definitionOf, EXPERIMENT, type Experiment, experimentsOf, FIRST, newExperimentId, partOf, projectFor, show, tidy,
+  count, definitionOf, EXPERIMENT, type Experiment, experimentsOf, FIRST, newExperimentId, partOf, projectFor, show, tidy,
   withExperiment, withoutExperiment, withUnit,
 } from "./draft.ts";
 import { Drawing } from "./Drawing.tsx";
 import { ExperimentForm, Result, solverName } from "./Experiment.tsx";
+import { type History, record as recordStep, redo, startHistory, undo } from "./history.ts";
 import { ConstraintsPanel, DataPanel, FunctionsPanel, ObjectivePanel, OverviewPanel, VariablesPanel, ViewPanel } from "./Problem.tsx";
 import { ask, type HelpRequest, type Issue, type RunMessage, type RunRequest, runJobs, TIME_LIMIT_MS, tooLong } from "./protocol.ts";
 import { download } from "./share.ts";
 import { ResultDownloads, SharePanel } from "./Share.tsx";
+import { follow, suggest, suggestionSentence } from "./suggest.ts";
 import { deleteResult, loadComparison, loadResults, RESULT_VERSION, saveComparison, saveProject, saveResult, type StoredProject, type StoredResult } from "./storage.ts";
 import { Alert, Loading } from "./ui/controls.tsx";
 import { ConfirmDialog } from "./ui/Dialog.tsx";
@@ -41,6 +43,8 @@ const PARTS = [
   ["overview", "Overview"], ["data", "Data"], ["variables", "Variables"], ["objective", "Objective"],
   ["constraints", "Constraints"], ["functions", "Functions"], ["view", "Drawing"],
 ] as const;
+/** What "Back to" calls each part. */
+const PART_NAMES: Record<string, string> = { ...Object.fromEntries(PARTS), candidate: "Test a candidate", compare: "Compare", share: "Share" };
 const PANELS = {
   overview: OverviewPanel, data: DataPanel, variables: VariablesPanel, objective: ObjectivePanel,
   constraints: ConstraintsPanel, functions: FunctionsPanel, view: ViewPanel,
@@ -58,6 +62,20 @@ function useNarrow(): boolean {
   return narrow;
 }
 
+/** What the undo history holds: the definition, and the ids of the experiments that still follow the suggested solver. */
+interface Draft {
+  project: Project;
+  following: string[];
+}
+/** A message in the status line of the run bar, with the step it offers. */
+interface Notice {
+  text: string;
+  offer?: "undo" | "redo";
+}
+const TYPED = "input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea";
+/** Everything in the main area that can take the focus, in its order. */
+const focusable = () => [...document.querySelectorAll<HTMLElement>(".panel :is(button, input:not([hidden]), textarea, summary, [tabindex])")];
+
 type RunState =
   | { state: "idle" }
   | { state: "running"; id: string; snapshot: Project; progress?: Progress; curve?: number[] }
@@ -65,7 +83,18 @@ type RunState =
   | { state: "error"; id: string; message: string };
 
 export function Workspace({ record, onBack }: { record: StoredProject; onBack: () => void }) {
-  const [project, setProject] = useState(() => tidy(record.project));
+  // The definition with its undo history. The history lasts while the project is open, and a reload starts a new one.
+  const [history, setHistory] = useState<History<Draft>>(() => {
+    const project = tidy(record.project), ids = new Set(experimentsOf(project).map((e) => e.id));
+    return startHistory({ project, following: (Array.isArray(record.suggested) ? record.suggested : []).filter((id) => ids.has(id)) });
+  });
+  const steps = useRef(history);
+  const { project, following } = history.present;
+  const [notice, setNotice] = useState<Notice>();
+  /** Where the last run was started from, when that was another part than its experiment. */
+  const [origin, setOrigin] = useState<{ key: string; experiment: string; scroll: number; focus: number }>();
+  /** The place of the control in the main area that had the focus last. */
+  const lastFocus = useRef(-1);
   const [saving, setSaving] = useState<"saved" | "saving" | "failed">("saved");
   const [issues, setIssues] = useState<Issue[]>();
   /** The project that `issues` were found in. After an edit they are a moment behind. */
@@ -94,25 +123,67 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
 
   // Saving. The latest project is written a moment after the last change, when the user
   // leaves the project, and when the page is hidden or closed.
-  const latest = useRef(project), dirty = useRef(false), first = useRef(true), checkNumber = useRef(0);
-  latest.current = project;
+  const latest = useRef(history.present), dirty = useRef(false), first = useRef(true), checkNumber = useRef(0);
+  latest.current = history.present;
   const flush = useCallback(async () => {
     if (!dirty.current) return;
     dirty.current = false;
     try {
-      await saveProject(latest.current, record.id);
+      await saveProject(latest.current.project, record.id, latest.current.following);
       if (!dirty.current) setSaving("saved");
     } catch {
       dirty.current = true;
       setSaving("failed");
     }
   }, [record.id]);
-  const update = (next: Project) => {
+  /** Stores a state of the history as the project that is open. */
+  const commit = (next: History<Draft>) => {
+    steps.current = next;
     dirty.current = true;
     setSaving("saving");
-    setProject(next);
+    setHistory(next);
     setOutcome(undefined);
   };
+  /**
+   * One edit. Experiments that still follow the suggested solver get the suggestion for the
+   * variables as they now are. `note` says what was removed or replaced, and is shown with Undo.
+   */
+  const update = (next: Project, note?: string) => {
+    const before = steps.current.present, followed = follow(before.project, next, before.following);
+    // typing in one field is one step of the history
+    const active = document.activeElement, field = active?.matches(TYPED) ? active.id || "field" : undefined;
+    commit(recordStep(steps.current, { project: followed.project, following: followed.following }, field, Date.now()));
+    const told = followed.changed.map((e) => (experimentsOf(before.project).find((old) => old.id === e.id)?.method === e.method
+      ? `The suggested settings of "${e.name}" changed with the variables.`
+      : `The suggested solver of "${e.name}" is now ${solverName(e.method)}.`));
+    setNotice(note || told.length ? { text: [note, ...told].filter(Boolean).join(" "), offer: note ? "undo" : undefined } : undefined);
+    if (note || told.length) setSaid("");
+  };
+  /** One step back or forward in the history. Runs and stored results are not in it, so they stay. */
+  const travel = (way: "undo" | "redo") => {
+    const next = way === "undo" ? undo(steps.current) : redo(steps.current);
+    if (next === steps.current) return;
+    commit(next);
+    // an experiment that the step took away cannot stay on screen
+    if (selected.startsWith(EXPERIMENT) && !experimentsOf(next.present.project).some((e) => EXPERIMENT + e.id === selected)) select(EXPERIMENT + FIRST);
+    setSaid("");
+    setNotice(way === "undo" ? { text: "The last change was undone.", offer: "redo" } : { text: "The change was made again.", offer: "undo" });
+  };
+  const traveling = useRef(travel);
+  traveling.current = travel;
+  // Ctrl+Z and Ctrl+Y (Cmd on a Mac, and Shift+Z). Inside a text field the keys belong to the
+  // browser, which undoes the typing there, and a dialog is finished first.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || (key !== "z" && key !== "y")) return;
+      if ((event.target as Element | null)?.closest?.(`${TYPED}, [contenteditable]`) || document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      traveling.current(key === "y" || event.shiftKey ? "redo" : "undo");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -172,6 +243,9 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
 
   const select = (key: string) => {
     setSelected(key);
+    // a way back belongs to the run that offered it, and any other step takes it away
+    setOrigin(undefined);
+    lastFocus.current = -1;
     if (key.startsWith(EXPERIMENT)) setCurrent(key.slice(EXPERIMENT.length));
     if (drawer.current?.open) drawer.current.close();
   };
@@ -181,6 +255,8 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     setTimeout(() => document.getElementById("panel-heading")?.focus());
   };
   const start = (experiment: Experiment, base: Project = project) => {
+    // the status line belongs to the run from here on: a message about an earlier edit must not hide a refusal or the end of the run
+    setNotice(undefined);
     // Problems found in an older state of the project do not refuse a run. The run worker
     // checks the project again, and its message is shown if it still cannot run.
     const blocking = known.find((i) => !i.where.startsWith(EXPERIMENT) || i.where === EXPERIMENT + experiment.id);
@@ -195,12 +271,15 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     worker.current = w;
     setRun({ state: "running", id: experiment.id, snapshot });
     // the experiment that runs comes into view, with its live preview and then its result
+    const from = { key: selected, experiment: experiment.id, scroll: window.scrollY, focus: lastFocus.current };
     select(EXPERIMENT + experiment.id);
+    if (from.key !== EXPERIMENT + experiment.id) setOrigin(from);
     const end = (next: RunState) => {
       w.terminate();
       worker.current = null;
       setRun(next);
       setSaid(""); // the end of a run is said, also after a candidate was tested meanwhile
+      setNotice(undefined); // and also after an edit during the run
     };
     w.onmessage = async ({ data }: MessageEvent<RunMessage>) => {
       if (data.type === "progress") return setRun({ state: "running", id: experiment.id, snapshot, progress: data.progress, curve: data.curve });
@@ -223,6 +302,7 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     if (run.state !== "running") return;
     worker.current?.terminate();
     worker.current = null;
+    setNotice(undefined);
     setRun({ state: "cancelled", id: run.id });
   };
   // A comparison runs beside everything else: in workers of its own, from a snapshot of the
@@ -265,6 +345,15 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
     setComparing(undefined);
     setCompareEnded({ failed: false, text: "Comparison cancelled. Nothing was kept from it." });
   };
+  /** Back to the part that the run was started from, with the page and the focus where they were, as far as the part is still the same. */
+  const back = () => {
+    if (!origin) return;
+    select(origin.key);
+    setTimeout(() => {
+      (focusable()[origin.focus] ?? document.getElementById("panel-heading"))?.focus({ preventScroll: true });
+      window.scrollTo(0, origin.scroll);
+    });
+  };
   const rerun = (experiment: Experiment) => {
     // the new seed is written into the experiment, so the form and the result agree
     const next = { ...experiment, seed: Number.isInteger(experiment.seed) ? (experiment.seed + 1) % 2 ** 32 : 1 };
@@ -274,11 +363,16 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
   };
 
   const addExperiment = (from?: Experiment) => {
-    const id = newExperimentId(project);
+    const id = newExperimentId(project), suggested = suggest(project.variables);
+    // a copy is the user's own. An experiment that starts from nothing starts as the suggestion, and follows it until it is changed by hand
     const copy: Experiment = from
       ? { ...from, settings: { ...from.settings }, id, name: `${from.name} copy` }
-      : { ...DEFAULT_SETUP, settings: {}, id, name: `Experiment ${experiments.length + 1}` };
-    update(withExperiment(project, copy));
+      : { method: suggested.method, settings: { ...suggested.settings }, budget: suggested.budget, seed: 1, id, name: `Experiment ${experiments.length + 1}` };
+    // an id can come back after an undo, and the result of the experiment that had it before must not
+    void deleteResult(record.id, id);
+    setResults(({ [id]: gone, ...kept }) => kept);
+    commit(recordStep(steps.current, { project: withExperiment(project, copy), following: from ? following : [...following, id] }, undefined, Date.now()));
+    setNotice(undefined);
     select(EXPERIMENT + id);
   };
   const removeExperiment = (experiment: Experiment) => {
@@ -296,21 +390,27 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
       }
     }
     setResults(kept);
-    update(next);
+    // The history starts again here: an undo would bring the experiment back without its result,
+    // and after the first one was deleted it would show the result of another experiment under it.
+    const promoted = experiment.id === FIRST ? experiments[1]?.id : undefined;
+    const still = following.filter((id) => id !== experiment.id).map((id) => (id === promoted ? FIRST : id));
+    commit(startHistory({ project: next, following: still }));
+    setNotice(undefined);
     select(EXPERIMENT + FIRST);
     // the button that had the focus is gone with its experiment
     setTimeout(() => document.getElementById("panel-heading")?.focus());
   };
 
   const status =
-    said ? said
+    notice ? notice.text
+    : said ? said
     : run.state === "running" ? `Running "${shown.name}".`
     : run.state === "done" ? `Run finished. ${results[run.id]?.result.status ?? ""}.`
     : run.state === "cancelled" ? "Run cancelled. Nothing was kept from it."
     : run.state === "error" ? run.message
     : "";
-  const failed = run.state === "error" && !said;
-  const say = (text: string) => setSaid(text);
+  const failed = run.state === "error" && !said && !notice;
+  const say = (text: string) => (setNotice(undefined), setSaid(text));
   const counts: Record<string, number | undefined> = {
     data: (project.data ?? []).length, variables: project.variables.length, constraints: (project.constraints ?? []).length,
   };
@@ -391,7 +491,9 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
             {/* The line is kept when it is empty, so that a message does not move the page. */}
             <div className="run-status" data-state={failed ? "error" : undefined}>
               {failed && <Icon name="circle-exclamation-point" />}
-              <p role="status" aria-live="polite" className={said ? "visually-hidden" : undefined}>{status}</p>
+              <p role="status" aria-live="polite" className={said && !notice ? "visually-hidden" : undefined}>{status}</p>
+              {/* one button for both ways, so that the focus stays on it after it was used */}
+              {notice?.offer && <button type="button" className="btn btn-quiet btn-compact" onClick={() => travel(notice.offer!)}>{notice.offer === "undo" ? "Undo" : "Redo"}</button>}
               {/* outside the live region: a screen reader should not read every update */}
               {run.state === "running" && run.progress && (
                 <p className="progress">
@@ -405,7 +507,10 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
               {issues === undefined && !status && <span className="hint">Checking the project.</span>}
             </div>
           </div>
-          {!running && results[shown.id] && selected !== EXPERIMENT + shown.id && (
+          {/* One place for two ways: back to where the run was started, shown on its experiment, and on to the result, shown everywhere else. */}
+          {origin && selected === EXPERIMENT + origin.experiment ? (
+            <button type="button" className="btn btn-quiet" onClick={back}><Icon name="chevron-left" />Back to {PART_NAMES[origin.key] ?? "the last part"}</button>
+          ) : !running && results[shown.id] && selected !== EXPERIMENT + shown.id && (
             <button type="button" className="btn btn-quiet" onClick={() => select(EXPERIMENT + shown.id)}>Show the result<Icon name="chevron-right" /></button>
           )}
           {/* a comparison shows here from every part, for as long as it runs */}
@@ -420,9 +525,9 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
           )}
         </div>
 
-        <div className="panel">
+        <div className="panel" onFocus={(event) => (lastFocus.current = focusable().indexOf(event.target as HTMLElement))}>
           {loadFailure && <Alert kind="danger"><strong>Problem:</strong> {loadFailure} Reload the page to try again.</Alert>}
-          {Panel && <Panel project={project} set={update} issues={known} go={select} />}
+          {Panel && <Panel project={project} set={update} issues={known} go={select} texts={texts} setTexts={setTexts} />}
           {selected === "candidate" && (
             <CandidatePanel
               project={project} set={update} issues={known} texts={texts} outcome={outcome} help={help} say={say}
@@ -442,6 +547,7 @@ export function Workspace({ record, onBack }: { record: StoredProject; onBack: (
             <>
               <ExperimentForm
                 key={edited.id} project={project} experiment={edited} issues={known.filter((i) => i.where === EXPERIMENT + edited.id)}
+                suggested={following.includes(edited.id) ? suggestionSentence(project.variables) : undefined}
                 onChange={(next) => update(withExperiment(project, next))}
                 onDuplicate={() => addExperiment(edited)}
                 onDelete={() => setRemoving(edited)}

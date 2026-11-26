@@ -5,7 +5,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "../../engine/project.ts";
-import { blankProject, experimentsOf, tidy } from "./draft.ts";
+import { blankProject, experimentsOf, FIRST, tidy } from "./draft.ts";
 import { EXAMPLES } from "./examples.ts";
 import { download } from "./share.ts";
 import { bundleProjects, deleteProject, listProjects, readProjectFile, saveComparison, saveProject, saveResult, type StoredProject } from "./storage.ts";
@@ -51,7 +51,8 @@ export function App() {
   // the long description gives its room to the workspace while a project is open
   useEffect(() => void document.body.classList.toggle("in-project", open !== undefined), [open !== undefined]);
 
-  const add = (project: Project) => act(async () => setOpenId((await saveProject(project)).id));
+  /** `suggested` lists the experiments that start as the suggested solver: the first one of a blank project, and none of an example. */
+  const add = (project: Project, suggested?: string[]) => act(async () => setOpenId((await saveProject(project, undefined, suggested)).id));
   const openFile = (file: File) =>
     act(async () => {
       const saved: StoredProject[] = [];
@@ -71,7 +72,7 @@ export function App() {
         heading="Rename the project" label="Project name" initial={old} action="Rename"
         onDone={(name) => {
           setDialog(undefined);
-          if (name) void act(() => saveProject({ ...p.project, name }, p.id));
+          if (name) void act(() => saveProject({ ...p.project, name }, p.id, p.suggested));
         }}
       />,
     );
@@ -103,7 +104,7 @@ export function App() {
             <section aria-labelledby="projects-heading">
               <div className="section-head">
                 <h2 id="projects-heading">Your projects</h2>
-                <button type="button" className="btn btn-primary" onClick={() => add(blankProject())}><Icon name="plus" />New blank project</button>
+                <button type="button" className="btn btn-primary" onClick={() => add(blankProject(), [FIRST])}><Icon name="plus" />New blank project</button>
               </div>
               <table className="table projects">
                 <thead>
@@ -126,7 +127,7 @@ export function App() {
                         <td className="actions">
                           <button type="button" className="btn btn-secondary btn-compact" aria-label={`Open ${name}`} onClick={() => setOpenId(p.id)}>Open</button>
                           <IconButton icon="pencil" label={`Rename ${name}`} tip="Rename" onClick={() => rename(p, name)} />
-                          <IconButton icon="copy" label={`Duplicate ${name}`} tip="Duplicate" onClick={() => void act(() => saveProject({ ...p.project, name: `${name} copy` }))} />
+                          <IconButton icon="copy" label={`Duplicate ${name}`} tip="Duplicate" onClick={() => void act(() => saveProject({ ...p.project, name: `${name} copy` }, undefined, p.suggested))} />
                           <IconButton icon="download" label={`Download ${name}`} tip="Download" onClick={() => download(name, p.project)} />
                           <IconButton icon="trash" label={`Delete ${name}`} tip="Delete" onClick={() => remove(p, name)} />
                         </td>
@@ -158,7 +159,7 @@ export function App() {
             <h2 id="own-heading">{has ? "Open a project file" : "Start your own"}</h2>
             <p>{has ? "Load a project file from this computer." : "Begin with a blank project, or load a project file from this computer."}</p>
             <div className="row">
-              {projects?.length === 0 && <button type="button" className="btn btn-secondary" onClick={() => add(blankProject())}><Icon name="plus" />New blank project</button>}
+              {projects?.length === 0 && <button type="button" className="btn btn-secondary" onClick={() => add(blankProject(), [FIRST])}><Icon name="plus" />New blank project</button>}
               <FileButton id="project-file" accept=".json,application/json" label="Open a project" hint="A JSON file that was downloaded from YPEA Studio, with or without results." onFile={openFile} />
             </div>
           </section>

@@ -16,6 +16,7 @@ import { parseProject } from "../../engine/project.ts";
 import { deriveSeed } from "../../engine/rng.ts";
 import { runProject, testCandidate, YPEA_TESTED } from "../../engine/run.ts";
 import { parseResultFile } from "../../export/data.ts";
+import { suggest } from "../src/suggest.ts";
 
 const dist = new URL("../dist/", import.meta.url);
 const example = async (name) => JSON.parse(await readFile(new URL(`../../examples/${name}.json`, import.meta.url), "utf8"));
@@ -226,7 +227,7 @@ async function check(browser, prefix) {
   assert.match(fit, /Best feasible solution found/);
   assert.match(fit, /In use today: Current settings/);
   assert.match(fit, /Known answer: Least-squares line/);
-  await result.getByRole("img", { name: /^12 data points of pressure \(kPa\) against voltage \(V\), with the fitted line\. The line is at most [\d.]+ kPa away from a point\.$/ }).waitFor();
+  await result.getByRole("img", { name: /^12 data points of pressure \(kPa\) against voltage \(V\), with the fitted line\. The line is at most [\d.]+ kPa away from a point\. The residuals \(data minus line\) lie between -?[\d.]+ and -?[\d.]+ kPa\.$/ }).waitFor();
   await shot("02-linefit-result");
   say("line fit: ran to the end, is compared with the current settings and the least-squares line, and draws the fitted line");
 
@@ -301,17 +302,25 @@ async function check(browser, prefix) {
   assert.match(routed, /Difference from what is in use today\s+-[\d.]+ km \([\d.]+% lower\), which is better/);
   const load = routed.match(/Heaviest load\s+(\d+) kg\s+at most 60 kg\s+Yes/)[1];
   assert.equal(Number(load), expected.best.constraints[0].left);
-  // every route that is used has its own kind of line, and the legend says its stops and its length
-  const drawnRoutes = /^(\d) routes from the depot and back\.( Route \d: \d+ stops?, [\d.]+ km in straight lines, in this order: [\d, ]+\.)+$/;
+  // every route that is used has its own solid color, its name beside its line, and a legend entry with its stops and its length
+  const drawnRoutes = /^(\d) routes from the depot and back\.( Route \d: \d+ stops?, [\d.]+ km, in this order: [\d, ]+\.)+$/;
   const picture = result.getByRole("img", { name: drawnRoutes });
   await picture.waitFor();
   const used = Number((await picture.getAttribute("aria-label")).match(drawnRoutes)[1]);
-  const lines = await picture.locator("path.mark-line").evaluateAll((paths) => paths.map((path) => path.getAttribute("stroke-dasharray") ?? "solid"));
-  // each route is drawn twice with the same kind of line: once in the picture, and once in the legend
-  assert.equal(lines.length, 2 * used);
+  const drawnLines = (kind) => picture.locator(`${kind}[data-series]`).evaluateAll((lines) => lines.map((line) => `${getComputedStyle(line).stroke} ${line.getAttribute("stroke-dasharray") ?? "solid"}`));
+  // each route is drawn twice with the same color: once on the map, and once in the legend
+  const lines = await drawnLines("path");
+  assert.equal(lines.length, used);
   assert.equal(new Set(lines).size, used);
-  assert.equal(await picture.locator("text").filter({ hasText: /^Route \d: \d+ stops?, [\d.]+ km in straight lines$/ }).count(), used);
-  assert.match(await result.locator("figcaption").first().innerText(), /^Each kind of line is one route: from the depot \(the square\) through its stops and back\./);
+  assert.ok(lines.every((line) => line.endsWith(" solid")), "with few routes no line is dashed");
+  assert.deepEqual(await drawnLines("line"), lines);
+  assert.equal(await picture.locator("text[data-series]").filter({ hasText: /^Route \d$/ }).count(), used);
+  const legend = await picture.locator("text[data-series]").filter({ hasText: /^Route \d: \d+ stops?, [\d.]+ km$/ }).allTextContents();
+  assert.equal(legend.length, used);
+  // the lengths of the legend are read from the table of distances, so together they are the objective
+  const legendTotal = legend.reduce((sum, text) => sum + Number(text.match(/, ([\d.]+) km$/)[1]), 0);
+  assert.ok(Math.abs(legendTotal - expected.best.objective) < 0.05 * used, `the legend adds up to ${legendTotal} km, the objective is ${expected.best.objective} km`);
+  assert.match(await result.locator("figcaption").first().innerText(), /^Each line is one route: it leaves the depot \(the square\), visits its stops in order and returns\. A route has its own color and, beside its line, its name in bold\./);
   await shot("09-vehicle-routing-result");
   await toList();
   await projectFile.setInputFiles({ name: "routes.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...vrp, name: "Long routes", run: { ...vrp.run, budget: 2_000_000_000 } })) });
@@ -323,7 +332,7 @@ async function check(browser, prefix) {
   await page.waitForFunction((label) => document.querySelector(".live svg")?.getAttribute("aria-label") !== label, plan);
   await button("Cancel").click();
   await status.filter({ hasText: "Run cancelled." }).waitFor();
-  say(`vehicle routing: ${shown(expected.best.objective)} km against ${shown(expected.baseline.objective)} km in use today, the heaviest load is ${load} kg of at most 60 kg, ${used} routes are drawn with ${used} kinds of line, and the drawing changes while a run improves it`);
+  say(`vehicle routing: ${shown(expected.best.objective)} km against ${shown(expected.baseline.objective)} km in use today, the heaviest load is ${load} kg of at most 60 kg, ${used} routes are drawn in ${used} colors with legend lengths that add up to ${shown(legendTotal)} km, and the drawing changes while a run improves it`);
   await toList();
 
   // 8. The line fit, built from a blank project with its own CSV.
@@ -492,9 +501,14 @@ async function check(browser, prefix) {
   await tested.filter({ hasText: /Objective \(to maximize\)\s*86 \$.*Total weight\s*2 kg\s*at most 50 kg\s*Yes/ }).waitFor();
   say('knapsack: the presets wrote "sum(value * take)" and the constraint "Total weight": sum(weight * take) <= 50 kg');
 
-  // the first experiment uses the default solver, which was designed for other values: a calm note, not a warning and not a block
+  // the first experiment is the suggestion for yes or no values, which was designed for them, so there is no note
   await side("Quick run").click();
   const note = page.getByRole("note");
+  assert.equal(await page.locator(".suggested").innerText(), `${METHODS.ga.name} is suggested for this project because it holds yes or no values or whole numbers. You can change it.`);
+  assert.equal(await note.count(), 0);
+  // a solver that was designed for other values, picked by hand: a calm note, not a warning and not a block, and no longer a suggestion
+  await choose(field("Solver"), "pso");
+  await page.locator(".suggested").waitFor({ state: "detached" });
   assert.equal(
     (await note.innerText()).replace(/\s+/g, " "),
     "Note: Particle Swarm Optimization was designed for decimal numbers. This project has yes or no values, and the solver may still work well on them. " +
@@ -663,17 +677,394 @@ async function check(browser, prefix) {
   await page.getByLabel(/^routes/).fill(vrp.baseline.solution.routes.map((group) => group.join(", ")).join("\n"));
   await button("Test this candidate").click();
   await tested.filter({ hasText: new RegExp(`Objective \\(to minimize\\)\\s*${shown(expected.baseline.objective).replace(".", "\\.")} km`) }).waitFor();
-  await tested.getByRole("img", { name: drawnRoutes }).waitFor();
-  // the default solver of a blank project, with the same definition as the example, gives the same routes as the engine
+  // ---- figures, start: the optional table of distances of a drawing
+  // Without a table the drawing names the stops of each route and gives no length, which could disagree with the result.
+  await tested.getByRole("img", { name: /^\d routes from the depot and back\.( Route \d: \d+ stops?, in this order: [\d, ]+\.)+$/ }).waitFor();
+  assert.equal(await tested.locator("svg text").filter({ hasText: / km$/ }).count(), 1, "only the bar of the scale has a unit");
+  await side("Drawing").click();
+  assert.equal(await chosen(field("Table of distances")), "");
+  assert.deepEqual(await choices(field("Table of distances")), ["None, show no length", "distance"]);
+  await choose(field("Table of distances"), "distance");
+  await page.locator(".problems").waitFor({ state: "detached" });
+  // with the table, the candidate is drawn with the length of each route. This table was imported without a unit, so the number is named as a length.
+  const drawnLengths = /^\d routes from the depot and back\.( Route \d: \d+ stops?, length [\d.]+, in this order: [\d, ]+\.)+$/;
+  await side("Test a candidate").click();
+  await button("Test this candidate").click();
+  await tested.getByRole("img", { name: drawnLengths }).waitFor();
+  // ---- figures, end
+  // the solver suggested for a blank project with ordered groups, with the same definition as the example, gives the same routes as the engine
   await button("Run").click();
   await finished();
   const mineRouted = await result.innerText();
-  const byEngine = runProject(parseProject({ ...vrp, run: { method: "pso", settings: {}, budget: 20000, seed: 1 } }));
+  const forGroups = suggest(vrp.variables);
+  assert.equal(forGroups.method, "sa");
+  assert.match(mineRouted, new RegExp(`randomized solver \\(${METHODS.sa.name}\\)`));
+  const byEngine = runProject(parseProject({ ...vrp, run: { method: forGroups.method, settings: forGroups.settings, budget: forGroups.budget, seed: 1 } }));
   assert.ok(mineRouted.includes(`Objective (minimized)\n${shown(byEngine.best.objective)} km`));
   assert.match(mineRouted, /Largest load\s+\d+ kg\s+at most 60 kg\s+Yes/);
-  await result.getByRole("img", { name: drawnRoutes }).waitFor();
+  await result.getByRole("img", { name: drawnLengths }).waitFor();
+
+  // a new name for a matrix, typed key by key: the function that uses the table by its name can follow
+  await side("Data").click();
+  await field("Table name", card(2)).click();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("dist", { delay: 30 });
+  const tableOffer = card(2).locator(".field", { has: field("Table name") }).locator(".hint");
+  assert.equal((await tableOffer.innerText()).replace(/\s+/g, " "), "2 places still use the old name distance. Rename there too");
+  await button("Rename there too").click();
+  await side("Functions").click();
+  assert.equal(await field("Function definitions").inputValue(), vrp.functions.replaceAll("distance[", "dist["));
+  await side("Functions").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  await side("Objective").click();
+  await page.locator(".ok").filter({ hasText: "Checked: this gives one number." }).waitFor();
   await saved();
   say(`ordered groups from a blank project: the presets wrote "total_length(routes)", the constraint "Largest load": heaviest_load(routes) <= 60 kg, and the three helper functions of the example. A function changed by hand was kept. The run gives ${shown(byEngine.best.objective)} km, as the engine does`);
+
+  // Editing: the suggested solver, Undo, names that are used, and the way back from a run.
+  await toList();
+  await blank("My edits");
+  const suggestion = page.locator(".suggested");
+  const setup = page.locator(".runbar .setup");
+  const undoButton = page.locator(".run-status").getByRole("button", { name: "Undo", exact: true });
+  const redoButton = page.locator(".run-status").getByRole("button", { name: "Redo", exact: true });
+  const items = page.locator("fieldset.item");
+  const solverOf = (id) => METHODS[id].name;
+  // a blank project: its experiment is a suggestion, and says so in plain words, not as a warning
+  await side("Quick run").click();
+  assert.equal(await suggestion.innerText(), `${solverOf("cmaes")} is suggested for this project as a start, and the suggestion will follow the variables you add. You can change it.`);
+  assert.equal(await suggestion.getAttribute("class"), "hint suggested");
+  assert.equal(await page.locator(".alert").count(), 0);
+  await side("Data").click();
+  await page.locator("#csv-table").setInputFiles(csv("items"));
+  await side("Variables").click();
+  await button("Add a variable").click();
+  await side("Quick run").click();
+  assert.equal(await suggestion.innerText(), `${solverOf("cmaes")} is suggested for this project because it holds only decimal numbers. You can change it.`);
+  assert.equal(await chosen(field("Solver")), "cmaes");
+  assert.equal(await field("Budget (evaluations)").inputValue(), "20000");
+  // an ordering is added: the suggestion changes, and the status line says so where the variables are edited
+  await side("Variables").click();
+  await button("Add a variable").click();
+  await choose(field("What it holds", card(1)), "permutation");
+  await status.filter({ hasText: `The suggested solver of "Quick run" is now ${solverOf("ga")}.` }).waitFor();
+  assert.equal(await status.getAttribute("aria-live"), "polite");
+  assert.match(await setup.innerText(), new RegExp(`^Quick run: ${solverOf("ga")}, 20,000 evaluations, seed 1$`));
+  await choose(field("What it holds", card(0)), "selection");
+  await status.filter({ hasText: `The suggested solver of "Quick run" is now ${solverOf("sa")}.` }).waitFor();
+  await side("Quick run").click();
+  assert.equal(await suggestion.innerText(), `${solverOf("sa")} is suggested for this project because its variables are orderings, selections or groups. You can change it.`);
+  await saved();
+  [download] = await Promise.all([page.waitForEvent("download"), button("Download project").click()]);
+  const suggestedFor = suggest([{ type: "selection" }, { type: "permutation" }]);
+  assert.deepEqual((await read(download)).run, { method: suggestedFor.method, settings: suggestedFor.settings, budget: 20000, seed: 1, name: "Quick run" });
+  await side("Variables").click();
+  await choose(field("What it holds", card(0)), "real");
+  await status.filter({ hasText: `The suggested solver of "Quick run" is now ${solverOf("ga")}.` }).waitFor();
+  say(`suggested solver: a blank project starts with ${solverOf("cmaes")}, an ordering beside decimal numbers gives ${solverOf("ga")} on the values themselves, orderings alone give ${solverOf("sa")}, each said in the status line and on the experiment`);
+
+  // Remove a variable that nothing uses: it goes at once, and comes back with the button and with the keyboard.
+  await button("Remove variable x2").click();
+  assert.equal(await dialog.count(), 0);
+  await status.filter({ hasText: `The variable x2 was removed. The suggested solver of "Quick run" is now ${solverOf("cmaes")}.` }).waitFor();
+  assert.equal(await items.count(), 1);
+  // the Remove button that took its place has the focus, and the message covers no control: it is the status line of the run bar
+  await page.waitForFunction(() => document.activeElement.getAttribute("aria-label") === "Remove variable x");
+  assert.equal(await undoButton.evaluate((b) => b.closest(".runbar") !== null && b.closest("[role=status]") === null), true);
+  await undoButton.click();
+  await status.filter({ hasText: "The last change was undone." }).waitFor();
+  assert.equal(await items.count(), 2);
+  assert.equal(await chosen(field("What it holds", card(1))), "permutation");
+  assert.match(await setup.innerText(), new RegExp(`^Quick run: ${solverOf("ga")},`));
+  // the same button now offers the other way, and still has the focus
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Redo");
+  await redoButton.click();
+  await status.filter({ hasText: "The change was made again." }).waitFor();
+  assert.equal(await items.count(), 1);
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Undo");
+  // the keyboard: Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z, while the focus is not in a text field
+  await page.keyboard.press("Control+z");
+  await items.nth(1).waitFor();
+  await page.keyboard.press("Control+y");
+  await items.nth(1).waitFor({ state: "detached" });
+  await page.keyboard.press("Control+z");
+  await items.nth(1).waitFor();
+  await page.keyboard.press("Control+Shift+z");
+  await items.nth(1).waitFor({ state: "detached" });
+  await page.keyboard.press("Meta+z");
+  await items.nth(1).waitFor();
+  // Typing in one field is one step. Inside the field the keys belong to the browser, which undoes the typing and no step of the project.
+  await field("Unit", card(0)).click();
+  await page.keyboard.type("kilogram", { delay: 20 });
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(200);
+  assert.equal(await items.count(), 2);
+  const afterBrowserUndo = await field("Unit", card(0)).inputValue();
+  assert.notEqual(afterBrowserUndo, "kilogram");
+  // what the field shows after the browser's undo is what the project holds: the part is drawn again from the project, and says the same
+  await side("Objective").click();
+  await side("Variables").click();
+  assert.equal(await field("Unit", card(0)).inputValue(), afterBrowserUndo);
+  // a pause ends a step: emptying the field is one step, and the word typed after the next pause is another
+  await page.waitForTimeout(1100);
+  await field("Unit", card(0)).fill("");
+  await page.waitForTimeout(1100);
+  await page.keyboard.type("kilogram", { delay: 20 });
+  await heading("Variables").click();
+  await page.keyboard.press("Control+z");
+  await page.waitForFunction(() => document.activeElement.id === "panel-heading");
+  assert.equal(await field("Unit", card(0)).inputValue(), "");
+  assert.equal(await items.count(), 2);
+  await page.keyboard.press("Control+y");
+  assert.equal(await field("Unit", card(0)).inputValue(), "kilogram");
+  await page.keyboard.press("Control+z");
+  assert.equal(await field("Unit", card(0)).inputValue(), "");
+  // the other way round: after the app's undo, Ctrl+Z inside that field is the browser's again, and field and project still agree
+  await field("Unit", card(0)).click();
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(200);
+  const afterBoth = await field("Unit", card(0)).inputValue();
+  assert.equal(await items.count(), 2);
+  await side("Objective").click();
+  await side("Variables").click();
+  assert.equal(await field("Unit", card(0)).inputValue(), afterBoth);
+  await field("Unit", card(0)).fill("");
+  await button("Remove variable x2").click();
+  await items.nth(1).waitFor({ state: "detached" });
+  say(`undo: a variable that nothing uses was removed at once, and came back with the Undo button and with Ctrl+Z. Redo, Ctrl+Y and Ctrl+Shift+Z work. Typing a word in one field is one step, and Ctrl+Z inside the field was left to the browser (the field then held "${afterBrowserUndo}")`);
+
+  // The definition: yes or no values with a limit that is a variable, so that one name holds another.
+  await field("Name", card(0)).fill("weight_limit");
+  await field("Highest value", card(0)).fill("60");
+  await button("Add a variable").click();
+  await field("Name", card(1)).fill("take");
+  await choose(field("What it holds", card(1)), "binary");
+  await status.filter({ hasText: `The suggested solver of "Quick run" is now ${solverOf("ga")}.` }).waitFor();
+  await choose(field("Shape", card(1)), "1");
+  await field("Number of values", card(1)).fill("20");
+  await side("Objective").click();
+  await choose(field("Goal"), "max");
+  const profit = "sum(value * take) - sum(weight * take) / (1 + weight_limit)  # weight counts a little";
+  await field("Expression").fill(profit);
+  await side("Constraints").click();
+  for (const [n, name, left, right] of [[0, "Total weight", "sum(weight * take)", "weight_limit"], [1, "Items", "sum(take)", "15"], [2, "Limit", "weight_limit", "60"]]) {
+    await button("Add a constraint").click();
+    await field("Name", card(n)).fill(name);
+    await field("Left side", card(n)).fill(left);
+    await field("Right side", card(n)).fill(right);
+  }
+  await saved();
+  await side("Constraints").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  await side("Quick run").click();
+  assert.equal(await suggestion.innerText(), `${solverOf("ga")} is suggested for this project because it holds yes or no values or whole numbers. You can change it.`);
+  await page.getByText(`Settings of ${solverOf("ga")}`).click();
+  assert.deepEqual([await field("mutation_step_size").inputValue(), await field("mutation_step_size_damp").inputValue(), await chosen(field("Work on"))], ["0.3", "1", "encoded"]);
+
+  // Run from the Constraints part, in a window short enough to scroll: the run bar then offers the way back.
+  await page.setViewportSize({ width: 1440, height: 620 });
+  const backButton = button("Back to Constraints");
+  const fromConstraints = async () => {
+    await side("Constraints").click();
+    await field("Right side", card(2)).focus();
+    const scroll = await page.evaluate(() => window.scrollY);
+    // Pressed where it is on screen, as a person does. A click by name first scrolls the page to where the bar would be if it did not stay in view.
+    const box = await button("Run").boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await finished();
+    await result.waitFor();
+    return scroll;
+  };
+  // 1. another step takes the way back away
+  await fromConstraints();
+  await backButton.waitFor();
+  assert.equal(await button("Show the result").count(), 0);
+  await side("Objective").click();
+  await side("Quick run").click();
+  await result.waitFor();
+  assert.equal(await backButton.count(), 0);
+  // 2. back: the part, the place on the page and the focus are as they were left
+  const left = await fromConstraints();
+  assert.ok(left > 0, "the Constraints part scrolls in this window");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // with the keyboard
+  await backButton.focus();
+  await page.keyboard.press("Enter");
+  await heading("Constraints").waitFor();
+  await page.waitForFunction((y) => Math.abs(window.scrollY - y) <= 1, left);
+  assert.deepEqual(
+    await page.evaluate(() => [document.activeElement.value, document.activeElement.closest("fieldset").querySelector("legend").textContent, document.querySelector(`label[for="${document.activeElement.id}"]`).textContent]),
+    ["60", "Constraint 2", "Right side"],
+  );
+  assert.equal(await backButton.count(), 0);
+  // from another part the same place of the bar leads on to the result
+  await button("Show the result").waitFor();
+  // 3. a new run from the experiment itself has nowhere to go back to
+  await fromConstraints();
+  await backButton.waitFor();
+  await button("Run").click();
+  await finished();
+  assert.equal(await backButton.count(), 0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const kept = await result.innerText();
+  say(`run from Constraints: the run bar offered "Back to Constraints", which returned to the part at the same scroll position (${left}px) with the focus in the field that had it. It went away after another step and after a run from the experiment itself`);
+
+  // Remove a column that is used: a dialog names each place, and Cancel has the focus.
+  await side("Data").click();
+  await button("Remove column weight").click();
+  await dialog.getByRole("heading", { name: "Remove the column weight?" }).waitFor();
+  assert.deepEqual(await dialog.locator(".uses li").allInnerTexts(), ["The objective uses weight.", 'The constraint "Total weight" uses weight.']);
+  assert.equal(await dialog.locator(".uses code").first().innerText(), "weight");
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Cancel");
+  // the keys of Undo do nothing behind a dialog
+  await page.keyboard.press("Control+z");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await field("Name of column 0").inputValue(), "weight");
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute("aria-label")), "Remove column weight");
+  await side("Constraints").click();
+  assert.equal(await field("Right side", card(2)).inputValue(), "60");
+  await side("Data").click();
+  // remove anyway: nothing else is changed, and the parts that used the column show their problem
+  // with the keyboard: Enter on the button opens the dialog, Tab goes from Cancel to "Remove anyway", Enter removes
+  await button("Remove column weight").focus();
+  await page.keyboard.press("Enter");
+  await dialog.waitFor();
+  await page.keyboard.press("Tab");
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Remove anyway");
+  await page.keyboard.press("Enter");
+  await status.filter({ hasText: "The column weight was removed." }).waitFor();
+  assert.equal(await field("Name of column 0").inputValue(), "value");
+  await side("Objective").getByRole("img", { name: "has a problem" }).waitFor();
+  await side("Constraints").getByRole("img", { name: "has a problem" }).waitFor();
+  await side("Constraints").click();
+  assert.match(await card(0).locator(".field", { has: field("Left side") }).locator(".problems").innerText(), /The name "weight" is not known/);
+  // a run is refused, and says so: the message of the removal does not stand in its way
+  const refusedBefore = runWorkers;
+  await button("Run").click();
+  await status.filter({ hasText: "This project cannot run yet." }).waitFor();
+  assert.equal(await page.locator(".run-status").getAttribute("data-state"), "error");
+  assert.equal(runWorkers, refusedBefore);
+  await side("Objective").click();
+  assert.equal(await field("Expression").inputValue(), profit);
+  const missing = await page.locator(".field", { has: field("Expression") }).locator(".problems").innerText();
+  assert.match(missing, /weight/);
+  // the only column that is left cannot be removed, and says why
+  await side("Data").click();
+  assert.equal(await button("Remove column value").getAttribute("aria-disabled"), "true");
+  assert.equal(await button("Remove column value").getAttribute("data-tip"), "A table needs at least one column. Remove the table instead.");
+  await button("Remove column value").click({ force: true });
+  assert.equal(await field("Name of column 0").inputValue(), "value");
+  // undo: the column is back, and the problem marks go. The button went with the message when Run was pressed, so the keyboard is used.
+  assert.equal(await undoButton.count(), 0);
+  await heading("Data").click();
+  await page.keyboard.press("Control+z");
+  assert.equal(await field("Name of column 0").inputValue(), "weight");
+  await side("Objective").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  await side("Constraints").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  // the run and its result were never part of what Undo takes back
+  await side("Quick run").click();
+  assert.equal(await result.innerText(), kept);
+  say(`a column in use: the dialog listed "The objective uses weight." and 'The constraint "Total weight" uses weight.' with the focus on Cancel. After "Remove anyway" the objective said: "${missing.replace(/\s+/g, " ")}". Undo brought the column back, the marks went, and the result of the run stayed`);
+
+  // A new name, typed key by key: the places that use the old one can follow, and a longer name that holds it is left alone.
+  await side("Data").click();
+  await field("Name of column 0").click();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("mass", { delay: 30 });
+  const offer = page.locator(".field", { has: field("Name of column 0") }).locator(".hint");
+  assert.equal((await offer.innerText()).replace(/\s+/g, " "), "2 places still use the old name weight. Rename there too");
+  await side("Objective").getByRole("img", { name: "has a problem" }).waitFor();
+  await button("Rename there too").click();
+  await offer.waitFor({ state: "detached" });
+  assert.equal(await page.evaluate(() => document.activeElement.value), "mass");
+  await side("Objective").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  await side("Objective").click();
+  const followed = "sum(value * take) - sum(mass * take) / (1 + weight_limit)  # weight counts a little";
+  assert.equal(await field("Expression").inputValue(), followed);
+  await page.locator(".ok").filter({ hasText: "Checked: this gives one number." }).waitFor();
+  await side("Constraints").click();
+  assert.deepEqual([await field("Left side", card(0)).inputValue(), await field("Right side", card(0)).inputValue(), await field("Left side", card(2)).inputValue()], ["sum(mass * take)", "weight_limit", "weight_limit"]);
+  // the carried name is a step of its own: Ctrl+Z takes it back and leaves the new name of the column, so the old name is missing again
+  await heading("Constraints").click();
+  await page.keyboard.press("Control+z");
+  assert.equal(await field("Left side", card(0)).inputValue(), "sum(weight * take)");
+  await side("Objective").getByRole("img", { name: "has a problem" }).waitFor();
+  await side("Data").click();
+  assert.equal(await field("Name of column 0").inputValue(), "mass");
+  await side("Constraints").click();
+  await heading("Constraints").click();
+  await page.keyboard.press("Control+y");
+  assert.equal(await field("Left side", card(0)).inputValue(), "sum(mass * take)");
+  // a variable: its name follows into the expressions, and the variable whose name holds it keeps its own
+  await side("Variables").click();
+  await field("Name", card(1)).click();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("pick", { delay: 30 });
+  // with the keyboard: the offer is the next stop after the field, and the field has the focus again afterward
+  await page.keyboard.press("Tab");
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), "Rename there too");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.activeElement.value === "pick");
+  await side("Objective").click();
+  assert.equal(await field("Expression").inputValue(), followed.replaceAll("take", "pick"));
+  await page.locator(".ok").filter({ hasText: "Checked: this gives one number." }).waitFor();
+  say(`rename: "weight" became "mass" key by key, the line under the field said "2 places still use the old name weight.", and "Rename there too" gave "${followed}" with weight_limit and the comment untouched. A variable followed in the same way`);
+
+  // A function is renamed in the text itself. The calls can follow while the text has the same functions, and nothing is offered after one is deleted.
+  await side("Functions").click();
+  const defs = "def total(t):\n    return sum(t)\n\ndef twice(t):\n    return 2 * total(t)\n";
+  await field("Function definitions").fill(defs);
+  await side("Constraints").click();
+  await field("Left side", card(1)).fill("twice(pick)");
+  await field("Right side", card(1)).fill("30");
+  await saved();
+  await side("Constraints").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  await side("Functions").click();
+  await field("Function definitions").click();
+  await field("Function definitions").evaluate((area) => area.setSelectionRange("def total".length, "def total".length));
+  await page.keyboard.type("_of", { delay: 30 });
+  const functionOffer = page.locator(".field", { has: field("Function definitions") }).locator(".hint");
+  assert.equal((await functionOffer.innerText()).replace(/\s+/g, " ").trim(), "1 place still uses the old name total. Rename there too");
+  await button("Rename there too").click();
+  assert.equal(await field("Function definitions").inputValue(), defs.replaceAll("total", "total_of"));
+  await functionOffer.waitFor({ state: "detached" });
+  await side("Functions").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  // the first function is deleted: the second is now the first in the text, and its name is not offered to the call of the one that is gone
+  await field("Function definitions").evaluate((area) => area.setSelectionRange(0, area.value.indexOf("def twice")));
+  await page.keyboard.press("Delete");
+  assert.equal(await field("Function definitions").inputValue(), "def twice(t):\n    return 2 * total_of(t)\n");
+  await page.locator(".field", { has: field("Function definitions") }).locator(".problems").filter({ hasText: "total_of" }).waitFor();
+  assert.equal(await button("Rename there too").count(), 0);
+  // leaving the field and coming back to it changes nothing about that
+  await heading("Functions").click();
+  await field("Function definitions").click();
+  await page.waitForTimeout(200);
+  assert.equal(await button("Rename there too").count(), 0);
+  await heading("Functions").click();
+  await page.keyboard.press("Control+z");
+  assert.equal(await field("Function definitions").inputValue(), defs.replaceAll("total", "total_of"));
+  await side("Functions").getByRole("img", { name: "has a problem" }).waitFor({ state: "detached" });
+  say('a function renamed in the text ("total" to "total_of") was followed by its call with "Rename there too". After the first function was deleted, nothing was offered');
+
+  // The user picks a solver: the experiment is theirs from then on, and the variables no longer change it.
+  await side("Quick run").click();
+  await suggestion.waitFor();
+  await choose(field("Solver"), "de");
+  await suggestion.waitFor({ state: "detached" });
+  await side("Variables").click();
+  await button("Add a variable").click();
+  await choose(field("What it holds", card(2)), "permutation");
+  await page.waitForTimeout(300);
+  assert.match(await setup.innerText(), new RegExp(`^Quick run: ${solverOf("de")}, 20,000 evaluations, seed 1$`));
+  assert.doesNotMatch(await status.innerText(), /suggested/);
+  // an experiment that starts from nothing starts as the suggestion, here for a mix
+  await button("New experiment").click();
+  await heading("Experiment").waitFor();
+  assert.equal(await field("Name of the experiment").inputValue(), "Experiment 2");
+  assert.match(await suggestion.innerText(), new RegExp(`^${solverOf("ga")} is suggested for this project because it mixes orderings`));
+  await page.getByText(`Settings of ${solverOf("ga")}`).click();
+  assert.equal(await chosen(field("Work on")), "native");
+  await saved();
+  say(`a solver picked by hand (${solverOf("de")}) stayed when an ordering was added, and a new experiment started from the suggestion for the mix`);
 
   // Compare: two experiments of the knapsack example and Random Search, five runs each.
   await toList();
@@ -786,7 +1177,7 @@ async function check(browser, prefix) {
   const drawn = summary.experiments.filter((e) => e.feasibleRuns > 0);
   assert.equal(await page.locator(".charts svg").count(), drawn.length);
   await page.locator(".charts").getByRole("img", { name: new RegExp(`^${drawn[0].name}\\. Feasible runs: ${drawn[0].feasibleRuns} of 5\\. The median of the best value went from`) }).waitFor();
-  assert.equal(await page.locator(".charts .figure-box").first().getAttribute("tabindex"), "0");
+  assert.equal(await page.locator(".charts .drawing-box").first().getAttribute("tabindex"), "0");
   // nothing on the page judges: no winner, no ranking, no test
   const judging = /winner|best solver|significan|p-value|\branking|\branked|statistic|outperform/i;
   assert.doesNotMatch(await page.locator("body").innerText(), judging);
@@ -886,19 +1277,21 @@ async function check(browser, prefix) {
     return [bytes.readUInt32BE(16), bytes.readUInt32BE(20), bytes.length];
   };
   for (const [name, file, words, height] of [
-    ["History chart", "0-1-knapsack-Quick-run-history", /<title id="history-title">The best value went from /, 300],
-    ["Drawing of the solution", "0-1-knapsack-Quick-run-drawing", /<title id="drawing-title">\d+ of 20 items are chosen: positions /, 202],
-    ["Comparison charts", "0-1-knapsack-comparison", /<title id="comparison-title">Quick run\. Feasible runs: /, undefined],
+    // a history has a legend, and so 38 more in height, when a part of its line is not a result
+    ["History chart", "0-1-knapsack-Quick-run-history", /<title id="history-title">Best value against evaluations<\/title><desc id="history-desc">The best value went from /, [300, 338]],
+    ["Drawing of the solution", "0-1-knapsack-Quick-run-drawing", /<title id="drawing-title">Chosen items<\/title><desc id="drawing-desc">\d+ of 20 items are chosen: positions /, [268]],
+    ["Comparison charts", "0-1-knapsack-comparison", /<title id="comparison-title">[^<]+<\/title><desc id="comparison-desc">Quick run\. Feasible runs: /, undefined],
   ]) {
     download = await save(`${name} (SVG)`);
     assert.equal(download.suggestedFilename(), `${file}.svg`);
     const svg = await text(download);
-    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 440 \d+" width="440" height="\d+" role="img" aria-labelledby="[a-z-]+"><title /);
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 440 \d+" width="440" height="\d+" role="img" aria-labelledby="[a-z]+-title [a-z]+-desc" font-size="12" font-family="[^"]+"><title /);
     assert.match(svg, words);
-    assert.match(svg, /<\/title><style>[^<]+<\/style><rect width="100%" height="100%" fill="#ffffff"\/>/);
-    assert.doesNotMatch(svg, /var\(|<script|href=|class="figure|currentColor/);
+    // its own background right after its title and its description, every color written out, and nothing that points outside the file
+    assert.match(svg, /<\/desc><rect width="440" height="\d+" fill="#ffffff"\/>/);
+    assert.doesNotMatch(svg, /var\(|<script|href=|class=|<style|style=|currentColor/);
     const tall = Number(svg.match(/ height="(\d+)"/)[1]);
-    if (height) assert.equal(tall, height);
+    if (height) assert.ok(height.includes(tall), `${name}: a height of ${tall}`);
     // the file stands on its own: a browser draws it as a picture, with the size it names
     assert.deepEqual(await page.evaluate(async (source) => {
       const image = new Image();
@@ -960,7 +1353,7 @@ async function check(browser, prefix) {
   tampered.comparisons[0].experiments[0].results[1].seed.run = 1;
   await projectFile.setInputFiles({ name: "tampered.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(tampered)) });
   await alert.filter({ hasText: "This file holds a comparison that cannot be read." }).waitFor();
-  assert.equal(await page.locator("table.projects tbody tr").count(), 12);
+  assert.equal(await page.locator("table.projects tbody tr").count(), 13);
   await fromList("Shared knapsack");
   say("a project downloaded with its results opens as a new project with the same result and the same comparison, without a run. A file with a changed seed is refused");
 
@@ -976,9 +1369,11 @@ async function check(browser, prefix) {
   assert.doesNotMatch(overloaded, /which is (better|worse)/);
   // and its history says that its values are not results, with the whole line dashed
   assert.match(overloaded, /No candidate was feasible during this run\. The whole line is dashed: its values belong to candidates that break a constraint, and they are not results\./);
-  const historyLines = await result.locator("figure").last().locator("path.mark-line").evaluateAll((paths) => paths.map((path) => [path.getAttribute("class"), path.getAttribute("d").length > 0, getComputedStyle(path).strokeDasharray]));
-  assert.deepEqual(historyLines.map((line) => [line[0], line[1]]), [["mark-line", false], ["mark-line not-result", true]]);
-  assert.notEqual(historyLines[1][2], "none");
+  // one line only, in the muted color and dashed, and the legend under the chart names it
+  const historyLines = await result.locator("figure").last().locator("path").evaluateAll((paths) => paths.map((path) => [path.getAttribute("class"), path.getAttribute("d").length > 0, getComputedStyle(path).strokeDasharray]));
+  assert.deepEqual(historyLines.map((line) => [line[0], line[1]]), [["fig-stroke-muted", true]]);
+  assert.notEqual(historyLines[0][2], "none");
+  assert.equal(await result.locator("figure").last().locator("text").filter({ hasText: "Not a result: the best candidate breaks a constraint" }).count(), 1);
   await shot("16-not-feasible-result");
   say(`a result that is not feasible: "${overloaded.match(/Difference from what is in use today\s+(.*)/)[1]}" with no verdict, and a dashed history that says its values are not results`);
 
@@ -1008,7 +1403,7 @@ async function check(browser, prefix) {
   assert.equal(await page.locator("main h2").first().innerText(), "Your projects");
   // the theme chosen at the start is still applied after the reload
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
-  assert.equal(await page.locator("table.projects tbody tr").count(), 13);
+  assert.equal(await page.locator("table.projects tbody tr").count(), 14);
   await button("New blank project").waitFor();
   await fromList("Benchmark functions");
   await result.waitFor();
@@ -1057,14 +1452,64 @@ async function check(browser, prefix) {
   assert.deepEqual(file.run, { method: "pso", settings: {}, budget: 20000, seed: 1, name: "PSO quick run" });
   assert.deepEqual(file.experiments, [{ id: "e2", name: "GA run", method: "ga", settings: { pop_size: 50 }, budget: 20000, seed: 2 }]);
   assert.equal(parseProject(file).name, "My knapsack");
+
+  // what is the user's own and what still is a suggestion are both as they were left
+  await toList();
+  // a new name given in the list of projects keeps what is still a suggestion
+  await button("Rename My edits").click();
+  await field("Project name", dialog).fill("My edits, renamed");
+  await dialog.getByRole("button", { name: "Rename", exact: true }).click();
+  await button("Open My edits, renamed").waitFor();
+  await fromList("My edits, renamed");
+  // the history of edits belongs to one visit: after a reload there is nothing to undo
+  await side("Variables").click();
+  await heading("Variables").click();
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator("fieldset.item").count(), 3);
+  assert.equal(await page.locator(".run-status button").count(), 0);
+  await side("Quick run").click();
+  assert.equal(await chosen(field("Solver")), "de");
+  assert.equal(await page.locator(".suggested").count(), 0);
+  await side("Experiment 2").click();
+  assert.match(await page.locator(".suggested").innerText(), /because it mixes orderings/);
+  await side("Variables").click();
+  await button("Remove variable x").click();
+  await status.filter({ hasText: 'The variable x was removed. The suggested settings of "Experiment 2" changed with the variables.' }).waitFor();
+  await side("Quick run").click();
+  assert.equal(await chosen(field("Solver")), "de");
+  await side("Experiment 2").click();
+  assert.equal(await page.locator(".suggested").innerText(), `${METHODS.ga.name} is suggested for this project because it holds yes or no values or whole numbers. You can change it.`);
+  await page.getByText(`Settings of ${METHODS.ga.name}`).click();
+  assert.equal(await chosen(field("Work on")), "encoded");
+  // the first experiment is deleted: the next one takes its place, and is still the suggestion
+  await side("Quick run").click();
+  await button("Delete").click();
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+  await dialog.waitFor({ state: "detached" });
+  assert.equal(await field("Name of the experiment").inputValue(), "Experiment 2");
+  await page.locator(".suggested").waitFor();
+  assert.equal(await page.locator(".sidebar ul").nth(2).getByRole("button").count(), 2);
+  // deleting an experiment starts the history again, so the removal of the variable before it can no longer be undone
+  await page.waitForFunction(() => document.activeElement.id === "panel-heading");
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator(".sidebar ul").nth(2).getByRole("button").count(), 2);
+  await side("Variables").click();
+  assert.equal(await page.locator("fieldset.item").count(), 2);
+  // and the experiment that moved up still follows the variables
+  await button("Add a variable").click();
+  await choose(field("What it holds", card(2)), "permutation");
+  await status.filter({ hasText: 'The suggested settings of "Experiment 2" changed with the variables.' }).waitFor();
+  await saved();
   await shot("08-after-reload");
-  say("after a hard reload: 13 projects listed first, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, each experiment of the knapsack keeps its own result, and the stored comparison is there and notes a later edit");
+  say("after a hard reload: 14 projects listed first, an experiment changed by hand stays as it is while one that is still a suggestion follows the variables, also after the project was renamed in the list and after the first experiment was deleted, the history of edits starts again, the benchmark result is unchanged, the cancelled run has none, both built projects are as they were left, each experiment of the knapsack keeps its own result, and the stored comparison is there and notes a later edit");
 
   // one worker per run, and for each of the two comparisons as many workers as the app's rule gives on this computer
   const pools = 2 * Math.max(1, Math.min(((await page.evaluate(() => navigator.hardwareConcurrency)) || 2) - 1, 8, 15));
-  assert.equal(runWorkers, 14 + pools, "one worker per run, and one pool per comparison");
+  assert.equal(runWorkers, 18 + pools, "one worker per run, and one pool per comparison");
   assert.deepEqual(problems, []);
-  say(`${runWorkers} run workers (14 runs and ${pools} for two comparisons) and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
+  say(`${runWorkers} run workers (18 runs and ${pools} for two comparisons) and ${helpWorkers} helper workers loaded, no page errors, no failed requests, no requests outside the site`);
   await context.close();
 }
 

@@ -14,10 +14,12 @@ export interface Population {
 
 export class Evaluator {
   nfe = 0;
-  /** ypea's self.constrained: true when the problem has constraints. */
+  /** ypea's self.constrained: true when the problem has constraints that are on. */
   readonly constrained: boolean;
-  /** One scale per constraint, fixed for the run (constraints.ts). */
-  readonly scales: number[];
+  /** One scale per constraint, fixed for the run (constraints.ts). Null for a constraint that is off. */
+  readonly scales: (number | null)[];
+  /** The positions of the constraints that are on. */
+  private readonly applied: number[];
   private readonly sides: Float64Array;
   private readonly violations: Float64Array;
   /** True once the budget is used up. */
@@ -33,14 +35,19 @@ export class Evaluator {
   readonly problem: Problem;
   readonly budget: number;
 
-  constructor(problem: Problem, budget: number, scales: number[] = problem.constraints.map(() => 1)) {
-    if (scales.length !== problem.constraints.length) throw new Error("There must be one scale for every constraint.");
+  constructor(problem: Problem, budget: number, scales: (number | null)[] = problem.constraints.map(() => 1)) {
+    const { constraints } = problem;
+    this.applied = constraints.flatMap((c, i) => (c.enabled === false ? [] : [i]));
+    if (scales.length !== constraints.length || this.applied.some((i) => !(typeof scales[i] === "number" && scales[i]! > 0))) {
+      throw new Error("There must be one positive scale for every constraint that is on.");
+    }
     this.problem = problem;
     this.budget = budget;
-    this.scales = scales;
-    this.constrained = scales.length > 0;
-    this.sides = new Float64Array(2 * scales.length);
-    this.violations = new Float64Array(scales.length);
+    this.scales = constraints.map((c, i) => (c.enabled === false ? null : scales[i]));
+    this.constrained = this.applied.length > 0;
+    this.sides = new Float64Array(2 * constraints.length);
+    // only the constraints that are on, so that the sum adds the same numbers in the same order as ypea
+    this.violations = new Float64Array(this.applied.length);
     this.worst = problem.sign * Infinity;
   }
 
@@ -80,11 +87,12 @@ export class Evaluator {
     return { n, X, F, V };
   }
 
-  /** The total scaled violation of a decoded solution: zero when every constraint holds. */
+  /** The total scaled violation of a decoded solution: zero when every constraint that is on holds. */
   private violationOf(solution: ReturnType<Problem["decode"]>): number {
     const { constraints } = this.problem, sides = this.problem.sides(solution, this.sides);
-    for (let c = 0; c < constraints.length; c++) {
-      this.violations[c] = violation(constraints[c].op, sides[2 * c], sides[2 * c + 1], this.scales[c], constraints[c].tolerance);
+    for (let k = 0; k < this.applied.length; k++) {
+      const c = this.applied[k], { op, tolerance, relativeTolerance } = constraints[c];
+      this.violations[k] = violation(op, sides[2 * c], sides[2 * c + 1], this.scales[c]!, tolerance, relativeTolerance);
     }
     return total(this.violations);
   }

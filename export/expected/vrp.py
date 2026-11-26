@@ -16,7 +16,7 @@
 #   then take a slightly different path. Write x * x for a square that must be exact.
 #
 # The solver of this run is ypea.SA.
-# In the app it gave the objective value 584.3499999999999 after 50000 evaluations.
+# In the app it gave the objective value 547.15 after 50000 evaluations.
 
 import json
 import os
@@ -117,77 +117,77 @@ ops = make_ops()
 # The data
 
 # Table nodes
-x = np.array([4, 66, 86, 50, 72, 8, 100, 14, 62, 20, 62, 99, 2, 82, 44, 52], dtype=float)  # km
-y = np.array([77, 10, 68, 57, 64, 92, 64, 98, 11, 37, 38, 27, 70, 38, 20, 57], dtype=float)  # km
+x = np.array([40, 86, 72, 100, 62, 62, 2, 68, 11, 38, 70, 20, 8, 31, 4, 89], dtype=float)  # km
+y = np.array([53, 50, 8, 14, 20, 99, 82, 57, 37, 27, 38, 57, 89, 13, 23, 36], dtype=float)  # km
 
 # Table customers
-demand = np.array([6, 19, 10, 7, 5, 8, 20, 7, 19, 10, 20, 11, 6, 16, 18], dtype=float)  # kg
+demand = np.array([12, 8, 6, 19, 17, 12, 11, 20, 14, 11, 11, 15, 8, 6, 18], dtype=float)  # kg
 
 # Table distance
 distance = np.array([
     [
-        0, 91.29, 82.49, 50.16, 69.23, 15.52, 96.88, 23.26, 87.86, 43.08, 69.89, 107.35, 7.28,
-        87.21, 69.63, 52,
+        0, 46.1, 55.22, 71.56, 39.66, 50.99, 47.8, 28.28, 33.12, 26.08, 33.54, 20.4, 48.17, 41,
+        46.86, 51.87,
     ],
     [
-        91.29, 0, 61.35, 49.65, 54.33, 100.44, 63.81, 102.22, 4.12, 53.34, 28.28, 37.12, 87.73,
-        32.25, 24.17, 49.04,
+        46.1, 0, 44.27, 38.63, 38.42, 54.56, 89.89, 19.31, 76.12, 53.23, 20, 66.37, 87.21, 66.29,
+        86.33, 14.32,
     ],
     [
-        82.49, 61.35, 0, 37.64, 14.56, 81.61, 14.56, 78, 61.85, 72.92, 38.42, 43.01, 84.02, 30.27,
-        63.78, 35.74,
+        55.22, 44.27, 0, 28.64, 15.62, 91.55, 101.86, 49.16, 67.54, 38.95, 30.07, 71.45, 103.23,
+        41.3, 69.63, 32.76,
     ],
     [
-        50.16, 49.65, 37.64, 0, 23.09, 54.67, 50.49, 54.56, 47.54, 36.06, 22.47, 57.45, 49.73,
-        37.22, 37.48, 2,
+        71.56, 38.63, 28.64, 0, 38.47, 93.11, 119.28, 53.6, 91.92, 63.35, 38.42, 90.82, 118.7,
+        69.01, 96.42, 24.6,
     ],
     [
-        69.23, 54.33, 14.56, 23.09, 0, 69.86, 28, 67.23, 53.94, 58.59, 27.86, 45.8, 70.26, 27.86,
-        52.15, 21.19,
+        39.66, 38.42, 15.62, 38.47, 0, 79, 86.28, 37.48, 53.76, 25, 19.7, 55.97, 87.62, 31.78,
+        58.08, 31.38,
     ],
     [
-        15.52, 100.44, 81.61, 54.67, 69.86, 0, 96.17, 8.49, 97.35, 56.29, 76.37, 111.83, 22.8,
-        91.61, 80.5, 56.22,
+        50.99, 54.56, 91.55, 93.11, 79, 0, 62.36, 42.43, 80.28, 75.89, 61.52, 59.4, 54.92, 91.42,
+        95.6, 68.54,
     ],
     [
-        96.88, 63.81, 14.56, 50.49, 28, 96.17, 0, 92.48, 65.22, 84.43, 46.04, 37.01, 98.18, 31.62,
-        71.22, 48.51,
+        47.8, 89.89, 101.86, 119.28, 86.28, 62.36, 0, 70.58, 45.89, 65.73, 80.99, 30.81, 9.22,
+        74.85, 59.03, 98.41,
     ],
     [
-        23.26, 102.22, 78, 54.56, 67.23, 8.49, 92.48, 0, 99.36, 61.29, 76.84, 110.75, 30.46, 90.69,
-        83.57, 55.9,
+        28.28, 19.31, 49.16, 53.6, 37.48, 42.43, 70.58, 0, 60.41, 42.43, 19.1, 48, 68, 57.49, 72.47,
+        29.7,
     ],
     [
-        87.86, 4.12, 61.85, 47.54, 53.94, 97.35, 65.22, 99.36, 0, 49.4, 27, 40.31, 84.15, 33.6,
-        20.12, 47.07,
+        33.12, 76.12, 67.54, 91.92, 53.76, 80.28, 45.89, 60.41, 0, 28.79, 59.01, 21.93, 52.09,
+        31.24, 15.65, 78.01,
     ],
     [
-        43.08, 53.34, 72.92, 36.06, 58.59, 56.29, 84.43, 61.29, 49.4, 0, 42.01, 79.63, 37.59, 62.01,
-        29.41, 37.74,
+        26.08, 53.23, 38.95, 63.35, 25, 75.89, 65.73, 42.43, 28.79, 0, 33.84, 34.99, 68.88, 15.65,
+        34.23, 51.79,
     ],
     [
-        69.89, 28.28, 38.42, 22.47, 27.86, 76.37, 46.04, 76.84, 27, 42.01, 0, 38.6, 68, 20, 25.46,
-        21.47,
+        33.54, 20, 30.07, 38.42, 19.7, 61.52, 80.99, 19.1, 59.01, 33.84, 0, 53.49, 80.28, 46.32,
+        67.68, 19.1,
     ],
     [
-        107.35, 37.12, 43.01, 57.45, 45.8, 111.83, 37.01, 110.75, 40.31, 79.63, 38.6, 0, 106.1,
-        20.25, 55.44, 55.76,
+        20.4, 66.37, 71.45, 90.82, 55.97, 59.4, 30.81, 48, 21.93, 34.99, 53.49, 0, 34.18, 45.35,
+        37.58, 72.12,
     ],
     [
-        7.28, 87.73, 84.02, 49.73, 70.26, 22.8, 98.18, 30.46, 84.15, 37.59, 68, 106.1, 0, 86.16,
-        65.3, 51.66,
+        48.17, 87.21, 103.23, 118.7, 87.62, 54.92, 9.22, 68, 52.09, 68.88, 80.28, 34.18, 0, 79.4,
+        66.12, 96.8,
     ],
     [
-        87.21, 32.25, 30.27, 37.22, 27.86, 91.61, 31.62, 90.69, 33.6, 62.01, 20, 20.25, 86.16, 0,
-        42.05, 35.51,
+        41, 66.29, 41.3, 69.01, 31.78, 91.42, 74.85, 57.49, 31.24, 15.65, 46.32, 45.35, 79.4, 0,
+        28.79, 62.39,
     ],
     [
-        69.63, 24.17, 63.78, 37.48, 52.15, 80.5, 71.22, 83.57, 20.12, 29.41, 25.46, 55.44, 65.3,
-        42.05, 0, 37.85,
+        46.86, 86.33, 69.63, 96.42, 58.08, 95.6, 59.03, 72.47, 15.65, 34.23, 67.68, 37.58, 66.12,
+        28.79, 0, 85.99,
     ],
     [
-        52, 49.04, 35.74, 2, 21.19, 56.22, 48.51, 55.9, 47.07, 37.74, 21.47, 55.76, 51.66, 35.51,
-        37.85, 0,
+        51.87, 14.32, 32.76, 24.6, 31.38, 68.54, 98.41, 29.7, 78.01, 51.79, 19.1, 72.12, 96.8,
+        62.39, 85.99, 0,
     ],
 ], dtype=float)  # km
 
@@ -222,11 +222,11 @@ def objective(sol):
     return total_length(routes)
 
 
-# Every constraint: its name, its unit, its operator, the tolerance of an == constraint, and its
-# scale. The app fixed the scales for this run. They only weigh the constraints against each
-# other while the solver compares candidates that break them.
+# Every constraint: its name, its unit, its operator, the tolerance and the relative tolerance of
+# an == constraint, and its scale. The app fixed the scales for this run. They only weigh the
+# constraints against each other while the solver compares candidates that break them.
 CONSTRAINTS = [
-    ("Heaviest load", "kg", "<=", 0, 39),
+    ("Heaviest load", "kg", "<=", 0, 0, 35),
 ]
 
 
@@ -239,13 +239,29 @@ def constraint_sides(sol):
     ]
 
 
-def gap(op, left, right, tolerance):
+def gap(op, left, right, tolerance, relative_tolerance):
     # How far a constraint is from holding, in its own unit. It holds when this is 0 or less.
     if op == "<=":
         return left - right
     if op == ">=":
         return right - left
-    return abs(left - right) - tolerance
+    # ==: the two sides may differ by a fixed amount plus a fraction of the size of the right side
+    return abs(left - right) - (tolerance + relative_tolerance * abs(right))
+
+
+def breach(op, left, right, unit):
+    # How a broken constraint is described: the difference between its two sides in its own unit,
+    # and as a percentage of the limit (the right side) unless the limit is 0.
+    d = abs(left - right)
+    if not d < float("inf"):
+        return "a side is not a number"
+    text = ("over by " if op == "<=" else "short by " if op == ">=" else "apart by ") + f"{d:.6g}"
+    if unit:
+        text = text + " " + unit
+    percent = d / abs(right) * 100 if right != 0 else float("inf")
+    if percent < float("inf"):
+        text = text + f" ({percent:.3g}% of the limit)"
+    return text
 
 
 def evaluate(sol):
@@ -254,8 +270,9 @@ def evaluate(sol):
     sides = constraint_sides(sol)
     g = []
     for i in range(len(CONSTRAINTS)):
-        name, unit, op, tolerance, scale = CONSTRAINTS[i]
-        g.append(gap(op, float(sides[i][0]), float(sides[i][1]), tolerance) / scale)
+        name, unit, op, tolerance, relative_tolerance, scale = CONSTRAINTS[i]
+        left, right = float(sides[i][0]), float(sides[i][1])
+        g.append(gap(op, left, right, tolerance, relative_tolerance) / scale)
     return objective(sol), g
 
 
@@ -301,11 +318,11 @@ def main():
     feasible = True
     lines = []
     for i in range(len(CONSTRAINTS)):
-        name, unit, op, tolerance, scale = CONSTRAINTS[i]
+        name, unit, op, tolerance, relative_tolerance, scale = CONSTRAINTS[i]
         left, right = float(sides[i][0]), float(sides[i][1])
-        holds = gap(op, left, right, tolerance) <= 0
+        holds = gap(op, left, right, tolerance, relative_tolerance) <= 0
         feasible = feasible and holds
-        mark = "(holds)" if holds else "(does not hold)"
+        mark = "(holds)" if holds else "(does not hold): " + breach(op, left, right, unit)
         lines.append(("  " + name + ":", left, op, right, unit, mark))
     print("Best feasible solution found" if feasible else "No feasible solution found")
     print("Objective:", f, "km")
@@ -316,8 +333,8 @@ def main():
         print(*line)
     print("Evaluations:", result.nfe, "of", 50000)
     # the objective value of the baseline, as the app computed it
-    print("Baseline (Nearest customer that still fits, one vehicle after another):", 815.5699999999999, "km")
-    print("  This run minus it:", f - 815.5699999999999)
+    print("Baseline (Nearest customer that still fits, one vehicle after another):", 665.0100000000001, "km")
+    print("  This run minus it:", f - 665.0100000000001)
 
     # for programs that read the result: set the environment variable YPEA_STUDIO_JSON to get
     # one more line, the whole result as JSON with every digit

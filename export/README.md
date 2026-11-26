@@ -9,7 +9,7 @@ const script: string = exportPython(project, result);
 ```
 
 - `project` is the definition the result was produced from (its snapshot).
-- `result` is what `runProject` returned, or a stored copy of it. The exporter reads `method`, `settings`, `seed`, `scales`, `versions` and `evaluations` from it, and the objective values of `best`, `baseline` and `reference` when they are there. The `run` of the project is not read.
+- `result` is what `runProject` returned, or a stored copy of it. The exporter reads `method`, `settings`, `seed`, `scales`, `versions` and `evaluations` from it, and the objective values of `best`, `baseline` and `reference` when they are there. The `run` of the project is not read. `scales` must hold a positive number for every constraint that was on and `null` for every constraint that was off, in the order of the project.
 
 The exporter has no dependencies and uses no Node or browser API, so the app can call it directly.
 
@@ -20,8 +20,9 @@ The exporter has no dependencies and uses no Node or browser API, so the app can
 3. The data as NumPy float arrays, with units as comments.
 4. The user's functions, unchanged apart from the line ends.
 5. The objective and both sides of every constraint as the user wrote them, with the variables taken from the solution (`offset = sol.offset`).
-6. For a project with constraints: what ypea calls, which returns `(f, g)` with one `g = gap / scale` for each constraint. The scales are those of the result.
-7. `main()`: the variables as ypea variables, the problem, the solver with every setting of the result, `max_nfe` as the budget, the seed as `ypea.StudioRng(ypea.derive_seed(base_seed, run_index))`, and the lines that print the result: the status, the objective, every variable, both sides of every constraint (computed again in Python), the evaluations used, and the baseline and reference values of the app.
+6. For a project with constraints: the list of constraints with the tolerance, the relative tolerance and the scale of each, the rule in one function (`gap`, the rule of `engine/constraints.ts` in the same order of arithmetic), and what ypea calls, which returns `(f, g)` with one `g = gap / scale` for each constraint. The scales are those of the result.
+7. The constraints that were off in the app, as comments with their text. ypea does not get them. When every constraint was off, ypea gets the objective alone, as for a project without constraints.
+8. `main()`: the variables as ypea variables, the problem, the solver with every setting of the result, `max_nfe` as the budget, the seed as `ypea.StudioRng(ypea.derive_seed(base_seed, run_index))`, and the lines that print the result: the status, the objective, every variable, both sides of every constraint that was on (computed again in Python), the names of the constraints that were off, the evaluations used, and the baseline and reference values of the app. A broken constraint is printed with its breach, in the words of `breach` in `report.ts`: the difference between the two sides in the constraint's unit, and as a percentage of the limit unless the limit is 0. Python prints these two numbers with six and three significant digits in its own notation.
 
 With the environment variable `YPEA_STUDIO_JSON` set, a script prints one more line at the end: `result.to_dict()` of ypea as JSON, with every digit. The tests read that line.
 
@@ -47,7 +48,7 @@ node --test "export/*.test.ts"
 `python.test.ts` has two groups:
 
 - Plain tests, which need only Node: the script of every file in `examples/` equals the stored one in `expected/`, hostile text ends up only in comments and string literals, invalid projects and results are refused, and every variable type and kind of setting is written correctly.
-- Tests that run the scripts in real Python and compare them with the app: every example, every run in `spec/parity/methods/*.json`, and special cases (every variable type, a second run of an experiment, hostile text, clashing names, expressions with comments). They take about 20 seconds.
+- Tests that run the scripts in real Python and compare them with the app: every example, every run in `spec/parity/methods/*.json` (tolerances and constraints that are off among them), and special cases (every variable type, a second run of an experiment, hostile text, clashing names, expressions with comments, broken constraints). They take about 25 seconds.
 
 The second group needs the project's `.venv` folder with the pinned ypea (`YPEA_TESTED` in `engine/run.ts`). Create it once in the project folder:
 

@@ -132,11 +132,11 @@ def objective(sol):
     return sum(value * take)
 
 
-# Every constraint: its name, its unit, its operator, the tolerance of an == constraint, and its
-# scale. The app fixed the scales for this run. They only weigh the constraints against each
-# other while the solver compares candidates that break them.
+# Every constraint: its name, its unit, its operator, the tolerance and the relative tolerance of
+# an == constraint, and its scale. The app fixed the scales for this run. They only weigh the
+# constraints against each other while the solver compares candidates that break them.
 CONSTRAINTS = [
-    ("Total weight", "kg", "<=", 0, 34),
+    ("Total weight", "kg", "<=", 0, 0, 34),
 ]
 
 
@@ -149,13 +149,29 @@ def constraint_sides(sol):
     ]
 
 
-def gap(op, left, right, tolerance):
+def gap(op, left, right, tolerance, relative_tolerance):
     # How far a constraint is from holding, in its own unit. It holds when this is 0 or less.
     if op == "<=":
         return left - right
     if op == ">=":
         return right - left
-    return abs(left - right) - tolerance
+    # ==: the two sides may differ by a fixed amount plus a fraction of the size of the right side
+    return abs(left - right) - (tolerance + relative_tolerance * abs(right))
+
+
+def breach(op, left, right, unit):
+    # How a broken constraint is described: the difference between its two sides in its own unit,
+    # and as a percentage of the limit (the right side) unless the limit is 0.
+    d = abs(left - right)
+    if not d < float("inf"):
+        return "a side is not a number"
+    text = ("over by " if op == "<=" else "short by " if op == ">=" else "apart by ") + f"{d:.6g}"
+    if unit:
+        text = text + " " + unit
+    percent = d / abs(right) * 100 if right != 0 else float("inf")
+    if percent < float("inf"):
+        text = text + f" ({percent:.3g}% of the limit)"
+    return text
 
 
 def evaluate(sol):
@@ -164,8 +180,9 @@ def evaluate(sol):
     sides = constraint_sides(sol)
     g = []
     for i in range(len(CONSTRAINTS)):
-        name, unit, op, tolerance, scale = CONSTRAINTS[i]
-        g.append(gap(op, float(sides[i][0]), float(sides[i][1]), tolerance) / scale)
+        name, unit, op, tolerance, relative_tolerance, scale = CONSTRAINTS[i]
+        left, right = float(sides[i][0]), float(sides[i][1])
+        g.append(gap(op, left, right, tolerance, relative_tolerance) / scale)
     return objective(sol), g
 
 
@@ -213,11 +230,11 @@ def main():
     feasible = True
     lines = []
     for i in range(len(CONSTRAINTS)):
-        name, unit, op, tolerance, scale = CONSTRAINTS[i]
+        name, unit, op, tolerance, relative_tolerance, scale = CONSTRAINTS[i]
         left, right = float(sides[i][0]), float(sides[i][1])
-        holds = gap(op, left, right, tolerance) <= 0
+        holds = gap(op, left, right, tolerance, relative_tolerance) <= 0
         feasible = feasible and holds
-        mark = "(holds)" if holds else "(does not hold)"
+        mark = "(holds)" if holds else "(does not hold): " + breach(op, left, right, unit)
         lines.append(("  " + name + ":", left, op, right, unit, mark))
     print("Best feasible solution found" if feasible else "No feasible solution found")
     print("Objective:", f, "$")

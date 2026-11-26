@@ -1,0 +1,894 @@
+{
+ "runs": [
+  {
+   "name": "relative_only_sa",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5
+    }
+   },
+   "scales": [
+    1.75,
+    120.0,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Relative tolerance only",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y"
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "relative_tolerance": 0.1
+     }
+    ],
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5
+     },
+     "budget": 3011,
+     "seed": 81
+    }
+   }
+  },
+  {
+   "name": "relative_only_ga",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "scales": [
+    1.75,
+    120.0,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Relative tolerance only",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y"
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "relative_tolerance": 0.1
+     }
+    ],
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 3020,
+     "seed": 82
+    }
+   }
+  },
+  {
+   "name": "both_tolerances_de",
+   "ypea": {
+    "class": "DE",
+    "kwargs": {
+     "pop_size": 20
+    }
+   },
+   "scales": [
+    1.75,
+    120.0,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Both tolerances",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y"
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "tolerance": 0.02,
+      "relative_tolerance": 0.05
+     }
+    ],
+    "run": {
+     "method": "de",
+     "settings": {
+      "pop_size": 20
+     },
+     "budget": 3007,
+     "seed": 83
+    }
+   }
+  },
+  {
+   "name": "both_tolerances_sa",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5
+    }
+   },
+   "scales": [
+    1.75,
+    120.0,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Both tolerances",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y"
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "tolerance": 0.02,
+      "relative_tolerance": 0.05
+     }
+    ],
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5
+     },
+     "budget": 3011,
+     "seed": 84
+    }
+   }
+  },
+  {
+   "name": "zero_right_ga",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "scales": [
+    4.25,
+    2.0
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Relative tolerance on a right side of zero",
+    "data": [
+     {
+      "name": "items",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "weight",
+        "values": [
+         3.5,
+         7.25,
+         4.0,
+         2.75,
+         9.5,
+         1.25,
+         6.0,
+         5.5,
+         8.0,
+         2.0,
+         4.75,
+         3.0
+        ]
+       },
+       {
+        "name": "value",
+        "values": [
+         40,
+         91,
+         55,
+         28,
+         120,
+         14,
+         70,
+         66,
+         95,
+         21,
+         60,
+         33
+        ]
+       }
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "take",
+      "type": "binary",
+      "shape": [
+       12
+      ]
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(value * take)"
+    },
+    "constraints": [
+     {
+      "name": "Total weight",
+      "left": "sum(weight * take)",
+      "op": "<=",
+      "right": "20"
+     },
+     {
+      "name": "Five items",
+      "left": "sum(take) - 5",
+      "op": "==",
+      "right": "0",
+      "relative_tolerance": 0.5
+     }
+    ],
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 2015,
+     "seed": 85
+    }
+   }
+  },
+  {
+   "name": "zero_right_sa",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5
+    }
+   },
+   "scales": [
+    4.25,
+    2.0
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "Relative tolerance on a right side of zero",
+    "data": [
+     {
+      "name": "items",
+      "kind": "columns",
+      "columns": [
+       {
+        "name": "weight",
+        "values": [
+         3.5,
+         7.25,
+         4.0,
+         2.75,
+         9.5,
+         1.25,
+         6.0,
+         5.5,
+         8.0,
+         2.0,
+         4.75,
+         3.0
+        ]
+       },
+       {
+        "name": "value",
+        "values": [
+         40,
+         91,
+         55,
+         28,
+         120,
+         14,
+         70,
+         66,
+         95,
+         21,
+         60,
+         33
+        ]
+       }
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "take",
+      "type": "binary",
+      "shape": [
+       12
+      ]
+     }
+    ],
+    "objective": {
+     "sense": "max",
+     "source": "sum(value * take)"
+    },
+    "constraints": [
+     {
+      "name": "Total weight",
+      "left": "sum(weight * take)",
+      "op": "<=",
+      "right": "20"
+     },
+     {
+      "name": "Five items",
+      "left": "sum(take) - 5",
+      "op": "==",
+      "right": "0",
+      "relative_tolerance": 0.5
+     }
+    ],
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5
+     },
+     "budget": 2011,
+     "seed": 86
+    }
+   }
+  },
+  {
+   "name": "one_off_pso",
+   "ypea": {
+    "class": "PSO",
+    "kwargs": {
+     "pop_size": 20
+    }
+   },
+   "scales": [
+    1.75,
+    null,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "One constraint off",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y",
+      "enabled": false
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "tolerance": 0.05
+     }
+    ],
+    "run": {
+     "method": "pso",
+     "settings": {
+      "pop_size": 20
+     },
+     "budget": 3015,
+     "seed": 87
+    }
+   }
+  },
+  {
+   "name": "one_off_sa",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5
+    }
+   },
+   "scales": [
+    1.75,
+    null,
+    0.6
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "One constraint off",
+    "variables": [
+     {
+      "name": "x",
+      "type": "real",
+      "shape": [
+       4
+      ],
+      "lb": -3,
+      "ub": 5
+     },
+     {
+      "name": "y",
+      "type": "real",
+      "shape": [],
+      "lb": 0,
+      "ub": 4
+     }
+    ],
+    "functions": "def spread(a):\n    total = 0\n    for i in range(len(a) - 1):\n        d = a[i + 1] - a[i]\n        total += d * d\n    return total\n",
+    "objective": {
+     "sense": "min",
+     "source": "(x[0] - 2) * (x[0] - 2) + (x[1] - 1) * (x[1] - 1) + spread(x) + (y - 1.5) * (y - 1.5)"
+    },
+    "constraints": [
+     {
+      "name": "sum",
+      "left": "x[0] + x[1]",
+      "op": "<=",
+      "right": "2"
+     },
+     {
+      "name": "floor",
+      "left": "x[2] * 100",
+      "op": ">=",
+      "right": "50 + y",
+      "enabled": false
+     },
+     {
+      "name": "tie",
+      "left": "x[3] - x[2]",
+      "op": "==",
+      "right": "y / 4",
+      "tolerance": 0.05
+     }
+    ],
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5
+     },
+     "budget": 3011,
+     "seed": 88
+    }
+   }
+  },
+  {
+   "name": "only_off_ga",
+   "ypea": {
+    "class": "GA",
+    "kwargs": {
+     "pop_size": 30
+    }
+   },
+   "scales": [
+    null
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "The only constraint is off",
+    "data": [
+     {
+      "name": "distance",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        7.62,
+        6.08,
+        12.73,
+        5.39,
+        8.54,
+        7.07,
+        9.06
+       ],
+       [
+        7.62,
+        0.0,
+        6.71,
+        6.32,
+        2.24,
+        6.4,
+        2.83,
+        2.83
+       ],
+       [
+        6.08,
+        6.71,
+        0.0,
+        8.54,
+        5.66,
+        2.83,
+        4.12,
+        9.43
+       ],
+       [
+        12.73,
+        6.32,
+        8.54,
+        0.0,
+        8.06,
+        6.08,
+        5.66,
+        8.0
+       ],
+       [
+        5.39,
+        2.24,
+        5.66,
+        8.06,
+        0.0,
+        6.32,
+        3.0,
+        4.12
+       ],
+       [
+        8.54,
+        6.4,
+        2.83,
+        6.08,
+        6.32,
+        0.0,
+        3.61,
+        9.22
+       ],
+       [
+        7.07,
+        2.83,
+        4.12,
+        5.66,
+        3.0,
+        3.61,
+        0.0,
+        5.66
+       ],
+       [
+        9.06,
+        2.83,
+        9.43,
+        8.0,
+        4.12,
+        9.22,
+        5.66,
+        0.0
+       ]
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "route",
+      "type": "permutation",
+      "n": 8
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(distance[route, ops.roll(route, -1)])"
+    },
+    "run": {
+     "method": "ga",
+     "settings": {
+      "pop_size": 30
+     },
+     "budget": 2015,
+     "seed": 70
+    },
+    "constraints": [
+     {
+      "name": "First leg",
+      "left": "distance[route[0], route[1]]",
+      "op": "<=",
+      "right": "0",
+      "unit": "km",
+      "enabled": false
+     }
+    ]
+   }
+  },
+  {
+   "name": "only_off_sa",
+   "ypea": {
+    "class": "SA",
+    "kwargs": {
+     "pop_size": 5
+    }
+   },
+   "scales": [
+    null
+   ],
+   "project": {
+    "format": "ypea-studio-project",
+    "version": 1,
+    "name": "The only constraint is off",
+    "data": [
+     {
+      "name": "distance",
+      "kind": "matrix",
+      "values": [
+       [
+        0.0,
+        7.62,
+        6.08,
+        12.73,
+        5.39,
+        8.54,
+        7.07,
+        9.06
+       ],
+       [
+        7.62,
+        0.0,
+        6.71,
+        6.32,
+        2.24,
+        6.4,
+        2.83,
+        2.83
+       ],
+       [
+        6.08,
+        6.71,
+        0.0,
+        8.54,
+        5.66,
+        2.83,
+        4.12,
+        9.43
+       ],
+       [
+        12.73,
+        6.32,
+        8.54,
+        0.0,
+        8.06,
+        6.08,
+        5.66,
+        8.0
+       ],
+       [
+        5.39,
+        2.24,
+        5.66,
+        8.06,
+        0.0,
+        6.32,
+        3.0,
+        4.12
+       ],
+       [
+        8.54,
+        6.4,
+        2.83,
+        6.08,
+        6.32,
+        0.0,
+        3.61,
+        9.22
+       ],
+       [
+        7.07,
+        2.83,
+        4.12,
+        5.66,
+        3.0,
+        3.61,
+        0.0,
+        5.66
+       ],
+       [
+        9.06,
+        2.83,
+        9.43,
+        8.0,
+        4.12,
+        9.22,
+        5.66,
+        0.0
+       ]
+      ]
+     }
+    ],
+    "variables": [
+     {
+      "name": "route",
+      "type": "permutation",
+      "n": 8
+     }
+    ],
+    "objective": {
+     "sense": "min",
+     "source": "sum(distance[route, ops.roll(route, -1)])"
+    },
+    "run": {
+     "method": "sa",
+     "settings": {
+      "pop_size": 5
+     },
+     "budget": 2011,
+     "seed": 71
+    },
+    "constraints": [
+     {
+      "name": "First leg",
+      "left": "distance[route[0], route[1]]",
+      "op": "<=",
+      "right": "0",
+      "unit": "km",
+      "enabled": false
+     }
+    ]
+   }
+  }
+ ]
+}

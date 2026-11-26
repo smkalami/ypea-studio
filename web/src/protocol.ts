@@ -9,7 +9,8 @@ import { METHODS, resolveSettings } from "../../engine/methods/index.ts";
 import { buildCurve, buildProblem, parseProject, type PlainSolution, type Project } from "../../engine/project.ts";
 import { randomCandidate, runProject, testCandidate, type Inspection, type Progress, type RunResult } from "../../engine/run.ts";
 import { exportPython } from "../../export/python.ts";
-import { problemDrawing } from "../../export/report-drawings.ts";
+import { solutionFigure } from "../../export/figures/build.ts";
+import { figureSvg } from "../../export/figures/figure.ts";
 import { reportHtml, type ReportInput } from "../../export/report.ts";
 
 /**
@@ -26,7 +27,7 @@ export type RunMessage =
 
 /**
  * Page to helper worker. One worker answers one request. The last three write a file from a
- * stored result: the Python script, the report, and the drawing of the solution as markup.
+ * stored result: the Python script, the report, and the drawing of the solution as an SVG file.
  * They are asked of a worker because each of them translates the text of the project.
  */
 export type HelpRequest =
@@ -143,14 +144,23 @@ export function checkProject(json: unknown): Issue[] {
     return [{ where: "variables", message: "Add at least one variable." }];
   }
   let project: Project;
-  try {
-    // a copy, because the check below changes it
-    project = parseProject(structuredClone(json));
-  } catch (error) {
-    const message = messageOf(error);
-    return [{ where: locate(message, json), message: message.replace(/^Project file: /, "") }];
-  }
   const issues: Issue[] = [];
+  // a copy, because the check changes it
+  const copy = structuredClone(json);
+  for (;;) {
+    try {
+      project = parseProject(copy);
+      break;
+    } catch (error) {
+      const message = messageOf(error), where = locate(message, copy);
+      issues.push({ where, message: message.replace(/^Project file: /, "") });
+      // The drawing, the baseline and the reference only show or compare. When one of them is what
+      // fails, for example after a column it names was removed, it is set aside and the check goes
+      // on, so that the expressions that lost the same name show their own problem too.
+      if (!["view", "baseline", "reference"].includes(where) || !isObject(copy) || copy[where] === undefined) return issues;
+      delete copy[where];
+    }
+  }
   for (const setup of [{ id: "", ...project.run }, ...(project.experiments ?? [])]) {
     try {
       const method = Object.hasOwn(METHODS, setup.method) ? METHODS[setup.method] : undefined;
@@ -211,8 +221,11 @@ export function handleHelp(request: HelpRequest): HelpReply {
     if (request.type === "report") return { type: "text", text: reportHtml({ ...request.input, project: parseProject(request.input.project) }) };
     const project = parseProject(request.project);
     if (request.type === "python") return { type: "text", text: exportPython(project, request.result) };
-    // empty when the project has no drawing
-    if (request.type === "drawing") return { type: "text", text: problemDrawing(project, request.solution, "drawing-title", request.curve)?.text ?? "" };
+    // empty when the project has no drawing, or none that can be drawn
+    if (request.type === "drawing") {
+      const drawn = solutionFigure(project, request.solution, request.curve);
+      return { type: "text", text: drawn && "figure" in drawn ? figureSvg(drawn.figure, "file", "drawing") : "" };
+    }
     if (request.type === "random") return { type: "candidate", solution: randomCandidate(project, request.seed) };
     const inspection = testCandidate(project, request.solution);
     let curve: number[] | undefined;

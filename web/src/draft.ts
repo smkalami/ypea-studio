@@ -6,17 +6,17 @@ import type { VariableKind } from "../../engine/methods/common.ts";
 import { FORMAT, FORMAT_VERSION, type Project, type RunSetup } from "../../engine/project.ts";
 import type { VariableSpec } from "../../engine/variables.ts";
 
-/**
- * The solver setup of a blank project and of a new experiment.
- * Provisional: the owner decides the default solver and budget later.
- */
+/** The solver setup that stands in where a stored project has none. A blank project and a new experiment start from the suggestion (suggest.ts). */
 export const DEFAULT_SETUP: RunSetup = { method: "pso", settings: {}, budget: 20000, seed: 1 };
 
-/** A blank project. It has no variables yet, so it cannot run until the user adds one. */
+/**
+ * A blank project. It has no variables yet, so it cannot run until the user adds one. Its
+ * experiment holds the solver suggested for decimal numbers, which the first variable also is.
+ */
 export function blankProject(): Project {
   return {
     format: FORMAT, version: FORMAT_VERSION, name: "Untitled project",
-    variables: [], objective: { sense: "min", source: "" }, run: { ...DEFAULT_SETUP },
+    variables: [], objective: { sense: "min", source: "" }, run: { ...DEFAULT_SETUP, method: "cmaes" },
   };
 }
 

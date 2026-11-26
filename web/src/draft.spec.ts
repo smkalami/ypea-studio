@@ -16,7 +16,8 @@ import {
 
 test("a blank project asks for a variable, and runs once it has one and an objective", () => {
   const blank = blankProject();
-  assert.deepEqual(blank.run, { method: "pso", settings: {}, budget: 20000, seed: 1 });
+  // its experiment starts as the solver suggested for decimal numbers (suggest.spec.ts)
+  assert.deepEqual(blank.run, { method: "cmaes", settings: {}, budget: 20000, seed: 1 });
   assert.deepEqual(checkProject(blank), [{ where: "variables", message: "Add at least one variable." }]);
   blank.variables.push({ name: "x", type: "real", shape: [], lb: 0, ub: 1 });
   assert.deepEqual(checkProject(blank), [{ where: "objective", message: "Write what to minimize or maximize, or use a preset." }]);

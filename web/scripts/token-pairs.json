@@ -10,5 +10,14 @@
   ["accent-ink", "accent-soft", 3, "focus edge on a selected sidebar entry"],
   ["accent-ink", "surface-2", 3, "focus edge on an inset panel"],
   ["danger-ink", "surface-2", 4.5, "problem text on an inset panel"],
-  ["control-border", "surface-2", 3, "control edge on an inset panel"]
+  ["control-border", "surface-2", 3, "control edge on an inset panel"],
+  ["series-1", "surface", 3, "line of series 1 in a figure"],
+  ["series-2", "surface", 3, "line of series 2 in a figure"],
+  ["series-3", "surface", 3, "line of series 3 in a figure"],
+  ["series-4", "surface", 3, "line of series 4 in a figure"],
+  ["series-5", "surface", 3, "line of series 5 in a figure"],
+  ["series-6", "surface", 3, "line of series 6 in a figure"],
+  ["series-7", "surface", 3, "line of series 7 in a figure"],
+  ["ink-3", "surface", 3, "dashed line of a history that is not a result"],
+  ["accent-ink", "surface", 3, "line of a chart"]
 ]

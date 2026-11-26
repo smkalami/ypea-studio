@@ -128,8 +128,18 @@ mkdirSync(here("data/"), { recursive: true });
 {
   // node 0 is the depot, and customer i is node i + 1
   const rng = new Rng(55), n = 15, vehicles = 4, capacity = 60;
-  const x = range(n + 1).map(() => rng.integers(0, 101)), y = range(n + 1).map(() => rng.integers(0, 101));
-  const demand = range(n).map(() => rng.integers(5, 21));
+  // The depot is near the middle of the area, as a depot usually is. No two nodes are closer
+  // than 8 km: a node that is too close to an earlier one is drawn again.
+  const x = [rng.integers(40, 61)], y = [rng.integers(40, 61)];
+  while (x.length < n + 1) {
+    const px = rng.integers(0, 101), py = rng.integers(0, 101);
+    if (x.every((qx, i) => Math.hypot(px - qx, py - y[i]) >= 8)) (x.push(px), y.push(py));
+  }
+  // The demands are drawn again until they fill about 80 percent of the vehicles (78 to 82),
+  // so that the limit matters and a plan that keeps it is still easy to find.
+  let demand: number[];
+  do demand = range(n).map(() => rng.integers(5, 21));
+  while (Math.abs(demand.reduce((sum, d) => sum + d, 0) / (vehicles * capacity) - 0.8) > 0.02);
   const distance = range(n + 1).map((i) => range(n + 1).map((j) => round(Math.hypot(x[i] - x[j], y[i] - y[j]), 2)));
   // one vehicle after another: each goes on to the nearest customer that is not served yet and
   // still fits, and returns to the depot when none fits
@@ -184,7 +194,7 @@ mkdirSync(here("data/"), { recursive: true });
     objective: { sense: "min", unit: "km", source: "total_length(routes)" },
     constraints: [{ name: "Heaviest load", left: "heaviest_load(routes)", op: "<=", right: String(capacity), unit: "kg" }],
     baseline: { label: "Nearest customer that still fits, one vehicle after another", solution: { routes } },
-    view: { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0 },
+    view: { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0, distance: "distance" },
     run: { name: "Quick run", method: "sa", settings: { space: "native", initial_temp: 10, final_temp: 0.01, mutation_step_size: 0.3, mutation_step_size_damp: 1 }, budget: 50000, seed: 1 },
   };
   // the plan in use today must keep the limit, or the comparison with it means nothing

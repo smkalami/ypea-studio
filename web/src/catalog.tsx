@@ -91,6 +91,16 @@ function Catalog() {
         <Field label="Code field" className="wide" issues={[{ where: "", message: "Expected a value here.", line: 2, column: 6 }]}>
           {(tie) => <textarea {...tie} className="textarea code" rows={3} spellCheck={false} defaultValue={"sum((pressure - offset)\n  ** )"} />}
         </Field>
+        <div className="row">
+          <Field label="Name of column 0" hint={<>2 places still use the old name <code>weight</code>. <button type="button" className="btn btn-quiet btn-compact">Rename there too</button></>}>
+            {(tie) => <input {...tie} type="text" className="input code" defaultValue="mass" />}
+          </Field>
+          <Field label="Unit of column 0" className="narrow">
+            {(tie) => <input {...tie} type="text" className="input" defaultValue="kg" />}
+          </Field>
+          <button type="button" className="btn btn-quiet btn-compact beside-field" aria-label="Remove column mass"><Icon name="trash" />Remove column</button>
+        </div>
+        <p className="hint suggested">Simulated Annealing is suggested for this project because its variables are orderings, selections or groups. You can change it.</p>
         <p className="ok"><Icon name="circle-check" />Checked: this gives one number.</p>
         <Problems issues={[{ where: "", message: "a problem that belongs to a whole part, not to one field." }]} />
       </Part>
@@ -140,6 +150,22 @@ function Catalog() {
         <div className="row actions">
           <button type="button" className="btn btn-secondary" onClick={() => setDialog(<NameDialog heading="Rename the project" label="Project name" initial="Calibration line fit" action="Rename" onDone={() => setDialog(undefined)} />)}>Ask for a name</button>
           <button type="button" className="btn btn-secondary" onClick={() => setDialog(<ConfirmDialog heading="Delete this project?" action="Delete" body="It and its results will be deleted. This cannot be undone." onDone={() => setDialog(undefined)} />)}>Ask before deleting</button>
+          <button
+            type="button" className="btn btn-secondary"
+            onClick={() => setDialog(
+              <ConfirmDialog
+                heading="Remove the column weight?" action="Remove anyway" onDone={() => setDialog(undefined)}
+                body="Other parts of the project use it. Nothing in them is changed, so each will show a problem until you change it. Undo brings it back."
+              >
+                <ul className="uses">
+                  <li>The objective uses <code>weight</code>.</li>
+                  <li>The constraint "Total weight" uses <code>weight</code>.</li>
+                </ul>
+              </ConfirmDialog>,
+            )}
+          >
+            Ask before removing something that is used
+          </button>
         </div>
       </Part>
 
@@ -160,6 +186,8 @@ function Catalog() {
       <Part heading="Progress and status">
         <p className="progress"><progress aria-label="Evaluations used" max={100} value={35} /><span>3,500 of 10,000 evaluations. Best objective so far: 12.4 kPa^2</span></p>
         <div className="run-status"><p>Run finished. Best feasible solution found.</p></div>
+        <div className="run-status"><p>The variable offset was removed.</p><button type="button" className="btn btn-quiet btn-compact">Undo</button></div>
+        <div className="run-status"><p>The last change was undone.</p><button type="button" className="btn btn-quiet btn-compact">Redo</button></div>
         <div className="run-status" data-state="error"><Icon name="circle-exclamation-point" /><p>This project cannot run yet. Add at least one variable.</p></div>
         <p className="outcome feasible"><Icon name="circle-check" />Best feasible solution found.</p>
         <p className="outcome"><Icon name="triangle-exclamation-point" />No feasible solution found.</p>

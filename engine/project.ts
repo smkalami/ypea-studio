@@ -20,19 +20,27 @@ export interface Constraint {
   op: Op;
   right: string;
   unit?: string;
-  /** For "==" only: how far apart the two sides may be and still count as equal. 0 when absent. */
+  /** For "==" only: a fixed amount, in the constraint's unit, that the two sides may differ by. 0 when absent. */
   tolerance?: number;
+  /** For "==" only: a fraction of the size of the right side that the two sides may differ by, on top of `tolerance`. 0 when absent. */
+  relative_tolerance?: number;
+  /** False turns the constraint off: it stays in the project and is not checked. True when absent. */
+  enabled?: boolean;
 }
 
 /** How a solution is drawn. The names are data columns and variables of the project. */
 export type View =
-  /** A closed tour through points whose coordinates are two data columns. */
-  | { kind: "route"; variable: string; x: string; y: string }
+  /**
+   * A closed tour through points whose coordinates are two data columns. `distance` is a square
+   * data table with the distance from every row to every row, which gives the length of the tour.
+   */
+  | { kind: "route"; variable: string; x: string; y: string; distance?: string }
   /**
    * One closed tour per group, each from the depot through its stops and back. The two columns
    * hold every node: the depot at row `depot`, and the items in the other rows, in their order.
+   * `distance` is a square data table over the same rows, which gives the length of each tour.
    */
-  | { kind: "routes"; variable: string; x: string; y: string; depot: number }
+  | { kind: "routes"; variable: string; x: string; y: string; depot: number; distance?: string }
   /** The data points, and the curve that the expression gives over the x column. */
   | { kind: "line"; x: string; y: string; expression: string }
   /** Which items are chosen. `size` is a data column that sets the size of each item. */
@@ -88,9 +96,13 @@ export interface Problem {
   /** Decodes one row of codes. The values are valid until the next call. */
   decode(codes: Float64Array, offset: number): Solution;
   objective(solution: Solution): number;
-  constraints: { name: string; op: Op; unit?: string; tolerance: number }[];
-  /** Both sides of every constraint, in the constraints' own units: left of constraint i at 2i, right at 2i + 1. */
-  sides(solution: Solution, out: Float64Array): Float64Array;
+  /** Every constraint of the project, in its order. One with `enabled` false is not checked. */
+  constraints: { name: string; op: Op; unit?: string; tolerance: number; relativeTolerance: number; enabled: boolean }[];
+  /**
+   * Both sides of the constraints, in the constraints' own units: left of constraint i at 2i, right
+   * at 2i + 1. The places of a constraint that is off are left alone, unless `all` is true.
+   */
+  sides(solution: Solution, out: Float64Array, all?: boolean): Float64Array;
   /** A decoded solution as plain JSON, for results. */
   named(solution: Solution): PlainSolution;
   /** The reverse of `named`, for a solution that a person typed. Throws a message for the user when it is not valid. */
@@ -144,8 +156,8 @@ export function parseProject(json: unknown): Project {
   };
 
   let dataValues = 0;
-  /** Length of every data column, for the drawing. */
-  const columns = new Map<string, number>();
+  /** Length of every data column, and the number of rows of every square table, for the drawing. */
+  const columns = new Map<string, number>(), squares = new Map<string, number>();
   if (p.data !== undefined && !Array.isArray(p.data)) fail(`"data" must be a list`);
   for (const t of p.data ?? []) {
     if (!isObject(t)) fail(`every data table must be an object`);
@@ -168,6 +180,7 @@ export function parseProject(json: unknown): Project {
         rows.every((r: unknown) => Array.isArray(r) && r.length === rows[0].length && r.length > 0 && r.every(isFinite));
       if (!ok) fail(`table "${t.name}": "values" must be rows of numbers of equal length`);
       dataValues += rows.length * rows[0].length;
+      if (rows.length === rows[0].length) squares.set(t.name, rows.length);
     } else {
       fail(`table "${t.name}": "kind" must be "columns" or "matrix"`);
     }
@@ -197,9 +210,12 @@ export function parseProject(json: unknown): Project {
     if (!isText(c.left) || !isText(c.right)) fail(`constraint "${c.name}": "left" and "right" must be text`);
     if (!["<=", ">=", "=="].includes(c.op)) fail(`constraint "${c.name}": "op" must be "<=", ">=" or "=="`);
     optionalText(c, "unit", `constraint "${c.name}":`);
-    if (c.tolerance !== undefined && !(isFinite(c.tolerance) && c.tolerance >= 0 && c.op === "==")) {
-      fail(`constraint "${c.name}": "tolerance" must be a number that is not negative, and only "==" can have one`);
+    for (const key of ["tolerance", "relative_tolerance"]) {
+      if (c[key] !== undefined && !(isFinite(c[key]) && c[key] >= 0 && c.op === "==")) {
+        fail(`constraint "${c.name}": "${key}" must be a number that is not negative, and only "==" can have one`);
+      }
     }
+    if (c.enabled !== undefined && typeof c.enabled !== "boolean") fail(`constraint "${c.name}": "enabled" must be true or false`);
   }
 
   const checkSolution = (owner: unknown, what: string) => {
@@ -234,13 +250,21 @@ export function parseProject(json: unknown): Project {
       if (!found || !types.includes(found.spec.type) || found.shape.length !== 1) fail(`"view.variable" must be the name of ${what}`);
       return found!;
     };
+    // the table of distances is optional: square, with a row for every row of the coordinates
+    const distance = () => {
+      if (w.distance !== undefined && !(isText(w.distance) && squares.get(w.distance)! >= column("x"))) {
+        fail(`"view.distance" must be the name of a square data table with a row and a column for every row of "${w.x}"`);
+      }
+    };
     if (w.kind === "route") {
       const n = variable(["permutation"], "a permutation variable").shape[0];
       if (column("x") !== column("y") || column("x") < n) fail(`"view.x" and "view.y" must have the same length, with a row for every position of "${w.variable}"`);
+      distance();
     } else if (w.kind === "routes") {
       const n = (variable(["partition"], "a partition variable").spec as { n: number }).n;
       if (column("x") !== column("y") || column("x") < n + 1) fail(`"view.x" and "view.y" must have the same length, with a row for the depot and one for every item of "${w.variable}"`);
       if (!isCount(w.depot, 0) || w.depot > n) fail(`"view.depot" must be the row of the depot, a whole number from 0 to ${n}`);
+      distance();
     } else if (w.kind === "line") {
       if (column("x") !== column("y")) fail(`"view.x" and "view.y" must have the same length`);
       if (!isText(w.expression)) fail(`"view.expression" must be text`);
@@ -303,6 +327,7 @@ function inputOf(v: Variable): InputSpec {
 /**
  * Builds what a run needs from a project. Translates the objective and the constraints, and
  * throws a LanguageError, with the field and the line, when their text is outside the language.
+ * A constraint that is off is translated too, so a mistake in its text is still reported.
  */
 export function buildProblem(project: Project): Problem {
   const variables = project.variables.map(makeVariable);
@@ -338,9 +363,11 @@ export function buildProblem(project: Project): Problem {
     },
     // "+" because a comparison gives true or false, which counts as 1 or 0
     objective: (s) => +objective(s),
-    constraints: constraints.map((c) => ({ name: c.name, op: c.op, unit: c.unit, tolerance: c.tolerance ?? 0 })),
-    sides(s, out) {
-      for (let i = 0; i < sides.length; i++) out[i] = +sides[i](s);
+    constraints: constraints.map((c) => ({
+      name: c.name, op: c.op, unit: c.unit, tolerance: c.tolerance ?? 0, relativeTolerance: c.relative_tolerance ?? 0, enabled: c.enabled !== false,
+    })),
+    sides(s, out, all = false) {
+      for (let i = 0; i < sides.length; i++) if (all || constraints[i >> 1].enabled !== false) out[i] = +sides[i](s);
       return out;
     },
     named: (s) => Object.fromEntries(variables.map((v) => [v.spec.name, toPlain(v, s[v.spec.name])])),

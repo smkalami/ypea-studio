@@ -3,12 +3,13 @@
 // descriptive summary of the last one that finished. The summary describes the runs and never
 // judges them: the experiments stay in the order of the project, and nothing is marked.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { checkComparable, type Comparison, DEFAULT_RUNS, summarize } from "../../engine/compare.ts";
 import type { Project } from "../../engine/project.ts";
-import { comparisonCharts } from "../../export/report-drawings.ts";
+import { comparisonFigures } from "../../export/figures/build.ts";
 import { comparisonChanged, MAX_RUNS, type Plan, planComparison, REFERENCE, runsOf, type StoredComparison } from "./compare.ts";
 import { count, experimentsOf, show, withUnit } from "./draft.ts";
+import { Figure } from "./Drawing.tsx";
 import { solverName } from "./Experiment.tsx";
 import type { Issue } from "./protocol.ts";
 import { Alert, Checkbox, Disclosure } from "./ui/controls.tsx";
@@ -153,17 +154,8 @@ export function ComparePanel({ project, form, setForm, running, ended, stored, o
 
 function Summary({ stored, changed, onShare }: { stored: StoredComparison; changed: boolean; onShare: () => void }) {
   const { comparison, problem: unreadable } = useMemo(() => summaryOf(stored), [stored]);
-  // The charts are the drawings of the report, as markup that the report code has already made safe.
-  const charts = useMemo(() => comparison && comparisonCharts(comparison, "comparison-chart").text, [comparison]);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // a chart scrolls in its own box in a narrow window, so the box must be reachable by keyboard
-    box.current?.querySelectorAll(".figure-box").forEach((figure, n) => {
-      figure.setAttribute("tabindex", "0");
-      figure.setAttribute("role", "group");
-      figure.setAttribute("aria-label", `Chart ${n + 1}`);
-    });
-  }, [charts]);
+  // the charts are the figures of the report and of the saved picture
+  const charts = useMemo(() => comparison && comparisonFigures(comparison), [comparison]);
   const runs = stored.experiments[0].results.length, unit = comparison?.unit;
   return (
     <section aria-labelledby="comparison-heading" className="comparison">
@@ -222,7 +214,13 @@ function Summary({ stored, changed, onShare }: { stored: StoredComparison; chang
             of the feasible runs, from the first to the third quartile. Only runs that end feasible are counted, and each one counts from the
             evaluation at which it first had a feasible candidate. All charts share the same scales.
           </p>
-          <div className="drawing charts" ref={box} dangerouslySetInnerHTML={{ __html: charts! }} />
+          {charts ? (
+            <div className="figures charts">
+              {charts.map((chart, n) => (chart.figure
+                ? <Figure key={n} figure={chart.figure} label={`Chart ${n + 1}`} lead={chart.name} />
+                : <figure key={n} className="drawing"><figcaption><strong>{chart.name}.</strong> {chart.words}</figcaption></figure>))}
+            </div>
+          ) : <p className="empty">No experiment has a feasible run, so there is no chart.</p>}
         </>
       )}
       <Disclosure summary="What ran: the setups and the seeds">

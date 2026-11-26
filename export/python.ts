@@ -9,6 +9,7 @@
 //   through `ident`. Nothing is written with a bare String(x).
 // - The code fields (functions, objective, constraint sides) are code by design. They are
 //   written as code only after parseProject and buildProblem have accepted the project.
+// - A constraint that was off in the app is not given to ypea. Its text is written as a comment.
 // - The generated code itself calls only print, len, range, abs and float, which no data
 //   table, column, variable or function of a project can be named after. Its own names move
 //   out of the way of the project's names (`free` below).
@@ -185,11 +186,15 @@ export function exportPython(project: Project, result: ExportedRun): string {
 
   const method = Object.hasOwn(METHODS, result.method) ? METHODS[result.method] : fail("the result names an unknown solver");
   const settings = resolveSettings(method, result.settings);
-  const constraints = project.constraints ?? [];
+  const all = project.constraints ?? [];
   const scales = result.scales;
-  if (!Array.isArray(scales) || scales.length !== constraints.length || !scales.every((s) => isNumber(s) && s > 0)) {
-    fail("the result must hold one positive scale for every constraint");
+  // a constraint that was off has null in the place of its scale
+  if (!Array.isArray(scales) || scales.length !== all.length || !all.every((c, i) => (c.enabled === false ? scales[i] === null : isNumber(scales[i]) && scales[i]! > 0))) {
+    fail("the result must hold one positive scale for every constraint that was on, and none for a constraint that was off");
   }
+  // what ypea evaluates: the constraints that were on, each with its scale
+  const constraints = all.flatMap((c, i) => (c.enabled === false ? [] : [{ ...c, scale: scales[i] }]));
+  const off = all.filter((c) => c.enabled === false);
   const whole = (x: unknown, high: number) => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= high;
   const budget = result.evaluations?.budget;
   if (!whole(budget, Number.MAX_SAFE_INTEGER) || budget < 1) fail("the result has no valid budget");
@@ -213,7 +218,7 @@ export function exportPython(project: Project, result: ExportedRun): string {
   };
   const N = {
     json: free("json"), os: free("os"), sys: free("sys"), makeOps: free("make_ops"), objective: free("objective"),
-    sides: free("constraint_sides"), gap: free("gap"), evaluate: free("evaluate"), constraints: free("CONSTRAINTS"), main: free("main"),
+    sides: free("constraint_sides"), gap: free("gap"), breach: free("breach"), evaluate: free("evaluate"), constraints: free("CONSTRAINTS"), main: free("main"),
   };
   const importLine = (module: string, name: string) => (name === module ? `import ${module}` : `import ${module} as ${name}`);
 
@@ -295,11 +300,11 @@ export function exportPython(project: Project, result: ExportedRun): string {
   if (constraints.length) {
     add(
       "", "",
-      "# Every constraint: its name, its unit, its operator, the tolerance of an == constraint, and its",
-      "# scale. The app fixed the scales for this run. They only weigh the constraints against each",
-      "# other while the solver compares candidates that break them.",
+      "# Every constraint: its name, its unit, its operator, the tolerance and the relative tolerance of",
+      "# an == constraint, and its scale. The app fixed the scales for this run. They only weigh the",
+      "# constraints against each other while the solver compares candidates that break them.",
       `${N.constraints} = [`,
-      ...constraints.map((c, i) => `    (${str(c.name)}, ${str(c.unit ?? "")}, ${str(["<=", ">=", "=="].find((op) => op === c.op) ?? fail("unknown operator"))}, ${num(c.tolerance ?? 0)}, ${num(scales[i])}),`),
+      ...constraints.map((c) => `    (${str(c.name)}, ${str(c.unit ?? "")}, ${str(["<=", ">=", "=="].find((op) => op === c.op) ?? fail("unknown operator"))}, ${num(c.tolerance ?? 0)}, ${num(c.relative_tolerance ?? 0)}, ${num(c.scale)}),`),
       "]",
       "", "",
       `def ${N.sides}(sol):`,
@@ -308,7 +313,9 @@ export function exportPython(project: Project, result: ExportedRun): string {
       "    return [",
     );
     for (const c of constraints) {
-      const unit = comment(c.unit ?? ""), within = c.op === "==" && c.tolerance ? `, within ${num(c.tolerance)}` : "";
+      const unit = comment(c.unit ?? "");
+      const allowed = [c.tolerance ? num(c.tolerance) : "", c.relative_tolerance ? `${num(c.relative_tolerance)} times the size of the right side` : ""].filter(Boolean);
+      const within = c.op === "==" && allowed.length ? `, within ${allowed.join(" plus ")}` : "";
       add(`        # ${comment(c.name)}: left ${c.op} right${within}${unit ? `, in ${unit}` : ""}`);
       const left = expression(c.left, `the left side of "${c.name}"`, "            ", "", ",");
       const right = expression(c.right, `the right side of "${c.name}"`, "            ", "", ",");
@@ -318,13 +325,28 @@ export function exportPython(project: Project, result: ExportedRun): string {
     add(
       "    ]",
       "", "",
-      `def ${N.gap}(op, left, right, tolerance):`,
+      `def ${N.gap}(op, left, right, tolerance, relative_tolerance):`,
       "    # How far a constraint is from holding, in its own unit. It holds when this is 0 or less.",
       `    if op == "<=":`,
       "        return left - right",
       `    if op == ">=":`,
       "        return right - left",
-      "    return abs(left - right) - tolerance",
+      "    # ==: the two sides may differ by a fixed amount plus a fraction of the size of the right side",
+      "    return abs(left - right) - (tolerance + relative_tolerance * abs(right))",
+      "", "",
+      `def ${N.breach}(op, left, right, unit):`,
+      "    # How a broken constraint is described: the difference between its two sides in its own unit,",
+      "    # and as a percentage of the limit (the right side) unless the limit is 0.",
+      "    d = abs(left - right)",
+      `    if not d < float("inf"):`,
+      `        return "a side is not a number"`,
+      `    text = ("over by " if op == "<=" else "short by " if op == ">=" else "apart by ") + f"{d:.6g}"`,
+      "    if unit:",
+      `        text = text + " " + unit`,
+      `    percent = d / abs(right) * 100 if right != 0 else float("inf")`,
+      `    if percent < float("inf"):`,
+      `        text = text + f" ({percent:.3g}% of the limit)"`,
+      "    return text",
       "", "",
       `def ${N.evaluate}(sol):`,
       "    # What ypea calls for every candidate. It returns the objective value and one number g for",
@@ -332,10 +354,18 @@ export function exportPython(project: Project, result: ExportedRun): string {
       `    sides = ${N.sides}(sol)`,
       "    g = []",
       `    for i in range(len(${N.constraints})):`,
-      `        name, unit, op, tolerance, scale = ${N.constraints}[i]`,
-      `        g.append(${N.gap}(op, float(sides[i][0]), float(sides[i][1]), tolerance) / scale)`,
+      `        name, unit, op, tolerance, relative_tolerance, scale = ${N.constraints}[i]`,
+      "        left, right = float(sides[i][0]), float(sides[i][1])",
+      `        g.append(${N.gap}(op, left, right, tolerance, relative_tolerance) / scale)`,
       `    return ${N.objective}(sol), g`,
     );
+  }
+  if (off.length) {
+    add("", "", "# Turned off in the app, so this run does not check them. The result says nothing about them.");
+    for (const c of off) {
+      const unit = comment(c.unit ?? "");
+      add(`#   ${comment(`${c.name}: ${c.left} ${c.op} ${c.right}`)}${unit ? `, in ${unit}` : ""}`);
+    }
   }
 
   section("The run");
@@ -376,11 +406,11 @@ export function exportPython(project: Project, result: ExportedRun): string {
       "    feasible = True",
       "    lines = []",
       `    for i in range(len(${N.constraints})):`,
-      `        name, unit, op, tolerance, scale = ${N.constraints}[i]`,
+      `        name, unit, op, tolerance, relative_tolerance, scale = ${N.constraints}[i]`,
       "        left, right = float(sides[i][0]), float(sides[i][1])",
-      `        holds = ${N.gap}(op, left, right, tolerance) <= 0`,
+      `        holds = ${N.gap}(op, left, right, tolerance, relative_tolerance) <= 0`,
       "        feasible = feasible and holds",
-      `        mark = "(holds)" if holds else "(does not hold)"`,
+      `        mark = "(holds)" if holds else "(does not hold): " + ${N.breach}(op, left, right, unit)`,
       `        lines.append(("  " + name + ":", left, op, right, unit, mark))`,
       `    print("Best feasible solution found" if feasible else "No feasible solution found")`,
     );
@@ -393,6 +423,7 @@ export function exportPython(project: Project, result: ExportedRun): string {
     ...project.variables.map((v) => `    print(${str(`  ${v.name} =`)}, best.${ident(v.name)}${"unit" in v && comment(v.unit ?? "") ? `, ${str(v.unit)}` : ""})`),
   );
   if (constraints.length) add(`    print("Constraints:")`, "    for line in lines:", "        print(*line)");
+  if (off.length) add(`    print("Off in the app, so not checked:")`, ...off.map((c) => `    print(${str(`  ${c.name}`)})`));
   add(`    print("Evaluations:", result.nfe, "of", ${num(budget)})`);
   for (const [what, value, label] of [["Baseline", result.baseline, project.baseline?.label], ["Reference", result.reference, project.reference?.label]] as const) {
     if (!value || !isNumber(value.objective)) continue;

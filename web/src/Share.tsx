@@ -8,12 +8,13 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { Comparison } from "../../engine/compare.ts";
 import type { Project } from "../../engine/project.ts";
 import { comparisonCsv, historyCsv, resultJson, solutionCsv } from "../../export/data.ts";
-import { historyChart } from "../../export/report-drawings.ts";
+import { historyFigure } from "../../export/figures/build.ts";
+import { figureSvg } from "../../export/figures/figure.ts";
 import { sameProblem, type StoredComparison } from "./compare.ts";
 import { summaryOf } from "./Compare.tsx";
 import { type Experiment, experimentsOf } from "./draft.ts";
 import type { HelpReply, HelpRequest } from "./protocol.ts";
-import { comparisonSvg, download, fileName, pngOf, saveFile, svgFile } from "./share.ts";
+import { comparisonSvg, download, fileName, pngOf, saveFile } from "./share.ts";
 import { projectWithResults, type StoredResult } from "./storage.ts";
 import { Alert, Select } from "./ui/controls.tsx";
 import { CheckField, Field } from "./ui/fields.tsx";
@@ -33,8 +34,11 @@ async function written(help: Help, request: HelpRequest): Promise<string> {
 function resultFiles(help: Help, stored: StoredResult, name: string, comparison?: Comparison) {
   const base = fileName(stored.project.name, name), { project, result } = stored, unit = project.objective.unit;
   const report = () => written(help, { type: "report", input: { project, result, finished: stored.finished, experiment: name, curve: stored.curve, comparison } });
-  const drawing = async () => svgFile(await written(help, { type: "drawing", project, solution: result.best.solution, curve: stored.curve })) ?? fail("This result has no drawing that can be saved.");
-  const history = () => svgFile(historyChart(result, unit, "history-title").text) ?? fail("This run recorded too few values for a chart.");
+  const drawing = async () => (await written(help, { type: "drawing", project, solution: result.best.solution, curve: stored.curve })) || fail("This result has no drawing that can be saved.");
+  const history = () => {
+    const figure = historyFigure(result, unit);
+    return figure ? figureSvg(figure, "file", "history") : fail("This run recorded too few values for a chart.");
+  };
   return {
     python: async () => saveFile(`${base}.py`, await written(help, { type: "python", project, result }), "text/x-python"),
     report: async () => saveFile(`${base}-report.html`, await report(), "text/html"),

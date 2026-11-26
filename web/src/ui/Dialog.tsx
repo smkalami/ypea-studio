@@ -17,12 +17,13 @@ export function Dialog({ heading, onClose, children }: { heading: string; onClos
   );
 }
 
-/** Asks before something is deleted. Cancel comes first, so it has the focus when the dialog opens. */
-export function ConfirmDialog({ heading, body, action, onDone }: { heading: string; body: ReactNode; action: string; onDone: (confirmed: boolean) => void }) {
+/** Asks before something is deleted. Cancel comes first, so it has the focus when the dialog opens. `children` come after the sentence, for a list. */
+export function ConfirmDialog({ heading, body, action, onDone, children }: { heading: string; body: ReactNode; action: string; onDone: (confirmed: boolean) => void; children?: ReactNode }) {
   const confirmed = useRef(false);
   return (
     <Dialog heading={heading} onClose={() => onDone(confirmed.current)}>
       <p>{body}</p>
+      {children}
       <form method="dialog" className="dialog-actions">
         <button className="btn btn-quiet">Cancel</button>
         <button className="btn btn-danger" onClick={() => (confirmed.current = true)}>{action}</button>

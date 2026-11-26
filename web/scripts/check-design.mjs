@@ -79,12 +79,72 @@ function measure() {
     const heights = new Set([...row.querySelectorAll(":scope > .field > .input, :scope > .field > .select > .input")].filter(visible).map((c) => Math.round(c.getBoundingClientRect().height)));
     if (heights.size > 1) problems.push(`controls of one row differ in height: ${[...heights].join(", ")}`);
   }
+  // a button beside the fields of a row stands at the middle of their controls, while it is on their line
+  for (const beside of scope.querySelectorAll(".row > .beside-field")) {
+    const control = beside.parentElement.querySelector(":scope > .field > .input");
+    if (!visible(beside) || !control) continue;
+    const box = beside.getBoundingClientRect(), other = control.getBoundingClientRect();
+    if (box.top >= other.bottom) continue; // wrapped onto a line of its own in a narrow window
+    const off = Math.abs((box.top + box.bottom) / 2 - (other.top + other.bottom) / 2);
+    if (off > 0.5) problems.push(`a button beside a field is off the middle of the control by ${off.toFixed(1)}`);
+  }
+  // an offer in a hint: when its button wraps onto a line of its own, its words start where the words of the hint start
+  for (const offer of scope.querySelectorAll(".hint .btn")) {
+    if (!visible(offer)) continue;
+    const box = offer.getBoundingClientRect(), hint = offer.closest(".hint").getBoundingClientRect();
+    const start = box.left + parseFloat(getComputedStyle(offer).paddingLeft) + parseFloat(getComputedStyle(offer).borderLeftWidth);
+    const wrapped = box.left < hint.left + 1;
+    if (wrapped && Math.abs(start - hint.left) > 0.5) problems.push(`the words of an offer start at ${start.toFixed(1)}, the hint at ${hint.left.toFixed(1)}`);
+  }
   // text under 12px
   for (const element of scope.querySelectorAll("p, span, label, button, a, th, td, dt, dd, li, legend, figcaption, input, textarea, h1, h2, h3, h4")) {
     if (visible(element) && parseFloat(getComputedStyle(element).fontSize) < 12) problems.push(`text under 12px: ${element.tagName} "${element.textContent.trim().slice(0, 30)}"`);
   }
   return [...new Set(problems)];
 }
+
+// ---- figures, start: what the page can measure about every drawing and chart that is shown
+/**
+ * For every figure on the screen: no two texts overlap, no text is cut by the edge of the figure, the text is at its full size,
+ * every axis of a chart has at least three tick labels, and every series that has a color also has its name as text.
+ */
+function measureFigures() {
+  const problems = [];
+  for (const svg of document.querySelectorAll(".drawing svg")) {
+    if (svg.getClientRects().length === 0) continue;
+    const name = `the figure "${(svg.getAttribute("aria-label") ?? "").slice(0, 36)}"`;
+    const frame = svg.getBoundingClientRect();
+    if (frame.width / svg.viewBox.baseVal.width < 0.999) problems.push(`${name} is drawn smaller than its natural size, so its text is under 12px`);
+    // the box of the letters themselves on the screen, without the halo around a label, also for a text that is turned
+    const boxOf = (text) => {
+      const box = text.getBBox(), matrix = text.getScreenCTM();
+      const corners = [[box.x, box.y], [box.x + box.width, box.y], [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+      const xs = corners.map((p) => p.x), ys = corners.map((p) => p.y);
+      return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
+    };
+    const texts = [...svg.querySelectorAll("text")].map((text) => ({ words: text.textContent, box: boxOf(text) }));
+    for (let i = 0; i < texts.length; i++) {
+      const a = texts[i].box;
+      if (a.left < frame.left - 0.5 || a.right > frame.right + 0.5 || a.top < frame.top - 0.5 || a.bottom > frame.bottom + 0.5) problems.push(`${name}: the text "${texts[i].words}" is cut by the edge of the figure`);
+      for (let j = 0; j < i; j++) {
+        const b = texts[j].box;
+        if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) problems.push(`${name}: the texts "${texts[j].words}" and "${texts[i].words}" overlap`);
+      }
+    }
+    for (const axis of ["x", "y"]) {
+      const ticks = svg.querySelectorAll(`text[data-tick=${axis}]`).length;
+      if (ticks > 0 && ticks < 3) problems.push(`${name}: the ${axis} axis has ${ticks} tick labels`);
+    }
+    if (svg.querySelector("[data-tick]") && !svg.querySelector("text[data-tick=x]")) problems.push(`${name}: a chart without tick labels along the bottom`);
+    for (const series of new Set([...svg.querySelectorAll(":not(text)[data-series]")].map((mark) => mark.getAttribute("data-series")))) {
+      // its name beside its line, and its entry in the legend
+      const named = svg.querySelectorAll(`text[data-series="${series}"]`).length;
+      if (named < 2) problems.push(`${name}: series ${series} has a color and ${named} of its 2 texts (its name on the figure and its legend entry)`);
+    }
+  }
+  return [...new Set(problems)];
+}
+// ---- figures, end
 
 async function walk(browser, size, theme) {
   const label = `${size.name} ${theme}`;
@@ -101,7 +161,7 @@ async function walk(browser, size, theme) {
     screens++;
     const id = `${String(++number).padStart(2, "0")}-${name}`;
     await page.waitForTimeout(250); // transitions end
-    for (const problem of await page.evaluate(measure)) findings.push(`${label}, ${id}: ${problem}`);
+    for (const problem of [...await page.evaluate(measure), ...await page.evaluate(measureFigures)]) findings.push(`${label}, ${id}: ${problem}`);
     await page.addScriptTag({ content: axeSource });
     const scan = await page.evaluate(() => window.axe.run(document, { resultTypes: ["violations"] }));
     for (const violation of scan.violations) {
@@ -121,6 +181,16 @@ async function walk(browser, size, theme) {
   const choose = async (box, value) => {
     await box.click();
     await page.getByRole("listbox").locator(`[data-value="${value}"]`).click();
+  };
+  /** The halo of a button that the keyboard reached: it is left and reached again, so that the focus is one that shows. */
+  const haloOf = async (name, what) => {
+    await button(name).focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForTimeout(250);
+    const [reached, shadow] = await page.evaluate(() => [(document.activeElement.getAttribute("aria-label") ?? document.activeElement.textContent).trim(), getComputedStyle(document.activeElement).boxShadow]);
+    if (reached !== name || shadow === "none") findings.push(`${label}: no focus halo on ${what}: the focus is on "${reached}" with ${shadow}`);
+    measured[`${theme}: halo of ${what}`] = shadow;
   };
   const toList = async () => {
     await button("All projects").click();
@@ -321,6 +391,73 @@ async function walk(browser, size, theme) {
   await choose(field("Preset"), "largest-load");
   await audit("routes-constraint-preset");
 
+  // ---- figures, start: the checks of figures are tried on planted faults, the chart of a run is read with the keyboard, and the examples that the walk has not run yet are run
+  const runExample = async (name) => {
+    await toList();
+    await button(name).click();
+    await button("Run").waitFor();
+    await button("Run").click();
+    await page.locator(".result").waitFor();
+  };
+  await runExample("Benchmark functions");
+  // Planted faults: a text on top of a tick label, a text outside the figure, a value axis with two ticks, and a series with no name. Each must be reported, or the silence of the checks means nothing.
+  await page.evaluate(() => {
+    const svg = document.querySelector(".result .drawing svg"), tick = svg.querySelector("text[data-tick=x]");
+    for (const x of [tick.getAttribute("x"), "-30"]) {
+      const copy = svg.appendChild(tick.cloneNode(true));
+      copy.removeAttribute("data-tick");
+      copy.setAttribute("x", x);
+      copy.setAttribute("data-planted", "");
+    }
+    svg.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "path")).setAttribute("data-series", "9");
+    svg.lastChild.setAttribute("data-planted", "");
+    for (const label of [...svg.querySelectorAll("text[data-tick=y]")].slice(2)) {
+      label.removeAttribute("data-tick");
+      label.setAttribute("data-was-tick", "");
+    }
+  });
+  const faults = (await page.evaluate(measureFigures)).join("\n");
+  for (const fault of [/" overlap$/m, /is cut by the edge of the figure$/m, /the y axis has 2 tick labels$/m, /series 9 has a color and 0 of its 2 texts/]) assert.match(faults, fault, "the checks of figures report a planted fault");
+  await page.evaluate(() => {
+    for (const planted of document.querySelectorAll("[data-planted]")) planted.remove();
+    for (const label of document.querySelectorAll("[data-was-tick]")) label.setAttribute("data-tick", "y");
+  });
+  await audit("figures-benchmark-result");
+  // the chart of a run gives its values to the keyboard: End goes to the last checkpoint, the left arrow one back, and Escape clears the mark
+  const read = page.locator(".result .chart-read"), readout = read.locator(".hint");
+  const idleWords = await readout.innerText();
+  await read.locator(".drawing-box").focus();
+  await page.keyboard.press("End");
+  assert.match(await readout.innerText(), /^After 20,000 evaluations: \S+\.$/);
+  await page.keyboard.press("ArrowLeft");
+  assert.match(await readout.innerText(), /^After 19,800 evaluations: \S+\.$/);
+  assert.equal(await read.locator("svg circle").count(), 1, "the checkpoint that is read is marked on the chart");
+  assert.equal(await page.evaluate(() => document.activeElement.classList.contains("drawing-box")), true, "the chart keeps the focus while it is read");
+  // In a narrow window the chart is wider than its box, and the arrow keys no longer scroll it. So the box follows the mark: at both ends of the run the mark is in view.
+  const markInView = () => read.evaluate((holder) => {
+    const box = holder.querySelector(".drawing-box").getBoundingClientRect(), mark = holder.querySelector("svg circle").getBoundingClientRect();
+    return mark.left >= box.left && mark.right <= box.right;
+  });
+  assert.equal(await markInView(), true, "the mark of the checkpoint before the last is in view");
+  await page.keyboard.press("Home");
+  assert.match(await readout.innerText(), /^After 200 evaluations: \S+\.$/);
+  assert.equal(await markInView(), true, "the mark of the first checkpoint is in view");
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await audit("figures-history-read-with-the-keyboard");
+  await page.keyboard.press("Escape");
+  assert.equal(await readout.innerText(), idleWords);
+  // the pointer reads a value too, and leaving the chart clears it
+  await read.locator(".drawing-box").hover();
+  assert.match(await readout.innerText(), /^After [\d,]+ evaluations: \S+\.$/);
+  await page.mouse.move(0, 0);
+  await readout.filter({ hasText: idleWords }).waitFor();
+  for (const name of ["Traveling salesman", "Assignment"]) {
+    await runExample(name);
+    await audit(`figures-${name.toLowerCase().replace(" ", "-")}-result`);
+  }
+  // ---- figures, end
+
   // a run that lasts: the live preview, then cancelled
   await toList();
   await page.locator("#project-file").setInputFiles({ name: "route.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({ ...tsp, name: "Long route", run: { ...tsp.run, budget: 2_000_000_000 } })) });
@@ -368,6 +505,72 @@ async function walk(browser, size, theme) {
   await button("Run").click();
   await page.locator(".run-status[data-state=error]").waitFor();
   await audit("blank-run-refused");
+
+  // editing: the suggested solver, a removal with Undo and then Redo in the status line, the dialog that names what uses a column,
+  // a new name offered to the places that use the old one, and the way back from a run
+  await go("Variables");
+  await button("Add a variable").click();
+  await go("Quick run");
+  await page.locator(".suggested").waitFor();
+  await audit("suggested-solver");
+  await go("Variables");
+  const calm = await place();
+  await button("Remove variable x").click();
+  await button("Undo").waitFor();
+  const noted = await place();
+  await audit("removed-with-undo");
+  // The Undo button must not make the status line taller than its words. Where the button does not fit beside the words
+  // it takes a line of its own, which is recorded, not refused.
+  const line = await page.evaluate(() => {
+    const row = document.querySelector(".run-status"), words = row.querySelector("p").getBoundingClientRect(), undo = row.querySelector("button").getBoundingClientRect();
+    return { extra: Math.round((row.getBoundingClientRect().height - words.height) * 10) / 10, wrapped: undo.top >= words.bottom - 1 };
+  });
+  if (line.wrapped) measured[`${label}: the Undo button takes a line of its own under the words, and the status line is ${line.extra}px taller`] = "recorded, a narrow window";
+  else if (Math.abs(line.extra) > 0.5) findings.push(`${label}: the Undo button makes the status line ${line.extra}px taller than its words`);
+  else measured[`${label}: the status line is as tall with the Undo button as its words alone`] = `${line.extra}px more`;
+  // In a wide window, where every message is one line, the page must not move at all. The message before was the refusal of a run.
+  if (size.width >= 1180) {
+    if (JSON.stringify(calm) !== JSON.stringify(noted)) findings.push(`${label}: the Undo message moves the page: before ${JSON.stringify(calm)}, with it ${JSON.stringify(noted)}`);
+    else measured[`${label}: the panel and the Run button keep their place when the Undo message appears`] = JSON.stringify(calm);
+  }
+  await button("Undo").focus();
+  await page.keyboard.press("Enter");
+  await button("Redo").waitFor();
+  // the same button, used with the keyboard, still has the focus and shows it
+  await page.waitForTimeout(250);
+  const haloOfUndo = await page.evaluate(() => [document.activeElement.textContent, getComputedStyle(document.activeElement).boxShadow]);
+  if (haloOfUndo[0] !== "Redo" || haloOfUndo[1] === "none") findings.push(`${label}: after Undo by the keyboard the focus is on "${haloOfUndo[0]}" with the halo ${haloOfUndo[1]}`);
+  measured[`${theme}: halo of the Redo button in the status line`] = haloOfUndo[1];
+  await audit("undone-with-redo");
+  // a very long name in the message must not break the bar
+  await field("Name", page.locator("fieldset.item").first()).fill("a_variable_with_a_very_long_name_that_goes_on_and_on_Supercalifragilisticexpialidocious_and_more_without_a_break");
+  await page.locator(".item-head .btn").first().click();
+  await button("Undo").waitFor();
+  await audit("removed-long-name");
+  await toList();
+  await button("0/1 knapsack").click();
+  await button("Run").waitFor();
+  await go("Data");
+  await button("Remove column weight").click();
+  await page.getByRole("dialog").waitFor();
+  await audit("dialog-remove-column-in-use");
+  await page.keyboard.press("Escape");
+  await field("Name of column 0").fill("mass");
+  await button("Rename there too").waitFor();
+  await audit("rename-offer");
+  await haloOf("Rename there too", "the offer under a name");
+  await haloOf("Remove column mass", "the Remove column button");
+  await button("Rename there too").click();
+  await go("Constraints");
+  await button("Run").click();
+  await page.locator(".result").waitFor();
+  await button("Back to Constraints").waitFor();
+  await audit("back-to-part");
+  await haloOf("Back to Constraints", "the Back to button of the run bar");
+  await button("Back to Constraints").click();
+  await page.getByRole("heading", { name: "Constraints", exact: true }).waitFor();
+  await button("Show the result").waitFor();
+  await audit("back-on-the-part");
   await context.close();
   console.log(`  ${label}: ${number} screens`);
 }

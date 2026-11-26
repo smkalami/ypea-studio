@@ -75,7 +75,7 @@ function valuesHint(v: VariableSpec & Record<string, any>): string {
 
 interface Props {
   project: Project;
-  set: (project: Project) => void;
+  set: (project: Project, note?: string) => void;
   issues: Issue[];
   texts: Texts;
   setTexts: (texts: Texts) => void;
@@ -127,9 +127,9 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
     setOutcome(undefined);
   };
   const reference = project.reference;
-  const setReference = (next: NonNullable<Project["reference"]>) => {
+  const setReference = (next: NonNullable<Project["reference"]>, note?: string) => {
     const { reference: old, ...rest } = project;
-    set(next.objective === undefined && next.solution === undefined ? rest : { ...rest, reference: next });
+    set(next.objective === undefined && next.solution === undefined ? rest : { ...rest, reference: next }, note);
   };
 
   return (
@@ -207,7 +207,7 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
           {project.baseline && (
             <div className="stored">
               <p>Stored: <strong>{String(project.baseline.label)}</strong>, {Object.entries(project.baseline.solution ?? {}).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.</p>
-              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { baseline, ...rest } = project; set(rest); }}><Icon name="trash" />Remove the baseline</button>
+              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { baseline, ...rest } = project; set(rest, "The baseline was removed."); }}><Icon name="trash" />Remove the baseline</button>
             </div>
           )}
           <Field label="Name of the baseline">
@@ -234,7 +234,7 @@ export function CandidatePanel({ project, set, issues, texts, setTexts, outcome,
           {reference?.solution && (
             <div className="stored">
               <p>Stored solution: {Object.entries(reference.solution).map(([name, value]) => `${name} = ${show(value)}`).join(", ")}.</p>
-              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { solution, ...rest } = reference; setReference(rest); }}><Icon name="trash" />Remove the known solution</button>
+              <button type="button" className="btn btn-quiet btn-compact" onClick={() => { const { solution, ...rest } = reference; setReference(rest, "The known solution was removed."); }}><Icon name="trash" />Remove the known solution</button>
             </div>
           )}
           <div className="row">

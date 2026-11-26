@@ -16,6 +16,12 @@ export interface StoredProject {
    * `parseProject` yet. Read it with care, and check it before it runs.
    */
   project: Project;
+  /**
+   * The ids of the experiments that still are the solver the app suggested (empty text for the
+   * first one). The app keeps them up to date with the variables until the user changes one by
+   * hand. Kept beside the project, not in it, so a project file does not carry it.
+   */
+  suggested?: string[];
 }
 
 /**
@@ -82,8 +88,8 @@ export async function listProjects(): Promise<StoredProject[]> {
 const newId = () => Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) => n.toString(36)).join("-");
 
 /** Stores a project, new or changed, and returns its record. */
-export async function saveProject(project: Project, id: string = newId()): Promise<StoredProject> {
-  const record: StoredProject = { id, updated: Date.now(), project };
+export async function saveProject(project: Project, id: string = newId(), suggested: string[] = []): Promise<StoredProject> {
+  const record: StoredProject = { id, updated: Date.now(), project, ...(suggested.length ? { suggested } : {}) };
   await transact([PROJECTS], "readwrite", (tx) => void tx.objectStore(PROJECTS).put(record));
   return record;
 }

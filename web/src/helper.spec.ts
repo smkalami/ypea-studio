@@ -41,6 +41,31 @@ test("a language problem names its field, line and column, and every field shows
   assert.deepEqual(checkProject(fit).map((i) => i.where), ["view"]);
 });
 
+test("a drawing or a stored solution that no longer fits does not hide the expressions that lost the same name", () => {
+  // a variable is removed: the baseline and the known solution still hold it, and the objective and the drawing still use it
+  const fit: any = structuredClone(linefit);
+  fit.variables.pop();
+  const found = checkProject(fit);
+  assert.deepEqual(found.map((i) => i.where), ["baseline", "reference", "objective", "view"]);
+  assert.match(found[0].message, /^"baseline\.solution": it must give a value for every variable/);
+  assert.match(found[2].message, /^The name "gain" is not known\./);
+  assert.ok(found.every((i) => !i.message.startsWith("Project file")));
+  // a column is removed: the drawing names it, and the constraint that uses it shows its own problem too
+  const sack: any = structuredClone(knapsack);
+  sack.data[0].columns.shift();
+  assert.deepEqual(checkProject(sack).map((i) => [i.where, i.message.slice(0, 31)]), [
+    ["view", '"view.size" must be the name of'],
+    ["constraint.0.left", 'The name "weight" is not known.'],
+  ]);
+  // the project given to the check keeps its drawing and its stored solutions
+  assert.ok(fit.baseline && fit.reference && fit.view && sack.view);
+  // any other problem of the file is still the only one that is said
+  const broken: any = structuredClone(linefit);
+  broken.variables.pop();
+  broken.version = 9;
+  assert.deepEqual(checkProject(broken).map((i) => i.where), ["overview"]);
+});
+
 test("a problem of the project file is placed on the part of the editor it belongs to", () => {
   const where = (example: object, change: (p: any) => void) => {
     const p: any = structuredClone(example);
@@ -64,7 +89,6 @@ test("a problem of the project file is placed on the part of the editor it belon
   assert.equal(where(linefit, (p) => (p.data[0].columns[0].unit = 1)), "data.0.column.0");
   assert.equal(where(linefit, (p) => (p.objective.unit = 5)), "objective");
   assert.equal(where(linefit, (p) => (p.baseline.solution.gain = 500)), "baseline");
-  assert.equal(where(linefit, (p) => p.variables.pop()), "baseline");
   assert.equal(where(linefit, (p) => (p.reference = { objective: "0" })), "reference");
   assert.equal(where(linefit, (p) => (p.view.x = "offset")), "view");
   assert.equal(where(linefit, (p) => (p.run.budget = 1.5)), "experiment.");

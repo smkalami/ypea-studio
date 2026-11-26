@@ -161,6 +161,77 @@ test("an infeasible result says so, and an equality can have a tolerance", () =>
   assert.deepEqual(again.best.codes, loose.best.codes);
 });
 
+test("a constraint can carry a relative tolerance and can be turned off, and a file is checked for both", () => {
+  const project = (constraints: unknown[]) => {
+    const p = read("../examples/benchmark.json");
+    p.constraints = constraints;
+    p.run.budget = 600;
+    return parseProject(p);
+  };
+  const sum = { name: "Sum", left: "sum(x)", op: "==", right: "3", unit: "m" };
+  const bad = (constraint: object, message: RegExp) => assert.throws(() => project([{ ...sum, ...constraint }]), message);
+  bad({ relative_tolerance: -0.1 }, /constraint "Sum": "relative_tolerance" must be a number that is not negative, and only "==" can have one/);
+  bad({ relative_tolerance: "1%" }, /"relative_tolerance" must be a number/);
+  bad({ relative_tolerance: Infinity }, /"relative_tolerance" must be a number/);
+  bad({ relative_tolerance: null }, /"relative_tolerance" must be a number/);
+  bad({ op: "<=", relative_tolerance: 0.01 }, /"relative_tolerance" must be a number that is not negative, and only "==" can have one/);
+  bad({ op: ">=", relative_tolerance: 0 }, /only "==" can have one/);
+  bad({ tolerance: -1 }, /"tolerance" must be a number that is not negative/);
+  bad({ enabled: "no" }, /constraint "Sum": "enabled" must be true or false/);
+  bad({ enabled: 0 }, /"enabled" must be true or false/);
+  bad({ enabled: null }, /"enabled" must be true or false/);
+  // the text of a constraint that is off is still translated, so a mistake in it is still reported
+  assert.throws(() => runProject(project([{ ...sum, left: "sum(x", enabled: false }])), /the left side of "Sum"/);
+  assert.throws(() => testCandidate(project([{ ...sum, right: "y", enabled: false }]), { x: new Array(10).fill(0) }), /the right side of "Sum"/);
+  // zero, both together, and a constraint of any kind switched off or on are all valid
+  project([{ ...sum, tolerance: 0, relative_tolerance: 0, enabled: true }, { ...sum, name: "b", tolerance: 0.5, relative_tolerance: 0.01 }, { ...sum, name: "c", op: "<=", enabled: false }]);
+
+  // absent means: no relative tolerance, and switched on
+  const candidate = { x: [3.3, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  const [exact] = testCandidate(project([sum]), candidate).checks;
+  assert.deepEqual(exact, { name: "Sum", op: "==", unit: "m", tolerance: 0, relativeTolerance: 0, applied: true, left: 3.3, right: 3, satisfied: false, excess: 3.3 - 3, difference: 3.3 - 3, differencePercent: ((3.3 - 3) / 3) * 100 });
+  const seen = testCandidate(project([{ ...sum, relative_tolerance: 0.2 }, { ...sum, name: "Tight", tolerance: 0.1, relative_tolerance: 0.01 }, { ...sum, name: "Off", enabled: false }]), candidate);
+  assert.deepEqual(seen.checks.map((c) => [c.name, c.applied, c.satisfied, c.excess]), [
+    ["Sum", true, true, (3.3 - 3) - (0 + 0.2 * 3)],
+    ["Tight", true, false, (3.3 - 3) - (0.1 + 0.01 * 3)],
+    ["Off", false, undefined, undefined],
+  ]);
+  // a constraint that is off carries both sides and nothing that reads as a verdict
+  assert.deepEqual(seen.checks[2], { name: "Off", op: "==", unit: "m", tolerance: 0, relativeTolerance: 0, applied: false, left: 3.3, right: 3 });
+  // the older list holds the constraints that were applied, in the shape it always had
+  assert.deepEqual(seen.constraints, [
+    { name: "Sum", op: "==", unit: "m", tolerance: 0, left: 3.3, right: 3, satisfied: true },
+    { name: "Tight", op: "==", unit: "m", tolerance: 0.1, left: 3.3, right: 3, satisfied: false },
+  ]);
+  assert.equal(seen.feasible, false);
+  // a broken constraint that is off never makes a candidate infeasible
+  const loose = testCandidate(project([{ ...sum, relative_tolerance: 0.2 }, { ...sum, name: "Off", enabled: false }]), candidate);
+  assert.deepEqual([loose.feasible, loose.constraints.length, loose.checks.length], [true, 1, 2]);
+  assert.deepEqual([testCandidate(project([{ ...sum, enabled: false }]), candidate).feasible, testCandidate(project([sum]), candidate).feasible], [true, false]);
+
+  // a run: the constraint that is off has no scale and adds nothing to the violation
+  const both = project([{ ...sum, relative_tolerance: 0.02 }, { name: "Never", left: "sum(x * x)", op: "<=", right: "-1", enabled: false }]);
+  const result = runProject(both);
+  assert.equal(result.scales.length, 2);
+  assert.ok(typeof result.scales[0] === "number" && result.scales[0] > 0 && result.scales[1] === null);
+  assert.deepEqual([result.status, result.best.feasible, result.best.violation], ["Best feasible solution found", true, 0]);
+  assert.deepEqual(result.best.checks.map((c) => [c.name, c.applied, c.satisfied]), [["Sum", true, true], ["Never", false, undefined]]);
+  assert.ok(result.best.checks[1].left > result.best.checks[1].right);
+  assert.deepEqual(result.best.constraints.map((c) => c.name), ["Sum"]);
+  // the same run without the constraint that is off, and again from its recorded scales
+  const without = runProject(project([both.constraints![0]]));
+  assert.deepEqual([without.trace, without.best.codes, without.scales], [result.trace, result.best.codes, [result.scales[0]]]);
+  assert.deepEqual(runProject(both, { scales: result.scales }).best.codes, result.best.codes);
+  // a number in the place of the scale of a constraint that is off is not read, and one that is on needs its scale
+  assert.deepEqual(runProject(both, { scales: [result.scales[0], 123] }).scales, result.scales);
+  for (const scales of [[null, null], [result.scales[0]], [0, null], [-1, null], [NaN, null]]) {
+    assert.throws(() => runProject(both, { scales }), /one positive scale for every constraint that is on/);
+  }
+  // switched on, the same constraint makes the run infeasible
+  const on = runProject(project([both.constraints![0], { ...both.constraints![1], enabled: true }]));
+  assert.deepEqual([on.best.feasible, on.best.checks[1].satisfied, on.best.checks[1].applied], [false, false, true]);
+});
+
 test("the route objective stays far above the speed target", () => {
   // the target is 100,000 evaluations per second for the 50-city route objective
   const n = 50, rng = new Rng(8);
@@ -296,7 +367,21 @@ test("a view names real columns and variables, and a fitted line gives its curve
   assert.equal(parseProject(knapsack).view!.kind, "selection");
 
   // several routes from one depot: a partition variable, coordinates for the depot and every item, and the row of the depot
-  assert.deepEqual(parseProject(read("../examples/vrp.json")).view, { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0 });
+  assert.deepEqual(parseProject(read("../examples/vrp.json")).view, { kind: "routes", variable: "routes", x: "x", y: "y", depot: 0, distance: "distance" });
+  // the table of distances is optional, for one route and for several: a square table with a row for every row of the coordinates
+  const distanceTable = /"view.distance" must be the name of a square data table with a row and a column for every row of "x"/;
+  bad("vrp", (p) => (p.view.distance = "demand"), distanceTable);
+  bad("vrp", (p) => (p.view.distance = "nothing"), distanceTable);
+  bad("vrp", (p) => (p.view.distance = 3), distanceTable);
+  bad("vrp", (p) => p.data[2].values.pop(), distanceTable);
+  bad("vrp", (p) => (p.data[2].values = p.data[2].values.slice(0, 15).map((row: number[]) => row.slice(0, 15))), distanceTable);
+  const without = read("../examples/vrp.json");
+  delete without.view.distance;
+  assert.equal("distance" in parseProject(without).view!, false);
+  const tour = read("../examples/tsp.json");
+  tour.view.distance = "distance";
+  assert.equal((parseProject(tour).view as { distance?: string }).distance, "distance");
+  bad("tsp", (p) => (p.view.distance = "x"), distanceTable);
   assert.equal(buildCurve(parseProject(read("../examples/vrp.json"))), undefined);
   bad("vrp", (p) => (p.view.variable = "x"), /"view.variable" must be the name of a partition variable/);
   bad("vrp", (p) => (p.view.y = "demand"), /"view.x" and "view.y" must have the same length, with a row for the depot and one for every item of "routes"/);

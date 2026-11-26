@@ -162,6 +162,44 @@ test("a result that is not feasible: the history says so, and the file reads bac
   assert.equal("objective" in file.comparison!.experiments[0], false);
 });
 
+test("the file carries the tolerances, which constraints were off, and the breach of every constraint", () => {
+  const knapsack = quick(example("knapsack.json"));
+  const project = parseProject(JSON.parse(JSON.stringify({ ...knapsack, constraints: [
+    ...knapsack.constraints!,
+    { name: "Seven items", left: "sum(take)", op: "==", right: "7", tolerance: 1, relative_tolerance: 0.01 },
+    { name: "Impossible", left: "sum(take)", op: "<=", right: "-1" },
+    { name: "Switched off", left: "sum(take)", op: ">=", right: "40", enabled: false },
+  ] })));
+  const result = runProject(project), file = parseResultFile(resultJson({ project, result }));
+  assert.deepEqual(file.project.constraints!.map((c) => [c.tolerance, c.relative_tolerance, c.enabled]), [[undefined, undefined, undefined], [1, 0.01, undefined], [undefined, undefined, undefined], [undefined, undefined, false]]);
+  assert.deepEqual(file.result.best.checks, JSON.parse(JSON.stringify(result.best.checks)));
+  assert.deepEqual(file.result.best.checks.map((c) => [c.name, c.applied, c.tolerance, c.relativeTolerance, c.satisfied]), [
+    ["Total weight", true, 0, 0, true], ["Seven items", true, 1, 0.01, true], ["Impossible", true, 0, 0, false], ["Switched off", false, 0, 0, undefined]]);
+  const impossible = file.result.best.checks[2];
+  assert.deepEqual([impossible.excess, impossible.difference, impossible.differencePercent], [impossible.left + 1, impossible.left + 1, (impossible.left + 1) * 100]);
+  assert.deepEqual(file.result.best.constraints.map((c) => c.name), ["Total weight", "Seven items", "Impossible"]);
+  assert.deepEqual(file.result.scales.map((s) => typeof s), ["number", "number", "number", "object"]);
+  assert.equal(file.result.scales[3], null);
+  // the file gives the same run again
+  const again = runProject(file.project, { scales: file.result.scales });
+  assert.deepEqual([again.trace, again.best.codes], [result.trace, result.best.codes]);
+  // the tables for a spreadsheet hold the solution and the history, and need nothing from the constraints
+  assert.deepEqual(readCsv(solutionCsv(project, result))[0], ["variable", "position", "value", "unit"]);
+  assert.deepEqual(readCsv(historyCsv(result))[0], ["evaluations", "best_value", "feasible"]);
+});
+
+test("a result file stored before the tolerances and the switch existed still reads back", () => {
+  const project = impossible(), result = runProject(project);
+  const old = JSON.parse(resultJson({ project, result }));
+  delete old.result.best.checks;
+  const file = parseResultFile(JSON.stringify(old));
+  assert.equal(file.result.best.checks, undefined);
+  assert.deepEqual(file.result.best.constraints, JSON.parse(JSON.stringify(result.best.constraints)));
+  assert.deepEqual(file.result.scales, result.scales);
+  assert.deepEqual(readCsv(historyCsv(file.result)), readCsv(historyCsv(result)));
+  assert.deepEqual(runProject(file.project, { scales: file.result.scales }).best.codes, result.best.codes);
+});
+
 test("a number that is not finite is written as null", () => {
   const project = quick(example("benchmark.json")), result = runProject(project);
   const broken = { ...result, best: { ...result.best, objective: Infinity, violation: NaN } };

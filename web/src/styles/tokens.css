@@ -59,6 +59,17 @@
   --danger-line: #fecaca;
   --on-danger: #ffffff;
 
+  /* Series of a figure, in the order of use: the palette of Okabe and Ito, each hue made as
+     dark as it must be to stand 3:1 or more against the surface. A series is never told by
+     its color alone: it also carries its name on the figure and in the legend. */
+  --series-1: #003f66;     /* blue */
+  --series-2: #996800;     /* orange */
+  --series-3: #2f6788;     /* sky blue */
+  --series-4: #8d3c00;     /* vermilion */
+  --series-5: #008f68;     /* bluish green */
+  --series-6: #cc79a7;     /* reddish purple */
+  --series-7: #000000;     /* the neutral, last */
+
   /* Links keep the accent everywhere, also inside tinted callouts. */
   --link: var(--accent-ink);
   --link-hover: var(--accent-ink-hover);
@@ -231,6 +242,13 @@
     --danger-soft: #2b1620;
     --danger-line: #7f1d1d;
     --on-danger: #0b1220;
+    --series-1: #0072b2;
+    --series-2: #e69f00;
+    --series-3: #56b4e9;
+    --series-4: #d55e00;
+    --series-5: #009e73;
+    --series-6: #cc79a7;
+    --series-7: #ffffff;
     --focus-glow: rgb(96 165 250 / 0.45);
     --scrim: rgb(0 0 0 / 0.6);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
@@ -272,6 +290,13 @@
   --danger-soft: #2b1620;
   --danger-line: #7f1d1d;
   --on-danger: #0b1220;
+  --series-1: #0072b2;
+  --series-2: #e69f00;
+  --series-3: #56b4e9;
+  --series-4: #d55e00;
+  --series-5: #009e73;
+  --series-6: #cc79a7;
+  --series-7: #ffffff;
   --focus-glow: rgb(96 165 250 / 0.45);
   --scrim: rgb(0 0 0 / 0.6);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);

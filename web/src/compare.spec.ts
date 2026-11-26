@@ -10,11 +10,13 @@ import { checkComparable, summarize } from "../../engine/compare.ts";
 import { parseProject, type Project } from "../../engine/project.ts";
 import { deriveSeed } from "../../engine/rng.ts";
 import { runProject, type RunResult } from "../../engine/run.ts";
-import { comparisonCharts, historyChart } from "../../export/report-drawings.ts";
+import { comparisonFigures, historyFigure } from "../../export/figures/build.ts";
+import { figureSvg } from "../../export/figures/figure.ts";
+import { comparisonCharts } from "../../export/report-drawings.ts";
 import { comparableRun, comparisonChanged, jobsOf, planComparison, poolSize, readComparison, REFERENCE, runsOf, type StoredComparison } from "./compare.ts";
 import { experimentsOf, projectFor, withExperiment, withoutExperiment } from "./draft.ts";
 import { handleHelp, handleRun, runJobs, type RunMessage, type RunRequest, type WorkerLike } from "./protocol.ts";
-import { comparisonSvg, drawingStyle, fileName, svgFile } from "./share.ts";
+import { comparisonSvg, fileName } from "./share.ts";
 import {
   deleteProject, loadComparison, loadResults, projectWithResults, readProjectFile, RESULT_VERSION, saveComparison, saveProject, saveResult, type StoredResult,
 } from "./storage.ts";
@@ -219,37 +221,38 @@ test("the helper writes the script, the report and the drawing of a stored resul
   const report = handleHelp({ type: "report", input: { project: linefit, result, finished: 0, experiment: "Quick run" } });
   assert.ok(report.type === "text" && report.text.startsWith("<!doctype html>") && !/<script/i.test(report.text));
   const drawing = handleHelp({ type: "drawing", project: linefit, solution: result.best.solution });
-  assert.ok(drawing.type === "text" && drawing.text.includes("<svg") && drawing.text.includes("with the fitted line"));
+  assert.ok(drawing.type === "text" && drawing.text.startsWith("<svg xmlns=") && drawing.text.includes("with the fitted line"));
   const none = handleHelp({ type: "drawing", project: { ...linefit, view: undefined }, solution: result.best.solution });
   assert.deepEqual(none, { type: "text", text: "" });
   // a project that the engine refuses gives its message, not a file
   assert.deepEqual(handleHelp({ type: "python", project: { ...linefit, version: 9 }, result }), { type: "error", message: "Project file: version 9 is not supported (this engine reads version 1)" });
 });
 
-test("a chart as a file of its own: colors written out, a background, and its words as the text alternative", async () => {
-  const { rules, surface } = drawingStyle();
-  assert.equal(surface, "#ffffff");
-  for (const part of ["text {", ".axes line {", ".mark-line {", ".mark-line.not-result {", ".band {", ".mark-item.chosen {", "#1d4ed8", "system-ui"]) assert.ok(rules.includes(part), part);
-  assert.doesNotMatch(rules, /var\(|inherit|undefined|currentColor|[<>&]/);
-
-  const result = runProject(project), history = svgFile(historyChart(result, "$", "history-title").text)!;
-  assert.match(history, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 440 300" width="440" height="300" role="img" aria-labelledby="history-title"><title id="history-title">The best value went from /);
-  assert.match(history, /<\/title><style>[^<]*<\/style><rect width="100%" height="100%" fill="#ffffff"\/>/);
-  assert.doesNotMatch(history, /var\(|<script|href|<figure|<figcaption/);
-  assert.equal(svgFile("<p>no drawing</p>"), undefined);
+test("a chart as a file of its own: colors written out, a background, a title and a description", async () => {
+  const result = runProject(project), history = figureSvg(historyFigure(result, "$")!, "file", "history");
+  assert.match(history, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 440 338" width="440" height="338" role="img" aria-labelledby="history-title history-desc" font-size="12" font-family="system-ui, [^"]+"><title id="history-title">Best value against evaluations<\/title><desc id="history-desc">The best value went from /);
+  assert.match(history, /<\/desc><rect width="440" height="338" fill="#ffffff"\/>/);
+  assert.doesNotMatch(history, /var\(|class=|<style|style=|currentColor|<script|href|<figure|<figcaption/);
+  // the helper writes the drawing of a solution as such a file too
+  const drawing = handleHelp({ type: "drawing", project, solution: result.best.solution });
+  assert.ok(drawing.type === "text" && /^<svg xmlns="[^"]+" viewBox="0 0 440 \d+" width="440" height="\d+" role="img" aria-labelledby="drawing-title drawing-desc"/.test(drawing.text));
 
   const comparison = summarize(runsOf(await compare(2, () => 0)));
   const charts = comparisonSvg(comparison)!;
-  assert.equal((charts.match(/<svg /g) ?? []).length, 4);
+  // one picture, with each chart moved down under the one before
+  assert.equal((charts.match(/<svg /g) ?? []).length, 1);
+  assert.equal((charts.match(/<g transform="translate\(0 \d+\)">/g) ?? []).length, 3);
   assert.equal((charts.match(/<title/g) ?? []).length, 1);
-  assert.doesNotMatch(charts, /var\(|<figure|<strong/);
+  assert.match(charts, /<desc id="comparison-desc">[^<]*Feasible runs: /);
+  assert.doesNotMatch(charts, /var\(|class=|<style|<figure|<strong/);
   for (const e of comparison.experiments) assert.ok(charts.includes(`${e.name.replace("(", "(")}: ${e.feasibleRuns} of ${e.runs} runs feasible`));
-  assert.equal(Number(charts.match(/ height="(\d+)"/)![1]), 12 + 3 * (20 + 240 + 12));
-  // the markup of the report has one figure for each experiment, which this file is cut from
+  assert.equal(Number(charts.match(/ height="(\d+)"/)![1]), 12 + 3 * (20 + 260 + 12));
+  // the app and the report draw the same charts, one for each experiment
+  assert.equal(comparisonFigures(comparison)!.length, comparison.experiments.length);
   assert.equal(comparisonCharts(comparison, "c").text.split("<figure>").length - 1, comparison.experiments.length);
   // an experiment with no feasible run has a sentence in place of its chart, and no chart at all is no file
   const none = { ...comparison, experiments: comparison.experiments.map((e, n) => (n ? e : { ...e, feasibleRuns: 0, objective: undefined, curve: { ...e.curve, median: e.curve.median.map(() => null), q1: e.curve.q1.map(() => null), q3: e.curve.q3.map(() => null) } })) };
-  assert.match(comparisonSvg(none)!, /GA: 0 of 4 runs feasible<\/text><\/g><text x="8" y="\d+">No run was feasible/);
+  assert.match(comparisonSvg(none)!, /GA: 0 of 4 runs feasible<\/text><text fill="#475569" x="8" y="\d+">No run was feasible/);
   assert.equal(comparisonSvg({ ...none, experiments: [none.experiments[0]] }), undefined);
   // a name from a shared file cannot become markup
   assert.ok(comparisonSvg({ ...comparison, experiments: [{ ...comparison.experiments[0], name: "<svg onload=x>" }] })!.includes("&lt;svg onload=x&gt;: "));

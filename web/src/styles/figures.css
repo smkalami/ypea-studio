@@ -1,0 +1,31 @@
+/* The colors inside a drawing or a chart, by role. Each class reads one design token, so a
+   figure follows the light and the dark theme. The rules below are written by figureCss in
+   export/figures/figure.ts, and a test fails when this file and that function disagree. */
+.fig-fill-ink { fill: var(--ink); }
+.fig-stroke-ink { stroke: var(--ink); }
+.fig-fill-muted { fill: var(--ink-3); }
+.fig-stroke-muted { stroke: var(--ink-3); }
+.fig-fill-surface { fill: var(--surface); }
+.fig-stroke-surface { stroke: var(--surface); }
+.fig-fill-grid { fill: var(--line); }
+.fig-stroke-grid { stroke: var(--line); }
+.fig-fill-axis { fill: var(--control-border); }
+.fig-stroke-axis { stroke: var(--control-border); }
+.fig-fill-accent { fill: var(--accent-ink); }
+.fig-stroke-accent { stroke: var(--accent-ink); }
+.fig-fill-band { fill: var(--accent); }
+.fig-stroke-band { stroke: var(--accent); }
+.fig-fill-series-1 { fill: var(--series-1); }
+.fig-stroke-series-1 { stroke: var(--series-1); }
+.fig-fill-series-2 { fill: var(--series-2); }
+.fig-stroke-series-2 { stroke: var(--series-2); }
+.fig-fill-series-3 { fill: var(--series-3); }
+.fig-stroke-series-3 { stroke: var(--series-3); }
+.fig-fill-series-4 { fill: var(--series-4); }
+.fig-stroke-series-4 { stroke: var(--series-4); }
+.fig-fill-series-5 { fill: var(--series-5); }
+.fig-stroke-series-5 { stroke: var(--series-5); }
+.fig-fill-series-6 { fill: var(--series-6); }
+.fig-stroke-series-6 { stroke: var(--series-6); }
+.fig-fill-series-7 { fill: var(--series-7); }
+.fig-stroke-series-7 { stroke: var(--series-7); }
