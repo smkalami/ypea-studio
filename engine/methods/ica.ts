@@ -10,14 +10,18 @@ export const ica: Method = {
   suits: ["real"],
   params: {
     pop_size: popSize,
-    empire_count: { kind: "number", default: 5, min: 2, max: 1e6, integer: true, help: "Number of empires at the start. Less than the number of countries." },
+    empire_count: { kind: "number", default: 10, min: 2, max: 1e6, integer: true, help: "Number of empires at the start. Less than the number of countries." },
     selection_pressure: { kind: "number", default: 1, min: 0, max: 100, help: "Pressure of the power based probabilities." },
-    assimilation_coeff: { kind: "number", default: 1.5, min: 0, max: 10, help: "Each colony moves toward its imperialist by up to this many times their distance." },
+    assimilation_coeff: { kind: "number", default: 2, min: 0, max: 10, help: "Each colony moves toward its imperialist by up to this many times their distance." },
     revolution_prob: { kind: "number", default: 0.05, min: 0, max: 1, help: "Probability that a colony is revolved in an iteration." },
     revolution_rate: { kind: "number", default: 0.1, min: 0, max: 1, help: "Fraction of the components changed by a revolution." },
     revolution_step_size: { kind: "number", default: 0.1, min: 0, max: 10, help: "Initial standard deviation of the revolution, in code units." },
     revolution_step_size_damp: { kind: "number", default: 0.99, min: 1e-9, max: 10, help: "The revolution step size is multiplied by this after every iteration." },
-    zeta: { kind: "number", default: 0.2, min: 0, max: 100, help: "Weight of the mean colony cost in the total cost of an empire." },
+    zeta: { kind: "number", default: 0.1, min: 0, max: 100, help: "Weight of the mean colony cost in the total cost of an empire." },
+    competition: {
+      kind: "choice", default: "paper", options: ["paper", "roulette"],
+      help: "How an empire wins the weakest colony of the weakest empire: by the rule of the original paper, or by a roulette draw on the powers of the empires.",
+    },
   },
   start(ctx) {
     const { rng, evaluator: ev, dim } = ctx;
@@ -27,6 +31,7 @@ export const ica: Method = {
     } = ctx.settings as Record<string, number>;
     if (!(empire_count < n)) throw new Error("Imperialist Competitive Algorithm: \"empire_count\" must be less than \"pop_size\"");
     let sigma = ctx.settings.revolution_step_size as number;
+    const paper = ctx.settings.competition === "paper";
 
     // Math.exp can differ from NumPy's exp in the last digit (see selectionProbs in common.ts)
     const probs = (x: Float64Array): Float64Array => {
@@ -90,9 +95,22 @@ export const ica: Method = {
       for (let e = 1; e < k; e++) if (tc[e] > tc[weakest]) weakest = e;
       // draw only among the other empires, so the weakest can never win its own colony
       const others = Array.from({ length: k }, (_, e) => e).filter((e) => e !== weakest);
-      const all = probs(tc), share = others.map((e) => all[e]), total = npSum(share);
-      const p = share.map((v) => v / total);
-      const winner = () => others[rng.choice(p)];
+      let winner: () => number;
+      if (paper) {
+        // the paper's normalized total costs, and the largest P - U(0, 1) wins (np.argmax takes the first)
+        const ntc = Float64Array.from(others, (e) => Math.abs(tc[e] - tc[weakest])), total = npSum(ntc);
+        const p = ntc.map((v) => (total > 0 ? v / total : 1 / (k - 1)));
+        winner = () => {
+          const u = rng.fill(new Float64Array(k - 1));
+          let best = 0;
+          for (let j = 1; j < k - 1; j++) if (p[j] - u[j] > p[best] - u[best]) best = j;
+          return others[best];
+        };
+      } else {
+        const all = probs(tc), share = others.map((e) => all[e]), total = npSum(share);
+        const p = share.map((v) => v / total);
+        winner = () => others[rng.choice(p)];
+      }
       let colonies = 0, last = -1;
       for (let i = 0; i < n; i++) {
         if (empireOf[i] !== weakest || i === imps[weakest]) continue;

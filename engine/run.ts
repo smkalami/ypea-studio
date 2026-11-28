@@ -9,7 +9,7 @@ import { deriveSeed, philox, Rng } from "./rng.ts";
 
 export const APP_VERSION = "0.1.0";
 /** The ypea release that exports are tested with. Rerun the parity cases against a new release before moving it. */
-export const YPEA_TESTED = "0.6.0";
+export const YPEA_TESTED = "0.7.0";
 
 const CHECKPOINTS = 100;
 /** Number of random candidates that the constraint scales are taken from. */

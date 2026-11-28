@@ -350,6 +350,14 @@ test("a result stored before a setting existed is exported without it, for the y
   assert.ok(!script.includes("w_final") && !script.includes("max_velocity"));
 });
 
+test("ypea's own constraint scaling is turned off, from the release that has it", () => {
+  const { project, result } = EXAMPLES.map(exampleRun).find((e) => (e.project.constraints ?? []).some((c) => c.enabled !== false))!;
+  assert.ok(exportPython(project, result).includes("        constraint_scaling=False,"));
+  assert.ok(!exportPython(project, { ...result, versions: { ...result.versions, ypeaTested: "0.6.0" } }).includes("constraint_scaling"));
+  const free = EXAMPLES.map(exampleRun).find((e) => !(e.project.constraints ?? []).length)!;
+  assert.ok(!exportPython(free.project, free.result).includes("constraint_scaling"));
+});
+
 // Names that a project may use and that this file's own code must not trip over.
 const COLLIDING = (): Project =>
   small({

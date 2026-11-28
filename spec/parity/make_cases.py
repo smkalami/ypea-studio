@@ -334,7 +334,8 @@ def method_cases(only):
             project = run["project"]
             scales = run.get("scales", [])
             problem = ypea.Problem([to_ypea_variable(ypea, v) for v in project["variables"]],
-                                   python_objective(project, scales), sense=project["objective"]["sense"])
+                                   python_objective(project, scales), sense=project["objective"]["sense"],
+                                   constraint_scaling=False)  # the scales of the run are Studio's
             algorithm = getattr(ypea, run["ypea"]["class"])(**run["ypea"]["kwargs"], max_nfe=project["run"]["budget"])
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")  # division by zero gives inf or nan, as the language says

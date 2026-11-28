@@ -22,7 +22,7 @@ The exporter has no dependencies and uses no Node or browser API, so the app can
 5. The objective and both sides of every constraint as the user wrote them, with the variables taken from the solution (`offset = sol.offset`).
 6. For a project with constraints: the list of constraints with the tolerance, the relative tolerance and the scale of each, the rule in one function (`gap`, the rule of `engine/constraints.ts` in the same order of arithmetic), and what ypea calls, which returns `(f, g)` with one `g = gap / scale` for each constraint. The scales are those of the result.
 7. The constraints that were off in the app, as comments with their text. ypea does not get them. When every constraint was off, ypea gets the objective alone, as for a project without constraints.
-8. `main()`: the variables as ypea variables, the problem, the solver with every setting of the result, `max_nfe` as the budget, the seed as `ypea.StudioRng(ypea.derive_seed(base_seed, run_index))`, and the lines that print the result: the status, the objective, every variable, both sides of every constraint that was on (computed again in Python), the names of the constraints that were off, the evaluations used, and the baseline and reference values of the app. A broken constraint is printed with its breach, in the words of `breach` in `report.ts`: the difference between the two sides in the constraint's unit, and as a percentage of the limit unless the limit is 0. Python prints these two numbers with six and three significant digits in its own notation.
+8. `main()`: a note when the installed ypea is not the release the script names, the variables as ypea variables, the problem (with `constraint_scaling=False` when there are constraints and the release is 0.7.0 or later, because the scales of the script are the app's and ypea must not scale again), the solver with every setting of the result, `max_nfe` as the budget, the seed as `ypea.StudioRng(ypea.derive_seed(base_seed, run_index))`, and the lines that print the result: the status, the objective, every variable, both sides of every constraint that was on (computed again in Python), the names of the constraints that were off, the evaluations used, and the baseline and reference values of the app. A broken constraint is printed with its breach, in the words of `breach` in `report.ts`: the difference between the two sides in the constraint's unit, and as a percentage of the limit unless the limit is 0. Python prints these two numbers with six and three significant digits in its own notation.
 
 With the environment variable `YPEA_STUDIO_JSON` set, a script prints one more line at the end: `result.to_dict()` of ypea as JSON, with every digit. The tests read that line.
 
@@ -54,8 +54,8 @@ The second group needs the project's `.venv` folder with the pinned ypea (`YPEA_
 
 ```
 python -m venv .venv
-.venv/Scripts/python -m pip install ypea==0.6.0      (Windows)
-.venv/bin/python -m pip install ypea==0.6.0          (elsewhere)
+.venv/Scripts/python -m pip install ypea==0.7.0      (Windows)
+.venv/bin/python -m pip install ypea==0.7.0          (elsewhere)
 ```
 
 Without it, or with another ypea version in it, these tests are skipped and each one says why.

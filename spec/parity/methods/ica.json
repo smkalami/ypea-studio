@@ -98,7 +98,10 @@
      "pop_size": 12,
      "empire_count": 4,
      "revolution_prob": 0.3,
-     "revolution_rate": 0.25
+     "revolution_rate": 0.25,
+     "assimilation_coeff": 1.5,
+     "zeta": 0.2,
+     "competition": "roulette"
     }
    },
    "project": {
@@ -126,7 +129,10 @@
       "pop_size": 12,
       "empire_count": 4,
       "revolution_prob": 0.3,
-      "revolution_rate": 0.25
+      "revolution_rate": 0.25,
+      "assimilation_coeff": 1.5,
+      "zeta": 0.2,
+      "competition": "roulette"
      },
      "budget": 2003,
      "seed": 23

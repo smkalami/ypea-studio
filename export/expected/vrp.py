@@ -1,5 +1,5 @@
-# Exported from YPEA Studio 0.1.0. Tested with ypea 0.6.0, which needs Python 3.12 or newer.
-# Install it with: pip install ypea==0.6.0
+# Exported from YPEA Studio 0.1.0. Tested with ypea 0.7.0, which needs Python 3.12 or newer.
+# Install it with: pip install ypea==0.7.0
 #
 # Vehicle routing
 # Plan the routes of 4 vehicles that leave one depot, serve 15 customers and return, so that the
@@ -284,6 +284,9 @@ def main():
         sys.stdout.reconfigure(errors="replace")
     except AttributeError:  # an output without this setting, as in a notebook
         pass
+    if ypea.__version__ != "0.7.0":
+        print("Note: this script was tested with ypea 0.7.0, and ypea " + ypea.__version__,
+              "is installed. The numbers can differ.", file=sys.stderr)
 
     problem = ypea.Problem(
         [
@@ -291,6 +294,7 @@ def main():
         ],
         evaluate,
         sense="min",
+        constraint_scaling=False,  # the scales above are the app's, so ypea must not scale again
     )
     solver = ypea.SA(
         pop_size=10,

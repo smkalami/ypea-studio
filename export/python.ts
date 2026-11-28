@@ -204,6 +204,10 @@ export function exportPython(project: Project, result: ExportedRun): string {
   if (!whole(result.seed?.base, 0xffffffff) || !whole(result.seed?.runIndex, 0xffffffff)) fail("the result has no valid seed");
   const version = (v: unknown) => (typeof v === "string" && /^[0-9A-Za-z][0-9A-Za-z.+-]{0,40}$/.test(v) ? v : fail("the result has no valid version"));
   const appVersion = version(result.versions?.app), ypeaVersion = version(result.versions?.ypeaTested);
+  // ypea scales the constraints itself from 0.7.0 on. The app has scaled them already, so the
+  // script turns that off. An earlier release does not know the argument.
+  const [major, minor] = ypeaVersion.split(".").map(Number);
+  const ypeaScales = major > 0 || minor >= 7;
 
   const tables = project.data ?? [];
   const functions = code(project.functions ?? "", "the functions").replace(/^\n+/, "").trimEnd();
@@ -380,6 +384,9 @@ export function exportPython(project: Project, result: ExportedRun): string {
     `        ${N.sys}.stdout.reconfigure(errors="replace")`,
     "    except AttributeError:  # an output without this setting, as in a notebook",
     "        pass",
+    `    if ypea.__version__ != ${str(ypeaVersion)}:`,
+    `        print("Note: this script was tested with ypea ${ypeaVersion}, and ypea " + ypea.__version__,`,
+    `              "is installed. The numbers can differ.", file=${N.sys}.stderr)`,
     "",
     "    problem = ypea.Problem(",
     "        [",
@@ -387,6 +394,7 @@ export function exportPython(project: Project, result: ExportedRun): string {
     "        ],",
     `        ${constraints.length ? N.evaluate : N.objective},`,
     `        sense=${str(sense)},`,
+    ...(constraints.length && ypeaScales ? ["        constraint_scaling=False,  # the scales above are the app's, so ypea must not scale again"] : []),
     "    )",
     `    solver = ypea.${ident(method.ypea)}(`,
     ...Object.entries(settings).map(([key, value]) => `        ${ident(key)}=${pythonLiteral(value)},`),
